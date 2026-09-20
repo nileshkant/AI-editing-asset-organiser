@@ -1,5 +1,7 @@
 pub mod catalog;
 pub mod search;
+pub mod media;
+pub mod library;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
