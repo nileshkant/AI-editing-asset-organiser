@@ -38,8 +38,8 @@ The repository currently has no remote. Local commits/branches are not substitut
 - [SS-022: Settings diagnostics and backup](SS-022.md) | todo | prerequisites: 003,014,018
 - [SS-023: Security and performance qualification](SS-023.md) | todo | prerequisites: 004,009,010,013,018
 - [SS-024: Cross platform installers and releases](SS-024.md) | todo | prerequisites: 002,023
+- [SS-025: Subscription-backed MCP access](SS-025.md) | todo | prerequisites: 018,019,020,024
 
 ## Release definition
 
 All required acceptance criteria, a real audio-output test, installed desktop tests on each advertised platform, security/privacy review, signed installers, dependency/license review and backup/upgrade recovery must pass before calling the app production-ready. AI adapters are fixture-tested without spending the user's API credits; provider live tests need explicit setup.
-
