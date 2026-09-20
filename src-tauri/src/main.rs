@@ -16,7 +16,7 @@ async fn choose_folder(app:tauri::AppHandle)->Result<Option<String>,String>{taur
 #[tauri::command]
 async fn sources(state:tauri::State<'_,AppState>)->Result<Vec<Source>,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.sources().map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
-async fn import_root(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{let c=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.add_source(&PathBuf::from(path)).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())??;state.enqueue(source.clone())?;Ok(source)}
+async fn import_root(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{let c=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||{let path=PathBuf::from(path);if !path.is_dir(){return Err("SoundShelf imports folders in this increment; choose a folder containing the audio files.".to_string());}c.lock().map_err(|e|e.to_string())?.add_source(&path).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())??;state.enqueue(source.clone())?;Ok(source)}
 #[tauri::command]
 fn scan_source(state:tauri::State<AppState>,id:String)->Result<(),String>{let source=state.catalog.lock().map_err(|e|e.to_string())?.source(&id).map_err(|e|e.to_string())?;state.enqueue(source)}
 #[tauri::command]

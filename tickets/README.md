@@ -39,6 +39,7 @@ The repository currently has no remote. Local commits/branches are not substitut
 - [SS-023: Security and performance qualification](SS-023.md) | todo | prerequisites: 004,009,010,013,018
 - [SS-024: Cross platform installers and releases](SS-024.md) | todo | prerequisites: 002,023
 - [SS-025: Subscription-backed MCP access](SS-025.md) | todo | prerequisites: 018,019,020,024
+- [SS-026: Individual-file import](SS-026.md) | todo | prerequisites: 003,004,006,009
 
 ## Release definition
 

@@ -19,10 +19,13 @@ pub fn scan(catalog:Arc<Mutex<Catalog>>,source:Source,tools:&MediaTools,cancel:A
     files.sort();state.total=files.len();state.status="analyzing".into();progress(state.clone());let mut seen=vec![];
     for file in files {
         if cancel.load(Ordering::Relaxed){return Err(invalid("Scan cancelled"));}
-        let relative=path_text(file.strip_prefix(root).map_err(|_|invalid("Invalid source path"))?)?.replace(std::path::MAIN_SEPARATOR,"/");seen.push(relative.clone());state.current=relative.clone();progress(state.clone());
+        let relative=path_text(file.strip_prefix(root).map_err(|_|invalid("Invalid source path"))?)?.replace(std::path::MAIN_SEPARATOR,"/");state.current=relative.clone();progress(state.clone());
         let result=(||->Result<()> {
             let file=contained(root,&relative)?;
             let hash=hash_file(&file)?;
+            // Reconciliation may only preserve a path after it was verified and hashed.
+            // A file deleted between discovery and this point must become missing.
+            seen.push(relative.clone());
             let id={catalog.lock().map_err(|_|invalid("Catalog unavailable"))?.register(&source,&relative,&hash)?};
             if catalog.lock().map_err(|_|invalid("Catalog unavailable"))?.cached_profile(&hash)?.is_some(){state.reused+=1;return Ok(());}
             match analyze(tools,&file,cancel.clone()) {
