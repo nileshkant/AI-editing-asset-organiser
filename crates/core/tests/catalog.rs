@@ -15,7 +15,7 @@ fn add(c: &mut Catalog, root: &Path) -> (Source,String,String) {
     let new=base.path().join("moved");fs::rename(&old,&new).unwrap();let moved=c.relink(&s.id,&new).unwrap();
     assert_eq!(moved.generation,1); assert_eq!(c.register(&moved,"test.wav",&h).unwrap(),id);
     let sound=c.sound(&id).unwrap();assert_eq!(sound.profile,Some(profile()));assert_eq!(sound.user_tags,vec!["My Tag"]);assert_eq!(sound.comment,"use in scene");assert!(sound.favorite);
-    assert_eq!(c.resolve(&id).unwrap(),new.join("test.wav"));
+    assert_eq!(c.resolve(&id).unwrap(),new.join("test.wav").canonicalize().unwrap());
     assert!(c.publish(&s,&id,&h,&profile()).is_err());
 }
 #[test] fn changed_content_keeps_annotations_but_not_stale_measurements() {
