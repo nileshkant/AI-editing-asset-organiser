@@ -1,4 +1,5 @@
 pub mod catalog;
+pub mod search;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

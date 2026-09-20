@@ -2993,9 +2993,11 @@ name = "soundshelf-core"
 version = "0.1.0"
 dependencies = [
  "blake3",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
+ "strsim",
  "tempfile",
  "thiserror 2.0.20",
  "uuid",
