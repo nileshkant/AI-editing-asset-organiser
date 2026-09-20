@@ -2,6 +2,12 @@
 members = ["src-tauri", "crates/core"]
 resolver = "2"
 
+[patch.crates-io]
+# macOS 26 can raise an Objective-C exception while tao is still inside
+# applicationDidFinishLaunching. Keep the compatibility fix local until tao
+# ships the deferred initial-event change upstream.
+tao = { path = "vendor/tao" }
+
 [profile.release]
 lto = "thin"
 codegen-units = 1

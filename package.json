@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
     "desktop": "node scripts/desktop.mjs",
+    "desktop:binary": "node scripts/desktop.mjs build --no-bundle",
     "desktop:bundle": "node scripts/desktop.mjs build --config src-tauri/tauri.release.conf.json",
     "check:rust": "node scripts/cargo.mjs test --workspace",
     "check": "npm test && npm run build && npm run check:rust"
