@@ -36,10 +36,17 @@ impl AppState {
     }
     pub fn enqueue(&self,source:Source)->Result<(),String>{
         if self.tools.is_none(){return Err("Media binaries are not included in this development package".into());}
-        let mut list=self.progress.lock().map_err(|e|e.to_string())?;
-        if list.iter().any(|p|p.source_id==source.id&&["queued","discovering","analyzing"].contains(&p.status.as_str())){return Ok(());}
-        self.sender.try_send(source.clone()).map_err(|_|"Import queue is full".to_string())?;
-        list.retain(|p|p.source_id!=source.id);list.push(Progress{source_id:source.id,status:"queued".into(),..Default::default()});Ok(())
+        {
+            let mut list=self.progress.lock().map_err(|e|e.to_string())?;
+            if list.iter().any(|p|p.source_id==source.id&&["queued","discovering","analyzing"].contains(&p.status.as_str())){return Ok(());}
+            list.retain(|p|p.source_id!=source.id);
+            list.push(Progress{source_id:source.id.clone(),status:"queued".into(),..Default::default()});
+        }
+        if self.sender.try_send(source.clone()).is_err() {
+            if let Ok(mut list)=self.progress.lock(){list.retain(|p|p.source_id!=source.id||p.status!="queued");}
+            return Err("Import queue is full".into());
+        }
+        Ok(())
     }
     pub fn shutdown(&self){self.stop.store(true,Ordering::Relaxed);self.cancel.store(true,Ordering::Relaxed);if let Ok(mut handle)=self.worker.lock(){if let Some(worker)=handle.take(){let _=worker.join();}}}
 }
