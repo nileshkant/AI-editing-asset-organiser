@@ -1,0 +1,20 @@
+{
+  "name": "soundshelf-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "test": "vitest run",
+    "desktop": "node scripts/desktop.mjs",
+    "check:rust": "node scripts/cargo.mjs test --workspace",
+    "check": "npm test && npm run build && npm run check:rust"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "lucide-react": "1.47.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

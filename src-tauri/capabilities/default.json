@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "Only the local SoundShelf main window may use application commands.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}
