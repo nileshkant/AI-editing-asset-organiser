@@ -3,6 +3,7 @@ mod service;
 use service::AppState;
 use soundshelf_core::{catalog::{Source,Sound},library::Progress,search::{SearchQuery,SearchResults,search}};
 use std::path::PathBuf;
+use std::{fs::{create_dir_all,OpenOptions},io::Write};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
@@ -32,9 +33,53 @@ fn jobs(state:tauri::State<AppState>)->Result<Vec<Progress>,String>{state.progre
 #[tauri::command]
 fn cancel_import(state:tauri::State<AppState>){state.cancel.store(true,std::sync::atomic::Ordering::Relaxed);}
 
+fn install_startup_diagnostics() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let home = std::env::var_os("HOME").or_else(||std::env::var_os("USERPROFILE")).map(PathBuf::from);
+        let path = match home {
+            Some(home) if cfg!(target_os = "macos") => home.join("Library/Logs/SoundShelf/startup.log"),
+            Some(home) if cfg!(target_os = "windows") => home.join("AppData/Local/SoundShelf/Logs/startup.log"),
+            Some(home) => home.join(".local/state/soundshelf/startup.log"),
+            None => std::env::temp_dir().join("soundshelf-startup.log"),
+        };
+        if let Some(parent) = path.parent() {
+            let _ = create_dir_all(parent);
+        }
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = writeln!(file, "{info}\n{}\n", std::backtrace::Backtrace::force_capture());
+        }
+        previous(info);
+    }));
+}
+
+fn fallback_data_directory() -> PathBuf {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+        .map(|home| {
+            if cfg!(target_os = "macos") {
+                home.join("Library/Application Support/SoundShelf")
+            } else if cfg!(target_os = "windows") {
+                home.join("AppData/Local/SoundShelf")
+            } else {
+                home.join(".local/share/SoundShelf")
+            }
+        })
+        .unwrap_or_else(|| PathBuf::from(".soundshelf"))
+}
+
+fn fallback_resource_directory() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(|parent| parent.join("../Resources")))
+        .unwrap_or_else(|| PathBuf::from("Resources"))
+}
+
 fn main() {
+    install_startup_diagnostics();
     tauri::Builder::default().plugin(tauri_plugin_dialog::init())
-        .setup(|app|{let path=if cfg!(debug_assertions){std::env::var_os("SOUNDSHELF_DATA_DIR").map(PathBuf::from).unwrap_or(app.path().app_data_dir()?)}else{app.path().app_data_dir()?};let resources=app.path().resource_dir()?;app.manage(AppState::new(path,resources)?);Ok(())})
+        .setup(|app|{let path=if cfg!(debug_assertions){std::env::var_os("SOUNDSHELF_DATA_DIR").map(PathBuf::from).or_else(||app.path().app_data_dir().ok()).unwrap_or_else(fallback_data_directory)}else{app.path().app_data_dir().unwrap_or_else(|_|fallback_data_directory())};let resources=app.path().resource_dir().unwrap_or_else(|_|fallback_resource_directory());app.manage(AppState::new(path,resources)?);Ok(())})
         .invoke_handler(tauri::generate_handler![app_info,choose_folder,sources,import_root,scan_source,relink_source,search_sounds,get_sound,annotate,jobs,cancel_import])
         .build(tauri::generate_context!()).expect("SoundShelf could not start")
         .run(|app,event|if matches!(event,tauri::RunEvent::Exit){app.state::<AppState>().shutdown();});

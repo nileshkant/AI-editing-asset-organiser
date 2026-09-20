@@ -40,7 +40,7 @@ The repository currently has no remote. Local commits/branches are not substitut
 - [SS-024: Cross platform installers and releases](SS-024.md) | todo | prerequisites: 002,023
 - [SS-025: Subscription-backed MCP access](SS-025.md) | todo | prerequisites: 018,019,020,024
 - [SS-026: Individual-file import](SS-026.md) | todo | prerequisites: 003,004,006,009
-- [SS-027: macOS 26 native startup compatibility](SS-027.md) | in-progress | prerequisites: 002
+- [SS-027: macOS 26 native startup compatibility](SS-027.md) | done-local | prerequisites: 002
 
 ## Release definition
 
