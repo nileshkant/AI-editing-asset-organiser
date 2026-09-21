@@ -42,7 +42,8 @@ pub struct Sound {
     pub favorite: bool,
 }
 
-pub struct Catalog { db: Connection }
+pub struct Catalog { pub(crate) db: Connection }
+pub const SCHEMA_VERSION: u32 = 2;
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
@@ -51,11 +52,33 @@ impl Catalog {
         db.pragma_update(None, "foreign_keys", true)?;
         db.pragma_update(None, "journal_mode", "WAL")?;
         let version: u32 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
-        if version > 1 { return Err(invalid("Database belongs to a newer SoundShelf version")); }
+        if version > SCHEMA_VERSION { return Err(invalid("Database belongs to a newer SoundShelf version")); }
         if version == 0 {
             let tx = db.transaction()?;
             tx.execute_batch(include_str!("schema.sql"))?;
-            tx.pragma_update(None, "user_version", 1)?;
+            tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+            tx.commit()?;
+        } else if version == 1 {
+            let tx = db.transaction()?;
+            tx.execute_batch("CREATE TABLE jobs (
+ id TEXT PRIMARY KEY,
+ source_id TEXT NOT NULL REFERENCES sources(id),
+ kind TEXT NOT NULL,
+ state TEXT NOT NULL CHECK(state IN('queued','running','complete','failed','cancelled')),
+ status TEXT NOT NULL,
+ lease_owner TEXT,
+ lease_until INTEGER,
+ completed INTEGER NOT NULL DEFAULT 0,
+ total INTEGER NOT NULL DEFAULT 0,
+ reused INTEGER NOT NULL DEFAULT 0,
+ failed INTEGER NOT NULL DEFAULT 0,
+ current TEXT NOT NULL DEFAULT '',
+ errors TEXT NOT NULL DEFAULT '[]',
+ created_at INTEGER NOT NULL,
+ updated_at INTEGER NOT NULL,
+ UNIQUE(source_id, kind)
+);")?;
+            tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }
         Ok(Self { db })

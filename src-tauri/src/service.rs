@@ -1,5 +1,8 @@
-use soundshelf_core::{catalog::{Catalog,Source},library::{scan,Progress},media::MediaTools};
+use soundshelf_core::{catalog::{Catalog,Source},jobs::{now_secs,Job},library::{scan,Progress},media::MediaTools};
 use std::{path::PathBuf,sync::{Arc,Mutex,mpsc::{sync_channel,SyncSender,RecvTimeoutError},atomic::{AtomicBool,Ordering}},thread,time::Duration};
+use uuid::Uuid;
+
+struct Work { source:Source, job_id:String }
 
 pub struct AppState {
     pub data_directory:PathBuf,
@@ -8,7 +11,7 @@ pub struct AppState {
     pub progress:Arc<Mutex<Vec<Progress>>>,
     pub cancel:Arc<AtomicBool>,
     stop:Arc<AtomicBool>,
-    sender:SyncSender<Source>,
+    sender:SyncSender<Work>,
     worker:Mutex<Option<thread::JoinHandle<()>>>,
 }
 impl AppState {
@@ -22,31 +25,89 @@ impl AppState {
         }
         let tools=tools.validate().ok().map(|_|tools);
         let progress=Arc::new(Mutex::new(Vec::<Progress>::new()));let cancel=Arc::new(AtomicBool::new(false));let stop=Arc::new(AtomicBool::new(false));
-        let(tx,rx)=sync_channel::<Source>(32);let db=catalog.clone();let updates=progress.clone();let flag=cancel.clone();let quit=stop.clone();let media=tools.clone();
+        let owner=Uuid::new_v4().to_string();
+        let(tx,rx)=sync_channel::<Work>(32);let db=catalog.clone();let updates=progress.clone();let flag=cancel.clone();let quit=stop.clone();let media=tools.clone();let worker_owner=owner.clone();
         let worker=thread::spawn(move||loop {
             if quit.load(Ordering::Relaxed){break;}
-            let source=match rx.recv_timeout(Duration::from_millis(100)){Ok(s)=>s,Err(RecvTimeoutError::Timeout)=>continue,Err(_)=>break};
-            flag.store(false,Ordering::Relaxed);let id=source.id.clone();
+            let work=match rx.recv_timeout(Duration::from_millis(100)){Ok(s)=>s,Err(RecvTimeoutError::Timeout)=>continue,Err(_)=>break};
+            flag.store(false,Ordering::Relaxed);let id=work.source.id.clone();let job_id=work.job_id.clone();
+            let claimed={
+                match db.lock() {
+                    Ok(catalog)=>catalog.claim_job(&job_id,&worker_owner,now_secs()).ok().flatten(),
+                    Err(_)=>None,
+                }
+            };
+            if claimed.is_none(){continue;}
             if let Some(tools)=&media {
-                let result=scan(db.clone(),source,tools,flag.clone(),|p|{if let Ok(mut list)=updates.lock(){if let Some(old)=list.iter_mut().find(|s|s.source_id==p.source_id){*old=p;}else{list.push(p);}}});
-                if let Err(error)=result {if let Ok(mut list)=updates.lock(){if let Some(p)=list.iter_mut().find(|s|s.source_id==id){p.status=if flag.load(Ordering::Relaxed){"cancelled"}else{"failed"}.into();p.errors.push(error.to_string());}}}
+                let persist=db.clone();let persist_owner=worker_owner.clone();
+                let result=scan(db.clone(),work.source,tools,flag.clone(),job_id.clone(),|p|{
+                    if let Ok(catalog)=persist.lock(){let _=catalog.persist_progress(&persist_owner,&p);}
+                    if let Ok(mut list)=updates.lock(){if let Some(old)=list.iter_mut().find(|s|s.source_id==p.source_id){*old=p;}else{list.push(p);}}
+                });
+                match result {
+                    Ok(p)=>{if let Ok(catalog)=db.lock(){let _=catalog.finish_job(&job_id,&worker_owner,&p,false);} if let Ok(mut list)=updates.lock(){if let Some(old)=list.iter_mut().find(|s|s.source_id==p.source_id){*old=p;}else{list.push(p);}}}
+                    Err(error)=>{
+                        let cancelled=flag.load(Ordering::Relaxed);
+                        let mut failed=Progress{job_id:job_id.clone(),source_id:id.clone(),status:if cancelled{"cancelled"}else{"failed"}.into(),errors:vec![error.to_string()],..Default::default()};
+                        if let Ok(list)=updates.lock(){if let Some(p)=list.iter().find(|s|s.source_id==id){failed.completed=p.completed;failed.total=p.total;failed.reused=p.reused;failed.failed=p.failed;failed.current=p.current.clone();failed.errors.extend(p.errors.clone());}}
+                        if let Ok(catalog)=db.lock(){let _=catalog.finish_job(&job_id,&worker_owner,&failed,cancelled);}
+                        if let Ok(mut list)=updates.lock(){if let Some(p)=list.iter_mut().find(|s|s.source_id==id){*p=failed;}}
+                    }
+                }
             }
         });
-        Ok(Self{data_directory,catalog,tools,progress,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))})
+        let state=Self{data_directory,catalog,tools,progress,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))};
+        state.resume_persisted()?;
+        Ok(state)
+    }
+    fn remember(&self, job:&Job)->Result<(),String>{
+        let mut list=self.progress.lock().map_err(|e|e.to_string())?;
+        list.retain(|p|p.source_id!=job.source_id);
+        list.push(job.progress());
+        Ok(())
+    }
+    fn resume_persisted(&self)->Result<(),String>{
+        let jobs={
+            let catalog=self.catalog.lock().map_err(|e|e.to_string())?;
+            catalog.recover_jobs(now_secs()).map_err(|e|e.to_string())?
+        };
+        for job in jobs {
+            self.remember(&job)?;
+            let source=self.catalog.lock().map_err(|e|e.to_string())?.source(&job.source_id).map_err(|e|e.to_string())?;
+            if self.sender.try_send(Work{source,job_id:job.id.clone()}).is_err() {
+                return Err("Import queue is full".into());
+            }
+        }
+        let history={
+            let catalog=self.catalog.lock().map_err(|e|e.to_string())?;
+            catalog.active_jobs().map_err(|e|e.to_string())?
+        };
+        let mut list=self.progress.lock().map_err(|e|e.to_string())?;
+        for job in history {
+            if !list.iter().any(|p|p.job_id==job.id){list.push(job.progress());}
+        }
+        Ok(())
     }
     pub fn enqueue(&self,source:Source)->Result<(),String>{
         if self.tools.is_none(){return Err("Media binaries are not included in this development package".into());}
-        {
-            let mut list=self.progress.lock().map_err(|e|e.to_string())?;
-            if list.iter().any(|p|p.source_id==source.id&&["queued","discovering","analyzing"].contains(&p.status.as_str())){return Ok(());}
-            list.retain(|p|p.source_id!=source.id);
-            list.push(Progress{source_id:source.id.clone(),status:"queued".into(),..Default::default()});
+        let job={
+            let catalog=self.catalog.lock().map_err(|e|e.to_string())?;
+            catalog.enqueue_scan(&source.id).map_err(|e|e.to_string())?
+        };
+        if job.state=="running" {
+            self.remember(&job)?;
+            return Ok(());
         }
-        if self.sender.try_send(source.clone()).is_err() {
-            if let Ok(mut list)=self.progress.lock(){list.retain(|p|p.source_id!=source.id||p.status!="queued");}
+        self.remember(&job)?;
+        if self.sender.try_send(Work{source,job_id:job.id.clone()}).is_err() {
             return Err("Import queue is full".into());
         }
         Ok(())
     }
-    pub fn shutdown(&self){self.stop.store(true,Ordering::Relaxed);self.cancel.store(true,Ordering::Relaxed);if let Ok(mut handle)=self.worker.lock(){if let Some(worker)=handle.take(){let _=worker.join();}}}
+    pub fn shutdown(&self){
+        self.stop.store(true,Ordering::Relaxed);
+        self.cancel.store(true,Ordering::Relaxed);
+        if let Ok(catalog)=self.catalog.lock(){let _=catalog.checkpoint_running();}
+        if let Ok(mut handle)=self.worker.lock(){if let Some(worker)=handle.take(){let _=worker.join();}}
+    }
 }

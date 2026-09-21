@@ -18,3 +18,21 @@ CREATE TABLE annotations (
  sound_id TEXT PRIMARY KEY REFERENCES sounds(id), tags TEXT NOT NULL DEFAULT '[]',
  comment TEXT NOT NULL DEFAULT '', favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN(0,1))
 );
+CREATE TABLE jobs (
+ id TEXT PRIMARY KEY,
+ source_id TEXT NOT NULL REFERENCES sources(id),
+ kind TEXT NOT NULL,
+ state TEXT NOT NULL CHECK(state IN('queued','running','complete','failed','cancelled')),
+ status TEXT NOT NULL,
+ lease_owner TEXT,
+ lease_until INTEGER,
+ completed INTEGER NOT NULL DEFAULT 0,
+ total INTEGER NOT NULL DEFAULT 0,
+ reused INTEGER NOT NULL DEFAULT 0,
+ failed INTEGER NOT NULL DEFAULT 0,
+ current TEXT NOT NULL DEFAULT '',
+ errors TEXT NOT NULL DEFAULT '[]',
+ created_at INTEGER NOT NULL,
+ updated_at INTEGER NOT NULL,
+ UNIQUE(source_id, kind)
+);

@@ -2,6 +2,7 @@ pub mod catalog;
 pub mod search;
 pub mod media;
 pub mod library;
+pub mod jobs;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
