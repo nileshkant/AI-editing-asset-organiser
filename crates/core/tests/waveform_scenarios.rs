@@ -183,6 +183,36 @@ fn high_zoom_query_window() {
 }
 
 #[test]
+fn waveform_service_cache_hit_logic() {
+    let dir = tempdir().unwrap();
+    let cache_dir = dir.path().join("cache");
+    let service = soundshelf_core::waveform::WaveformService::new(cache_dir.clone());
+    let hash = "offline-synthetic-hash";
+
+    let frames = 2048;
+    let data = generate_stereo_pcm(frames, |_| 0.3, |_| -0.3);
+    let original = WaveformPyramid::build(&mut &data[..], 48000, 2, 256).unwrap();
+
+    // Pre-populate the cache file
+    let cache_file = service.cache_path(hash);
+    original.save_to_file(&cache_file).unwrap();
+    assert!(cache_file.exists());
+
+    // With cache present, load_or_build serves directly from disk without invoking ffmpeg
+    let dummy_tools = soundshelf_core::media::MediaTools {
+        ffmpeg: std::path::PathBuf::from("/nonexistent/ffmpeg"),
+        ffprobe: std::path::PathBuf::from("/nonexistent/ffprobe"),
+    };
+    let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let loaded = service
+        .load_or_build(hash, std::path::Path::new("/dummy/audio.wav"), 48000, 2, &dummy_tools, cancel)
+        .expect("Cache hit must load successfully without calling ffmpeg");
+
+    assert_eq!(original, loaded);
+}
+
+#[test]
+#[ignore = "requires explicit FFmpeg fixture tools"]
 fn missing_cache_rebuild() {
     let tools = match soundshelf_core::media::MediaTools::discover() {
         Some(t) if t.validate().is_ok() => t,
@@ -194,7 +224,7 @@ fn missing_cache_rebuild() {
     // Generate valid WAV tone
     let status = std::process::Command::new(&tools.ffmpeg)
         .args([
-            "-y", "-f", "lavfi", "-i", "sine=frequency=1000:duration=1",
+            "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=1000:duration=1",
             "-ac", "2", "-ar", "48000",
         ])
         .arg(&audio_path)
