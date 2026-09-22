@@ -101,7 +101,7 @@ fn document(sound: &Sound) -> Vec<String> {
 #[cfg(test)] mod tests {
     use super::*;
     use crate::catalog::Profile;
-    fn sound(title:&str,duration:f64)->Sound {Sound{id:title.into(),source_id:"s".into(),relative_path:format!("{title}.wav"),title:title.into(),content_hash:"hash".into(),status:"ready".into(),profile:Some(Profile{duration,sample_rate:48000,channels:1,frames:48000,peak:0.5,rms:0.1,description:"Measured profile".into(),tags:vec![],waveform:vec![[-0.5,0.5]]}),user_tags:vec![],comment:String::new(),favorite:false}}
+    fn sound(title:&str,duration:f64)->Sound {Sound{id:title.into(),source_id:"s".into(),relative_path:format!("{title}.wav"),title:title.into(),content_hash:"hash".into(),status:"ready".into(),profile:Some(Profile{duration,sample_rate:48000,channels:1,frames:48000,peak:0.5,rms:0.1,channel_peaks:vec![0.5],channel_rms:vec![0.1],channel_layout:"mono".into(),description:"Measured profile".into(),tags:vec![],waveform:vec![[-0.5,0.5]]}),user_tags:vec![],comment:String::new(),favorite:false}}
     fn find(text:&str,items:Vec<Sound>)->SearchResults{search(items,&SearchQuery{text:text.into(),..Default::default()},&["s".into()]).unwrap()}
     #[test]fn natural_duration(){let r=find("find me a whoosh under 3 seconds",vec![sound("Whoosh",2.0),sound("Long whoosh",4.0)]);assert_eq!(r.total,1);assert_eq!(r.interpretation.max_duration,Some(3.0));}
     #[test]fn typo(){let r=find("whooshh",vec![sound("Whoosh",1.0)]);assert_eq!(r.total,1);assert_eq!(r.interpretation.corrected.len(),1);}

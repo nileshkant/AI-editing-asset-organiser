@@ -10,8 +10,9 @@ priority. `tickets/README.md` is now the canonical execution order.
 
 ## Status decisions
 
-- SS-001, SS-002, SS-003, SS-007, SS-027, and SS-028 are complete in main history.
-- SS-004, SS-005, SS-006, SS-008, and SS-009 contain working code but retain
+- SS-001, SS-002, SS-003, SS-004, SS-007, SS-027, and SS-028 are complete in main history.
+- SS-005 is implemented, reviewed, and in PR review.
+- SS-006, SS-008, and SS-009 contain working code but retain
   unchecked acceptance criteria, so they are partial rather than complete.
 - SS-010 through SS-026 are not started at ticket scope. Incidental foundations
   such as a settings shell or CI matrix do not complete their primary outcomes.

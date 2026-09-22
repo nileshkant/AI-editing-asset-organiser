@@ -4,7 +4,20 @@ use std::path::Path;
 use tempfile::tempdir;
 
 fn profile() -> soundshelf_core::catalog::Profile {
-    soundshelf_core::catalog::Profile {duration:1.0,sample_rate:48000,channels:1,frames:48000,peak:0.8,rms:0.2,description:"Measured".into(),tags:vec!["short".into()],waveform:vec![[-0.8,0.8]]}
+    soundshelf_core::catalog::Profile {
+        duration: 1.0,
+        sample_rate: 48000,
+        channels: 1,
+        frames: 48000,
+        peak: 0.8,
+        rms: 0.2,
+        channel_peaks: vec![0.8],
+        channel_rms: vec![0.2],
+        channel_layout: "mono".into(),
+        description: "Measured".into(),
+        tags: vec!["short".into()],
+        waveform: vec![[-0.8, 0.8]],
+    }
 }
 
 #[test]
@@ -13,7 +26,7 @@ fn expired_running_job_returns_to_queue_and_pending_stays_unready() {
     let media = tempdir().unwrap();
     std::fs::write(media.path().join("tone.wav"), b"audio").unwrap();
     let path = dir.path().join("library.sqlite");
-    let mut catalog = Catalog::open(&path).unwrap();
+    let catalog = Catalog::open(&path).unwrap();
     let source = catalog.add_source(media.path()).unwrap();
     let hash = soundshelf_core::catalog::hash_file(&media.path().join("tone.wav")).unwrap();
     let sound_id = catalog.register(&source, "tone.wav", &hash).unwrap();
