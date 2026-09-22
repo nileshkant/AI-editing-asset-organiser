@@ -1,8 +1,8 @@
 import { useEffect,useRef,useState } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
-import { AudioLines,Library,Settings2,ShieldCheck,FolderOpen,FolderPlus,Search,Heart,Inbox,RefreshCw,X,ChevronLeft,ChevronRight,Check,Tag,SlidersHorizontal } from 'lucide-react';
-import { call,duration,type AppInfo,type Source,type Sound,type Progress,type SearchResults } from './api';
+import { AudioLines,Library,Settings2,ShieldCheck,FolderOpen,FolderPlus,Search,Heart,Inbox,RefreshCw,X,ChevronLeft,ChevronRight,Check,Tag,SlidersHorizontal,Play,Pause,Square,Volume2,VolumeX } from 'lucide-react';
+import { call,duration,type AppInfo,type Source,type Sound,type Progress,type SearchResults,type PlaybackStatus } from './api';
 import { Waveform } from './Waveform';
 
 type Page='library'|'favorites'|'imports'|'settings';
@@ -12,12 +12,42 @@ export function App(){
   const[text,setText]=useState('');const[source,setSource]=useState('');const[max,setMax]=useState('');const[offset,setOffset]=useState(0);const[results,setResults]=useState(EMPTY);
   const[selected,setSelected]=useState<Sound|null>(null);const[error,setError]=useState('');const[busy,setBusy]=useState(false);const[revision,setRevision]=useState(0);const[filters,setFilters]=useState(false);const[dropping,setDropping]=useState(false);
   const[relink,setRelink]=useState<Source|null>(null);const[path,setPath]=useState('');const request=useRef(0);
+  const[playback,setPlayback]=useState<PlaybackStatus|null>(null);const[volume,setVolumeState]=useState(1.0);const[muted,setMuted]=useState(false);
   const refresh=()=>setRevision(r=>r+1);
   const guard=async<T,>(task:()=>Promise<T>):Promise<T|undefined>=>{try{setError('');return await task();}catch(e){setError(String(e));return undefined;}};
   async function importPath(path:string){await call('import_root',{path});refresh();}
   const addFolder=()=>guard(async()=>{const path=await call<string|null>('choose_folder');if(path)await importPath(path);});
+
+  const playSound=(sound:Sound)=>guard(async()=>{setSelected(sound);await call('playback_play',{id:sound.id});});
+  const togglePlay=()=>guard(async()=>{
+    if(!playback||playback.state==='stopped'||playback.state==='finished'){
+      if(selected)await playSound(selected);
+    }else if(playback.state==='playing'){
+      await call('playback_pause');
+    }else if(playback.state==='paused'){
+      await call('playback_resume');
+    }
+  });
+  const stopPlayback=()=>guard(async()=>{await call('playback_stop');});
+  const seekPlayback=(pos:number)=>guard(async()=>{await call('playback_seek',{positionSeconds:pos});});
+  const changeVolume=(v:number)=>guard(async()=>{setVolumeState(v);setMuted(v===0);await call('playback_set_volume',{volume:v});});
+  const toggleMute=()=>guard(async()=>{const next=!muted;setMuted(next);await call('playback_set_volume',{volume:next?0:volume});});
+
   useEffect(()=>{if(!isTauri())return;void guard(async()=>setInfo(await call('app_info')));},[]);
   useEffect(()=>{if(!isTauri())return;let alive=true;let previous='';const update=async()=>{try{const list=await call<Progress[]>('jobs');if(!alive)return;setJobs(list);const signature=JSON.stringify(list);if(signature!==previous){previous=signature;refresh();}setRoots(await call('sources'));}catch(e){if(alive)setError(String(e));}};void update();const timer=setInterval(update,1500);return()=>{alive=false;clearInterval(timer);};},[]);
+  useEffect(()=>{if(!isTauri())return;let alive=true;const interval=setInterval(async()=>{try{const s=await call<PlaybackStatus>('playback_status');if(alive)setPlayback(s);}catch(_){}},120);return()=>{alive=false;clearInterval(interval);};},[]);
+  useEffect(()=>{
+    const onKeyDown=(e:KeyboardEvent)=>{
+      if(e.code==='Space'){
+        const tag=(e.target as HTMLElement)?.tagName?.toLowerCase();
+        if(tag==='input'||tag==='textarea'||tag==='select'||(e.target as HTMLElement)?.isContentEditable)return;
+        e.preventDefault();
+        void togglePlay();
+      }
+    };
+    window.addEventListener('keydown',onKeyDown);
+    return()=>window.removeEventListener('keydown',onKeyDown);
+  },[playback,selected]);
   useEffect(()=>{if(!isTauri())return;let disposed=false;let unlisten:(()=>void)|undefined;getCurrentWebviewWindow().onDragDropEvent(event=>{if(disposed)return;const payload=event.payload;setDropping(payload.type==='over'||payload.type==='enter');if(payload.type==='drop'){const paths=payload.paths;void guard(async()=>{for(const path of paths)await importPath(path);});}}).then(fn=>{if(disposed)fn();else unlisten=fn;}).catch(e=>setError(String(e)));return()=>{disposed=true;unlisten?.();};},[]);
   useEffect(()=>{setOffset(0);},[text,source,max,page]);
   useEffect(()=>{if(!isTauri())return;const id=++request.current;const timer=setTimeout(()=>{setBusy(true);call<SearchResults>('search_sounds',{query:{text,source_ids:source?[source]:[],max_duration:max?Number(max):null,favorites_only:page==='favorites',offset,limit:75}}).then(r=>{if(request.current===id){setResults(r);setSelected(curr=>{if(curr)call<Sound>('get_sound',{id:curr.id}).catch(()=>setSelected(null));return curr;});}}).catch(e=>{if(request.current===id)setError(String(e));}).finally(()=>{if(request.current===id)setBusy(false);});},180);return()=>clearTimeout(timer);},[text,source,max,page,offset,revision]);
@@ -37,13 +67,42 @@ export function App(){
       {(page==='library'||page==='favorites')&&<><div className="library-toolbar"><div className="search-input"><Search size={18}/><input aria-label="Search audio" placeholder="Search sounds, tags, or a short whoosh under 3 seconds" value={text} onChange={e=>setText(e.target.value)}/>{text&&<button className="icon-button" aria-label="Clear search" onClick={()=>setText('')}><X size={15}/></button>}</div><button className={`icon-button ${filters?'chosen':''}`} aria-label="Filters" aria-pressed={filters} title="Filters" onClick={()=>setFilters(!filters)}><SlidersHorizontal size={18}/></button></div>
       {filters&&<div className="filter-strip"><label>Folder<select value={source} onChange={e=>setSource(e.target.value)}><option value="">All folders</option>{roots.map(r=><option key={r.id} value={r.id}>{r.name}</option>)}</select></label><label>Duration under<input type="number" min="0.01" step="0.1" aria-label="Duration under seconds" placeholder="seconds" value={max} onChange={e=>setMax(e.target.value)}/></label><button onClick={()=>{setSource('');setMax('');}}>Reset</button></div>}
       <div className="results-bar"><span>{busy?'Searching...':`${results.total.toLocaleString()} sounds`}</span><span>{results.interpretation.corrected.join(' · ')||'Offline search'}</span></div>
-      <div className={`library-body ${selected?'with-inspector':''}`}><section className="sound-list" aria-label="Sounds">{results.items.length?results.items.map(sound=><div key={sound.id} className={`sound-row ${selected?.id===sound.id?'selected':''}`}><button className="sound-select" onClick={()=>select(sound)}><span className="file-mark"><AudioLines size={20}/></span><span className="sound-label"><strong>{sound.title}</strong><small>{[...(sound.user_tags.length?sound.user_tags:sound.profile?.tags||[])].slice(0,3).map(t=>t.replaceAll('_',' ')).join(' · ')}</small></span><span className="sound-duration">{duration(sound.profile?.duration||0)}</span></button><button className="icon-button favorite" title={sound.favorite?'Remove favorite':'Add favorite'} aria-label={`${sound.favorite?'Unfavorite':'Favorite'} ${sound.title}`} onClick={()=>favorite(sound)}><Heart size={16} fill={sound.favorite?'currentColor':'none'}/></button></div>):<div className="empty"><FolderOpen size={48} strokeWidth={1}/><h2>{text||source||page==='favorites'?'No matching sounds':'No sounds yet'}</h2><button onClick={addFolder}><FolderPlus size={16}/>Add folder</button></div>}</section>
+      <div className={`library-body ${selected?'with-inspector':''}`}><section className="sound-list" aria-label="Sounds">{results.items.length?results.items.map(sound=><div key={sound.id} className={`sound-row ${selected?.id===sound.id?'selected':''}`}><button className="sound-select" onClick={()=>select(sound)}><span className="file-mark"><AudioLines size={20}/></span><span className="sound-label"><strong>{sound.title}</strong><small>{[...(sound.user_tags.length?sound.user_tags:sound.profile?.tags||[])].slice(0,3).map(t=>t.replaceAll('_',' ')).join(' · ')}</small></span><span className="sound-duration">{duration(sound.profile?.duration||0)}</span></button><button className="icon-button" title={playback?.sound_id===sound.id&&playback?.state==='playing'?'Pause audio':'Play audio'} aria-label={`${playback?.sound_id===sound.id&&playback?.state==='playing'?'Pause':'Play'} ${sound.title}`} onClick={(e)=>{e.stopPropagation();if(playback?.sound_id===sound.id&&playback?.state==='playing'){void call('playback_pause');}else{void playSound(sound);}}}>{playback?.sound_id===sound.id&&playback?.state==='playing'?<Pause size={15}/>:<Play size={15}/>}</button><button className="icon-button favorite" title={sound.favorite?'Remove favorite':'Add favorite'} aria-label={`${sound.favorite?'Unfavorite':'Favorite'} ${sound.title}`} onClick={()=>favorite(sound)}><Heart size={16} fill={sound.favorite?'currentColor':'none'}/></button></div>):<div className="empty"><FolderOpen size={48} strokeWidth={1}/><h2>{text||source||page==='favorites'?'No matching sounds':'No sounds yet'}</h2><button onClick={addFolder}><FolderPlus size={16}/>Add folder</button></div>}</section>
       {selected&&<SoundInspector key={selected.id} sound={selected} onClose={()=>setSelected(null)} onSave={async(tags,comment)=>{await call('annotate',{id:selected.id,tags,comment,favorite:selected.favorite});const full=await call<Sound>('get_sound',{id:selected.id});setSelected(full);refresh();}} onError={e=>setError(e)}/>}
       </div><div className="pagination"><span>{results.total?`${offset+1}-${Math.min(offset+75,results.total)} of ${results.total}`:'0 results'}</span><button className="icon-button" title="Previous page" aria-label="Previous page" disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-75))}><ChevronLeft size={16}/></button><button className="icon-button" title="Next page" aria-label="Next page" disabled={offset+75>=results.total} onClick={()=>setOffset(offset+75)}><ChevronRight size={16}/></button></div></>}
       {page==='imports'&&<section className="settings-body">{!jobs.length?<div className="empty"><Inbox size={40}/><h2>No imports</h2></div>:jobs.map(job=><div className="job-row" key={job.source_id}><div className="job-heading"><strong>{roots.find(r=>r.id===job.source_id)?.name||'Folder'}</strong><span>{job.status}</span></div><progress value={job.completed} max={Math.max(1,job.total)}/><p>{job.completed} / {job.total} files · {job.reused} reused · {job.failed} failed</p><small className="muted path-text">{job.current}</small>{job.errors.length>0&&<details><summary>Errors ({job.errors.length})</summary>{job.errors.map((e,i)=><p key={i} className="path-text">{e}</p>)}</details>}{job.status==='analyzing'&&<button onClick={()=>guard(()=>call('cancel_import'))}>Cancel import</button>}</div>)}</section>}
       {page==='settings'&&<section className="settings-body"><h2>Folders</h2>{roots.length?roots.map(root=><div className="setting-row" key={root.id}><div className="folder-detail"><strong>{root.name}</strong><code>{root.root}</code><small className="muted">{root.available?'Available':'Offline'}</small></div><div className="header-actions"><button className="icon-button" title="Rescan folder" aria-label={`Rescan ${root.name}`} onClick={()=>guard(()=>call('scan_source',{id:root.id}))}><RefreshCw size={16}/></button><button onClick={()=>{setRelink(root);setPath(root.root);}}>Relink</button></div></div>):<p className="muted">No folders added.</p>}
       <h2>Intelligence</h2><div className="setting-row"><span>AI features</span><span className="muted">Disabled · AI API or local model needed</span></div><h2>Application</h2><div className="setting-row"><span>Version</span><span>{info?.version||'0.1.0'} · Development</span></div><div className="setting-row"><span>Media engine</span><span>{info?.media_tools?'Available':'Unavailable'}</span></div><div className="setting-row"><span>Data directory</span><code>{info?.data_directory||'Desktop application only'}</code></div></section>}
-      <footer className="transport-empty"><AudioLines size={24}/><span>{selected?.title||'No audio selected'}</span><span className="muted">{selected?.profile?duration(selected.profile.duration):''}</span></footer>
+      <footer className="transport" aria-label="Audio transport">
+        <div className="transport-controls">
+          <button className="icon-button" title={playback?.state==='playing'?'Pause':'Play'} aria-label={playback?.state==='playing'?'Pause':'Play'} onClick={togglePlay}>
+            {playback?.state==='playing'?<Pause size={18}/>:<Play size={18}/>}
+          </button>
+          <button className="icon-button" title="Stop" aria-label="Stop" disabled={!playback||playback.state==='stopped'} onClick={stopPlayback}>
+            <Square size={16}/>
+          </button>
+        </div>
+        <div className="transport-info">
+          <strong className="transport-title">{selected?.title||(playback?.sound_id?'Playing sound':'No audio selected')}</strong>
+          <small className="transport-meta">
+            {playback?.error?<span style={{color:'#ff9999'}}>{playback.error}</span>:playback?.state==='playing'?'Playing':playback?.state==='paused'?'Paused':playback?.state==='finished'?'Finished':'Stopped'}
+          </small>
+        </div>
+        <div className="transport-scrub">
+          <span className="transport-time">{duration(playback?.position_seconds||0)}</span>
+          <input type="range" className="transport-slider" aria-label="Seek position" min="0" max={playback?.duration_seconds||selected?.profile?.duration||1} step="0.05" value={playback?.position_seconds||0} onChange={e=>seekPlayback(Number(e.target.value))}/>
+          <span className="transport-time">{duration(playback?.duration_seconds||selected?.profile?.duration||0)}</span>
+        </div>
+        <div className="transport-meter" title="Output Level" aria-label="Output Level">
+          <div className="transport-meter-bar" style={{width:`${Math.min(100,Math.round((playback?.peak||0)*100))}%`}}/>
+        </div>
+        <div className="transport-volume">
+          <button className="icon-button" title={muted||volume===0?'Unmute':'Mute'} aria-label={muted||volume===0?'Unmute':'Mute'} onClick={toggleMute}>
+            {muted||volume===0?<VolumeX size={16}/>:<Volume2 size={16}/>}
+          </button>
+          <input type="range" className="volume-slider" aria-label="Volume" min="0" max="1" step="0.02" value={muted?0:volume} onChange={e=>changeVolume(Number(e.target.value))}/>
+        </div>
+      </footer>
     </main>
     {dropping&&<div className="drop-overlay"><FolderPlus size={48}/><strong>Add audio folders</strong></div>}
     {relink&&<div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="relink-title"><h2 id="relink-title">Relink {relink.name}</h2><label>Folder path<input autoFocus value={path} onChange={e=>setPath(e.target.value)}/></label><div className="modal-actions"><button onClick={()=>setRelink(null)}>Cancel</button><button onClick={()=>guard(async()=>{const p=await call<string|null>('choose_folder');if(p)setPath(p);})}><FolderOpen size={16}/>Browse</button><button className="primary" onClick={()=>guard(async()=>{await call('relink_source',{id:relink.id,path});setRelink(null);setRoots(await call('sources'));refresh();})}>Verify & relink</button></div></section></div>}

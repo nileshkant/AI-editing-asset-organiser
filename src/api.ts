@@ -10,6 +10,16 @@ export type Interpretation = { terms: string[]; phrases?: string[]; excluded: st
 export type SearchResults = { items: Sound[]; total: number; interpretation: Interpretation; facets?: SearchFacets };
 export type SavedSearch = { id: string; name: string; query: SearchQuery; created_at: number };
 export type AppInfo = {version:string;data_directory:string;desktop:boolean;media_tools:boolean};
+export type PlaybackState = 'stopped' | 'playing' | 'paused' | 'finished' | 'error';
+export type PlaybackStatus = {
+  sound_id: string | null;
+  state: PlaybackState;
+  position_seconds: number;
+  duration_seconds: number;
+  volume: number;
+  peak: number;
+  error: string | null;
+};
 export function call<T>(command:string,args?:Record<string,unknown>):Promise<T> {
   if (!isTauri()) return Promise.reject(new Error('Open SoundShelf as a desktop application.'));
   return invoke<T>(command,args);

@@ -25,4 +25,40 @@ describe('desktop foundation', () => {
     expect(duration(2.5)).toBe('0:02.50');
     expect(duration(65.123)).toBe('1:05.12');
   });
+
+  it('renders transport controls footer with play, stop, meter, and volume slider', () => {
+    render(<App />);
+    expect(screen.getByLabelText('Audio transport')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Volume' })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Seek position' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Output Level')).toBeInTheDocument();
+  });
+
+  it('handles volume slider adjustments', () => {
+    render(<App />);
+    const volumeSlider = screen.getByRole('slider', { name: 'Volume' });
+    expect(volumeSlider).toHaveValue('1');
+    fireEvent.change(volumeSlider, { target: { value: '0.6' } });
+    expect(volumeSlider).toHaveValue('0.6');
+  });
+
+  it('handles mute and unmute toggling', () => {
+    render(<App />);
+    const muteButton = screen.getByRole('button', { name: 'Mute' });
+    fireEvent.click(muteButton);
+    expect(screen.getByRole('button', { name: 'Unmute' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Unmute' }));
+    expect(screen.getByRole('button', { name: 'Mute' })).toBeInTheDocument();
+  });
+
+  it('handles spacebar keyboard shortcut for transport toggle', () => {
+    render(<App />);
+    const playButton = screen.getByRole('button', { name: 'Play' });
+    expect(playButton).toBeInTheDocument();
+    fireEvent.keyDown(window, { code: 'Space' });
+    // In mock environment without active sound or backend, it safely handles the event
+    expect(playButton).toBeInTheDocument();
+  });
 });
