@@ -3,7 +3,12 @@ export type Source = { id:string;name:string;root:string;generation:number;avail
 export type Profile = {duration:number;sample_rate:number;channels:number;channel_layout?:string;channel_peaks?:number[];channel_rms?:number[];frames:number;peak:number;rms:number;description:string;tags:string[];waveform:[number,number][]};
 export type Sound = {id:string;source_id:string;relative_path:string;title:string;content_hash:string;status:string;profile:Profile|null;user_tags:string[];comment:string;favorite:boolean};
 export type Progress = {job_id:string;source_id:string;status:string;completed:number;total:number;reused:number;failed:number;current:string;errors:string[]};
-export type SearchResults = {items:Sound[];total:number;interpretation:{terms:string[];excluded:string[];min_duration:number|null;max_duration:number|null;corrected:string[]}};
+export type FacetItem = { value: string; count: number };
+export type SearchFacets = { tags: FacetItem[]; layouts: FacetItem[]; durations: FacetItem[] };
+export type SearchQuery = { text: string; source_ids?: string[]; tags?: string[]; favorites_only?: boolean; min_duration?: number | null; max_duration?: number | null; offset?: number; limit?: number | null };
+export type Interpretation = { terms: string[]; phrases?: string[]; excluded: string[]; min_duration: number | null; max_duration: number | null; corrected: string[] };
+export type SearchResults = { items: Sound[]; total: number; interpretation: Interpretation; facets?: SearchFacets };
+export type SavedSearch = { id: string; name: string; query: SearchQuery; created_at: number };
 export type AppInfo = {version:string;data_directory:string;desktop:boolean;media_tools:boolean};
 export function call<T>(command:string,args?:Record<string,unknown>):Promise<T> {
   if (!isTauri()) return Promise.reject(new Error('Open SoundShelf as a desktop application.'));

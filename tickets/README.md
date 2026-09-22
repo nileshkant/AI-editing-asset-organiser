@@ -32,6 +32,7 @@ blocker and move to the next unblocked ticket without changing the queue.
 - [SS-005: Measured profiles and descriptions](SS-005.md) | complete
 - [SS-006: Folder relink and availability](SS-006.md) | complete
 - [SS-007: User tags comments and favorites](SS-007.md) | complete
+- [SS-008: Offline natural language and fuzzy search](SS-008.md) | complete
 - [SS-027: macOS 26 native startup compatibility](SS-027.md) | complete
 - [SS-028: Windows application icon resource](SS-028.md) | complete
 
@@ -41,11 +42,10 @@ This is the canonical implementation order. It prioritizes a reliable local
 editing workflow before integrations and keeps optional AI off the critical
 path.
 
-1. [SS-008: Offline natural language and fuzzy search](SS-008.md) | partial | finish indexed retrieval and scale tests
-2. [SS-010: Native audio playback](SS-010.md) | not-started | establish audible native transport
-3. [SS-009: Library workspace and accessibility](SS-009.md) | partial | finish against real playback and large libraries
-4. [SS-011: Waveform visualization](SS-011.md) | not-started | add playback-synced multiresolution waveform
-5. [SS-012: Clip recipes and selection](SS-012.md) | not-started | add exact non-destructive selections
+1. [SS-010: Native audio playback](SS-010.md) | not-started | establish audible native transport
+2. [SS-009: Library workspace and accessibility](SS-009.md) | partial | finish against real playback and large libraries
+3. [SS-011: Waveform visualization](SS-011.md) | not-started | add playback-synced multiresolution waveform
+4. [SS-012: Clip recipes and selection](SS-012.md) | not-started | add exact non-destructive selections
 6. [SS-013: Clip export and handoff](SS-013.md) | not-started | produce verified editor-ready media
 7. [SS-026: Individual-file import](SS-026.md) | not-started | extend stable source scopes
 8. [SS-021: Portable catalog and migration](SS-021.md) | not-started | add portable export/import after identity work stabilizes

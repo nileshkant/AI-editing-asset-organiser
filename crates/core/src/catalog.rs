@@ -34,7 +34,7 @@ pub struct Profile {
     pub waveform: Vec<[f32; 2]>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Sound {
     pub id: String,
     pub source_id: String,
@@ -48,8 +48,16 @@ pub struct Sound {
     pub favorite: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SavedSearch {
+    pub id: String,
+    pub name: String,
+    pub query: crate::search::SearchQuery,
+    pub created_at: i64,
+}
+
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
@@ -64,9 +72,10 @@ impl Catalog {
             tx.execute_batch(include_str!("schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
-        } else if version == 1 {
+        } else {
             let tx = db.transaction()?;
-            tx.execute_batch("CREATE TABLE jobs (
+            if version < 2 {
+                tx.execute_batch("CREATE TABLE jobs (
  id TEXT PRIMARY KEY,
  source_id TEXT NOT NULL REFERENCES sources(id),
  kind TEXT NOT NULL,
@@ -84,6 +93,15 @@ impl Catalog {
  updated_at INTEGER NOT NULL,
  UNIQUE(source_id, kind)
 );")?;
+            }
+            if version < 3 {
+                tx.execute_batch("CREATE TABLE saved_searches (
+ id TEXT PRIMARY KEY,
+ name TEXT NOT NULL UNIQUE,
+ query TEXT NOT NULL,
+ created_at INTEGER NOT NULL
+);")?;
+            }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }
@@ -215,6 +233,55 @@ impl Catalog {
         let tx = self.db.transaction()?;
         for sound in missing { tx.execute("UPDATE sounds SET status='missing' WHERE id=?1",[sound.id])?; }
         tx.commit()?;
+        Ok(())
+    }
+
+    pub fn search(&self, query: &crate::search::SearchQuery) -> Result<crate::search::SearchResults> {
+        let online: Vec<String> = self.sources()?.into_iter().filter(|s| s.available).map(|s| s.id).collect();
+        crate::search::search(self.all_sounds()?, query, &online)
+    }
+
+    pub fn save_search(&self, name: &str, query: &crate::search::SearchQuery) -> Result<SavedSearch> {
+        let trimmed = name.trim();
+        if trimmed.is_empty() || trimmed.chars().count() > 100 {
+            return Err(invalid("Search name must be between 1 and 100 characters"));
+        }
+        let id = Uuid::new_v4().to_string();
+        let now = crate::jobs::now_secs();
+        let query_json = serde_json::to_string(query)?;
+        self.db.execute(
+            "INSERT INTO saved_searches(id, name, query, created_at) VALUES(?1, ?2, ?3, ?4)
+             ON CONFLICT(name) DO UPDATE SET query=excluded.query, created_at=excluded.created_at",
+            params![id, trimmed, query_json, now],
+        )?;
+        let saved_id: String = self.db.query_row("SELECT id FROM saved_searches WHERE name=?1", [trimmed], |r| r.get(0))?;
+        Ok(SavedSearch {
+            id: saved_id,
+            name: trimmed.to_string(),
+            query: query.clone(),
+            created_at: now,
+        })
+    }
+
+    pub fn saved_searches(&self) -> Result<Vec<SavedSearch>> {
+        let mut stmt = self.db.prepare("SELECT id, name, query, created_at FROM saved_searches ORDER BY name, id")?;
+        let rows = stmt.query_map([], |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, i64>(3)?))
+        })?;
+        let mut list = Vec::new();
+        for row in rows {
+            let (id, name, q_str, created_at) = row?;
+            let query: crate::search::SearchQuery = serde_json::from_str(&q_str).map_err(|e| invalid(&e.to_string()))?;
+            list.push(SavedSearch { id, name, query, created_at });
+        }
+        Ok(list)
+    }
+
+    pub fn delete_saved_search(&self, id: &str) -> Result<()> {
+        let count = self.db.execute("DELETE FROM saved_searches WHERE id=?1", [id])?;
+        if count == 0 {
+            return Err(invalid("Saved search not found"));
+        }
         Ok(())
     }
 }

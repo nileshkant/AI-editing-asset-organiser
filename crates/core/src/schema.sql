@@ -36,3 +36,9 @@ CREATE TABLE jobs (
  updated_at INTEGER NOT NULL,
  UNIQUE(source_id, kind)
 );
+CREATE TABLE saved_searches (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  query TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);

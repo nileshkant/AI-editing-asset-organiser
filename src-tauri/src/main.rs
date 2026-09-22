@@ -1,7 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod service;
 use service::AppState;
-use soundshelf_core::{catalog::{Source,Sound},library::Progress,search::{SearchQuery,SearchResults,search}};
+use soundshelf_core::{catalog::{SavedSearch,Source,Sound},library::Progress,search::{SearchQuery,SearchResults}};
 use std::path::PathBuf;
 use std::{fs::{create_dir_all,OpenOptions},io::Write};
 use tauri::Manager;
@@ -23,7 +23,13 @@ fn scan_source(state:tauri::State<AppState>,id:String)->Result<(),String>{let so
 #[tauri::command]
 async fn relink_source(state:tauri::State<'_,AppState>,id:String,path:String)->Result<Source,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.relink(&id,&PathBuf::from(path)).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
-async fn search_sounds(state:tauri::State<'_,AppState>,query:SearchQuery)->Result<SearchResults,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||{let c=c.lock().map_err(|e|e.to_string())?;let online=c.sources().map_err(|e|e.to_string())?.into_iter().filter(|s|s.available).map(|s|s.id).collect::<Vec<_>>();search(c.all_sounds().map_err(|e|e.to_string())?,&query,&online).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())?}
+async fn search_sounds(state:tauri::State<'_,AppState>,query:SearchQuery)->Result<SearchResults,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.search(&query).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
+#[tauri::command]
+async fn save_search(state:tauri::State<'_,AppState>,name:String,query:SearchQuery)->Result<SavedSearch,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.save_search(&name,&query).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
+#[tauri::command]
+async fn saved_searches(state:tauri::State<'_,AppState>)->Result<Vec<SavedSearch>,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.saved_searches().map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
+#[tauri::command]
+async fn delete_saved_search(state:tauri::State<'_,AppState>,id:String)->Result<(),String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.delete_saved_search(&id).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
 async fn get_sound(state:tauri::State<'_,AppState>,id:String)->Result<Sound,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.ready_sound(&id).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
@@ -80,7 +86,7 @@ fn main() {
     install_startup_diagnostics();
     tauri::Builder::default().plugin(tauri_plugin_dialog::init())
         .setup(|app|{let path=if cfg!(debug_assertions){std::env::var_os("SOUNDSHELF_DATA_DIR").map(PathBuf::from).or_else(||app.path().app_data_dir().ok()).unwrap_or_else(fallback_data_directory)}else{app.path().app_data_dir().unwrap_or_else(|_|fallback_data_directory())};let resources=app.path().resource_dir().unwrap_or_else(|_|fallback_resource_directory());app.manage(AppState::new(path,resources)?);Ok(())})
-        .invoke_handler(tauri::generate_handler![app_info,choose_folder,sources,import_root,scan_source,relink_source,search_sounds,get_sound,annotate,jobs,cancel_import])
+        .invoke_handler(tauri::generate_handler![app_info,choose_folder,sources,import_root,scan_source,relink_source,search_sounds,save_search,saved_searches,delete_saved_search,get_sound,annotate,jobs,cancel_import])
         .build(tauri::generate_context!()).expect("SoundShelf could not start")
         .run(|app,event|if matches!(event,tauri::RunEvent::Exit){app.state::<AppState>().shutdown();});
 }
