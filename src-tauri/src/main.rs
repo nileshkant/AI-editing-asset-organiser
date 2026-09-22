@@ -86,6 +86,41 @@ fn playback_status(state: tauri::State<'_, AppState>) -> PlaybackStatus {
     state.player.status()
 }
 
+#[tauri::command]
+async fn get_waveform(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    start_frame: Option<u64>,
+    end_frame: Option<u64>,
+    max_points: Option<usize>,
+) -> Result<soundshelf_core::waveform::WaveformResponse, String> {
+    let (sound, path) = {
+        let c = state.catalog.lock().map_err(|e| e.to_string())?;
+        let sound = c.ready_sound(&id).map_err(|e| e.to_string())?;
+        let path = c.resolve(&id).map_err(|e| e.to_string())?;
+        (sound, path)
+    };
+    let profile = sound.profile.ok_or_else(|| "Sound has no profile".to_string())?;
+    let tools = state.tools.as_ref().ok_or_else(|| "Media tools unavailable".to_string())?.clone();
+    let waveforms = state.waveforms.clone();
+    let cancel = state.cancel.clone();
+
+    tauri::async_runtime::spawn_blocking(move || {
+        let pyramid = waveforms.load_or_build(
+            &sound.content_hash,
+            &path,
+            profile.sample_rate,
+            profile.channels,
+            &tools,
+            cancel,
+        ).map_err(|e| e.to_string())?;
+
+        Ok(pyramid.query_window(start_frame, end_frame, max_points))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 fn install_startup_diagnostics() {
     let previous = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
@@ -154,7 +189,8 @@ fn main() {
             playback_stop,
             playback_seek,
             playback_set_volume,
-            playback_status
+            playback_status,
+            get_waveform
         ])
         .build(tauri::generate_context!()).expect("SoundShelf could not start")
         .run(|app,event|if matches!(event,tauri::RunEvent::Exit){app.state::<AppState>().shutdown();});

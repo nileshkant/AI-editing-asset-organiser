@@ -20,6 +20,24 @@ export type PlaybackStatus = {
   peak: number;
   error: string | null;
 };
+export type ChannelBucket = {
+  min: number;
+  max: number;
+  rms: number;
+};
+export type WaveformResponse = {
+  channels: ChannelBucket[][];
+  start_frame: number;
+  end_frame: number;
+  frames_per_point: number;
+  total_frames: number;
+  sample_rate: number;
+  channels_count: number;
+};
+export type WaveformSelection = {
+  start_seconds: number;
+  end_seconds: number;
+};
 export function call<T>(command:string,args?:Record<string,unknown>):Promise<T> {
   if (!isTauri()) return Promise.reject(new Error('Open SoundShelf as a desktop application.'));
   return invoke<T>(command,args);
