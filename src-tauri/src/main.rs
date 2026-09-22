@@ -1,7 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod service;
 use service::AppState;
-use soundshelf_core::{catalog::{SavedSearch,Source,Sound},library::Progress,search::{SearchQuery,SearchResults}};
+use soundshelf_core::{
+    catalog::{SavedSearch, Source, Sound},
+    library::Progress,
+    playback::PlaybackStatus,
+    search::{SearchQuery, SearchResults},
+};
 use std::path::PathBuf;
 use std::{fs::{create_dir_all,OpenOptions},io::Write};
 use tauri::Manager;
@@ -38,6 +43,48 @@ async fn annotate(state:tauri::State<'_,AppState>,id:String,tags:Vec<String>,com
 fn jobs(state:tauri::State<AppState>)->Result<Vec<Progress>,String>{state.progress.lock().map(|s|s.clone()).map_err(|e|e.to_string())}
 #[tauri::command]
 fn cancel_import(state:tauri::State<AppState>){state.cancel.store(true,std::sync::atomic::Ordering::Relaxed);}
+
+#[tauri::command]
+async fn playback_play(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+    let (path, duration) = {
+        let c = state.catalog.lock().map_err(|e| e.to_string())?;
+        let sound = c.ready_sound(&id).map_err(|e| e.to_string())?;
+        let path = c.resolve(&id).map_err(|e| e.to_string())?;
+        let duration = sound.profile.as_ref().map(|p| p.duration).unwrap_or(0.0);
+        (path, duration)
+    };
+    state.player.play(&id, &path, duration).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn playback_pause(state: tauri::State<'_, AppState>) {
+    state.player.pause();
+}
+
+#[tauri::command]
+fn playback_resume(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    state.player.resume().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn playback_stop(state: tauri::State<'_, AppState>) {
+    state.player.stop();
+}
+
+#[tauri::command]
+fn playback_seek(state: tauri::State<'_, AppState>, position_seconds: f64) -> Result<(), String> {
+    state.player.seek(position_seconds).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn playback_set_volume(state: tauri::State<'_, AppState>, volume: f32) {
+    state.player.set_volume(volume);
+}
+
+#[tauri::command]
+fn playback_status(state: tauri::State<'_, AppState>) -> PlaybackStatus {
+    state.player.status()
+}
 
 fn install_startup_diagnostics() {
     let previous = std::panic::take_hook();
@@ -86,7 +133,29 @@ fn main() {
     install_startup_diagnostics();
     tauri::Builder::default().plugin(tauri_plugin_dialog::init())
         .setup(|app|{let path=if cfg!(debug_assertions){std::env::var_os("SOUNDSHELF_DATA_DIR").map(PathBuf::from).or_else(||app.path().app_data_dir().ok()).unwrap_or_else(fallback_data_directory)}else{app.path().app_data_dir().unwrap_or_else(|_|fallback_data_directory())};let resources=app.path().resource_dir().unwrap_or_else(|_|fallback_resource_directory());app.manage(AppState::new(path,resources)?);Ok(())})
-        .invoke_handler(tauri::generate_handler![app_info,choose_folder,sources,import_root,scan_source,relink_source,search_sounds,save_search,saved_searches,delete_saved_search,get_sound,annotate,jobs,cancel_import])
+        .invoke_handler(tauri::generate_handler![
+            app_info,
+            choose_folder,
+            sources,
+            import_root,
+            scan_source,
+            relink_source,
+            search_sounds,
+            save_search,
+            saved_searches,
+            delete_saved_search,
+            get_sound,
+            annotate,
+            jobs,
+            cancel_import,
+            playback_play,
+            playback_pause,
+            playback_resume,
+            playback_stop,
+            playback_seek,
+            playback_set_volume,
+            playback_status
+        ])
         .build(tauri::generate_context!()).expect("SoundShelf could not start")
         .run(|app,event|if matches!(event,tauri::RunEvent::Exit){app.state::<AppState>().shutdown();});
 }

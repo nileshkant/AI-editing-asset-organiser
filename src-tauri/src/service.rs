@@ -1,4 +1,4 @@
-use soundshelf_core::{catalog::{Catalog,Source},jobs::{now_secs,Job},library::{scan,Progress},media::MediaTools};
+use soundshelf_core::{catalog::{Catalog,Source},jobs::{now_secs,Job},library::{scan,Progress},media::MediaTools,playback::Player};
 use std::{path::PathBuf,sync::{Arc,Mutex,mpsc::{sync_channel,SyncSender,RecvTimeoutError},atomic::{AtomicBool,Ordering}},thread,time::Duration};
 use uuid::Uuid;
 
@@ -8,6 +8,7 @@ pub struct AppState {
     pub data_directory:PathBuf,
     pub catalog:Arc<Mutex<Catalog>>,
     pub tools:Option<MediaTools>,
+    pub player:Arc<Player>,
     pub progress:Arc<Mutex<Vec<Progress>>>,
     pub cancel:Arc<AtomicBool>,
     stop:Arc<AtomicBool>,
@@ -19,9 +20,10 @@ impl AppState {
         std::fs::create_dir_all(&data_directory)?;
         let catalog=Arc::new(Mutex::new(Catalog::open(&data_directory.join("library.sqlite"))?));
         let mut tools=MediaTools{ffmpeg:resources.join("media").join(if cfg!(windows){"ffmpeg.exe"}else{"ffmpeg"}),ffprobe:resources.join("media").join(if cfg!(windows){"ffprobe.exe"}else{"ffprobe"})};
-        if cfg!(debug_assertions)&&tools.validate().is_err(){
-            for base in ["/opt/homebrew/bin","/usr/local/bin","/usr/bin"] {let candidate=MediaTools{ffmpeg:PathBuf::from(base).join("ffmpeg"),ffprobe:PathBuf::from(base).join("ffprobe")};if candidate.validate().is_ok(){tools=candidate;break;}}
-            if let (Some(a),Some(b))=(std::env::var_os("SOUNDSHELF_FFMPEG"),std::env::var_os("SOUNDSHELF_FFPROBE")){tools=MediaTools{ffmpeg:a.into(),ffprobe:b.into()};}
+        if tools.validate().is_err() {
+            if let Some(discovered) = MediaTools::discover() {
+                tools = discovered;
+            }
         }
         let tools=tools.validate().ok().map(|_|tools);
         let progress=Arc::new(Mutex::new(Vec::<Progress>::new()));let cancel=Arc::new(AtomicBool::new(false));let stop=Arc::new(AtomicBool::new(false));
@@ -56,7 +58,8 @@ impl AppState {
                 }
             }
         });
-        let state=Self{data_directory,catalog,tools,progress,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))};
+        let player=Arc::new(Player::new(tools.clone()));
+        let state=Self{data_directory,catalog,tools,player,progress,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))};
         state.resume_persisted()?;
         Ok(state)
     }
@@ -105,6 +108,7 @@ impl AppState {
         Ok(())
     }
     pub fn shutdown(&self){
+        self.player.stop();
         self.stop.store(true,Ordering::Relaxed);
         self.cancel.store(true,Ordering::Relaxed);
         if let Ok(catalog)=self.catalog.lock(){let _=catalog.checkpoint_running();}

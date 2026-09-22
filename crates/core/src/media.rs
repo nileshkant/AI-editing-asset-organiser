@@ -9,6 +9,23 @@ impl MediaTools {
     pub fn validate(&self) -> Result<()> {
         if !self.ffmpeg.is_file() || !self.ffprobe.is_file() {return Err(invalid("FFmpeg media tools are unavailable"));}Ok(())
     }
+
+    pub fn discover() -> Option<Self> {
+        if let (Some(a), Some(b)) = (std::env::var_os("SOUNDSHELF_FFMPEG"), std::env::var_os("SOUNDSHELF_FFPROBE")) {
+            let candidate = Self { ffmpeg: a.into(), ffprobe: b.into() };
+            if candidate.validate().is_ok() { return Some(candidate); }
+        }
+        for base in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] {
+            let candidate = Self {
+                ffmpeg: PathBuf::from(base).join(if cfg!(windows) { "ffmpeg.exe" } else { "ffmpeg" }),
+                ffprobe: PathBuf::from(base).join(if cfg!(windows) { "ffprobe.exe" } else { "ffprobe" }),
+            };
+            if candidate.validate().is_ok() {
+                return Some(candidate);
+            }
+        }
+        None
+    }
 }
 #[derive(Deserialize)]
 struct Probe { streams: Vec<Stream> }
