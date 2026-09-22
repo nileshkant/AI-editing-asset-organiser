@@ -9,13 +9,19 @@ import {
   X,
   Bookmark,
   Crosshair,
+  Lock,
+  Unlock,
+  BookmarkPlus,
+  AlertCircle,
+  Check,
 } from 'lucide-react';
-import { call, duration } from '../../api';
+import { call, duration, secondsToFrame, createClip } from '../../api';
 import { PitchOverlay } from './PitchOverlay';
-import type { WaveformResponse, ChannelBucket } from '../../types';
+import type { WaveformResponse, ChannelBucket, Clip, ClipRecipe } from '../../types';
 
 export interface WaveformProps {
   soundId?: string;
+  soundHash?: string;
   peaks?: [number, number][];
   duration?: number;
   sampleRate?: number;
@@ -26,10 +32,12 @@ export interface WaveformProps {
   onSelectionChange?: (
     selection: { start: number; end: number } | null,
   ) => void;
+  onClipSaved?: (clip: Clip) => void;
 }
 
 export function Waveform({
   soundId,
+  soundHash,
   peaks = [],
   duration: totalDuration = 1.0,
   sampleRate = 48000,
@@ -38,6 +46,7 @@ export function Waveform({
   onSeek,
   selection: controlledSelection,
   onSelectionChange,
+  onClipSaved,
 }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,6 +63,15 @@ export function Waveform({
   >(null);
   const [dragAnchor, setDragAnchor] = useState<number>(0);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [isDurationLocked, setIsDurationLocked] = useState(false);
+  const [clampFeedback, setClampFeedback] = useState<{
+    message: string;
+    action?: { label: string; handler: () => void };
+  } | null>(null);
+  const [isSavingClip, setIsSavingClip] = useState(false);
+  const [clipName, setClipName] = useState('');
+  const [clipSaveSuccess, setClipSaveSuccess] = useState<string | null>(null);
+  const [clipSaveError, setClipSaveError] = useState<string | null>(null);
 
   const activeSelection =
     controlledSelection !== undefined
@@ -439,18 +457,48 @@ export function Waveform({
       if (isDragging === 'create') {
         const start = Math.min(dragAnchor, curTime);
         const end = Math.max(dragAnchor, curTime);
-        if (end - start > 0.01) {
+        if (end - start > 1 / sampleRate) {
           updateSelection({ start, end });
         }
       } else if (isDragging === 'start' && activeSelection) {
-        const nextStart = Math.min(
-          activeSelection.end - 0.001,
-          Math.max(0, curTime),
-        );
-        updateSelection({ start: nextStart, end: activeSelection.end });
+        const minFrameSec = 1 / sampleRate;
+        if (isDurationLocked) {
+          const curSpan = activeSelection.end - activeSelection.start;
+          let nextStart = Math.max(0, curTime);
+          let nextEnd = nextStart + curSpan;
+          if (nextEnd > safeDuration) {
+            nextEnd = safeDuration;
+            nextStart = Math.max(0, safeDuration - curSpan);
+            setClampFeedback({ message: 'Locked selection clamped to file end.' });
+          } else {
+            setClampFeedback(null);
+          }
+          updateSelection({ start: nextStart, end: nextEnd });
+        } else {
+          if (curTime >= activeSelection.end) {
+            setClampFeedback({ message: 'Start clamped: cannot cross End (min 1 sample frame).' });
+          } else if (curTime < 0) {
+            setClampFeedback({ message: 'Start clamped to 0.000s.' });
+          } else {
+            setClampFeedback(null);
+          }
+          const nextStart = Math.min(
+            activeSelection.end - minFrameSec,
+            Math.max(0, curTime),
+          );
+          updateSelection({ start: nextStart, end: activeSelection.end });
+        }
       } else if (isDragging === 'end' && activeSelection) {
+        const minFrameSec = 1 / sampleRate;
+        if (curTime <= activeSelection.start) {
+          setClampFeedback({ message: 'End clamped: cannot cross Start (min 1 sample frame).' });
+        } else if (curTime > safeDuration) {
+          setClampFeedback({ message: `End clamped to file end (${safeDuration.toFixed(3)}s).` });
+        } else {
+          setClampFeedback(null);
+        }
         const nextEnd = Math.max(
-          activeSelection.start + 0.001,
+          activeSelection.start + minFrameSec,
           Math.min(safeDuration, curTime),
         );
         updateSelection({
@@ -483,34 +531,60 @@ export function Waveform({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!activeSelection) return;
     const step = e.shiftKey ? 0.1 : 0.01;
+    const minFrameSec = 1 / sampleRate;
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      const start = Math.max(0, activeSelection.start - step);
-      const end = Math.max(start + 0.001, activeSelection.end - step);
-      updateSelection({ start, end });
+      if (isDurationLocked) {
+        const curSpan = activeSelection.end - activeSelection.start;
+        const start = Math.max(0, activeSelection.start - step);
+        updateSelection({ start, end: start + curSpan });
+      } else {
+        const start = Math.max(0, activeSelection.start - step);
+        const end = Math.max(start + minFrameSec, activeSelection.end - step);
+        updateSelection({ start, end });
+      }
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      const end = Math.min(safeDuration, activeSelection.end + step);
-      const start = Math.min(
-        end - 0.001,
-        activeSelection.start + step,
-      );
-      updateSelection({ start, end });
+      if (isDurationLocked) {
+        const curSpan = activeSelection.end - activeSelection.start;
+        let end = Math.min(safeDuration, activeSelection.end + step);
+        let start = end - curSpan;
+        if (start < 0) {
+          start = 0;
+          end = curSpan;
+        }
+        updateSelection({ start, end });
+      } else {
+        const end = Math.min(safeDuration, activeSelection.end + step);
+        const start = Math.min(
+          end - minFrameSec,
+          activeSelection.start + step,
+        );
+        updateSelection({ start, end });
+      }
     } else if (e.key === 'i' || e.key === 'I') {
       e.preventDefault();
-      updateSelection({
-        start: playbackPosition,
-        end: Math.max(playbackPosition + 0.01, activeSelection.end),
-      });
+      if (isDurationLocked) {
+        const curSpan = activeSelection.end - activeSelection.start;
+        let start = Math.max(0, Math.min(safeDuration - curSpan, playbackPosition));
+        updateSelection({ start, end: start + curSpan });
+      } else {
+        const start = Math.max(0, Math.min(safeDuration - minFrameSec, playbackPosition));
+        const end = Math.max(start + minFrameSec, activeSelection.end);
+        updateSelection({ start, end });
+      }
     } else if (e.key === 'o' || e.key === 'O') {
       e.preventDefault();
-      updateSelection({
-        start: Math.min(
-          playbackPosition - 0.01,
-          activeSelection.start,
-        ),
-        end: playbackPosition,
-      });
+      if (isDurationLocked) {
+        const curSpan = activeSelection.end - activeSelection.start;
+        let end = Math.min(safeDuration, Math.max(curSpan, playbackPosition));
+        let start = end - curSpan;
+        updateSelection({ start, end });
+      } else {
+        const end = Math.min(safeDuration, Math.max(minFrameSec, playbackPosition));
+        const start = Math.min(end - minFrameSec, activeSelection.start);
+        updateSelection({ start, end });
+      }
     }
   };
 
@@ -602,6 +676,35 @@ export function Waveform({
         {activeSelection && (
           <div className="waveform-group">
             <button
+              className={`icon-button ${isDurationLocked ? 'chosen' : ''}`}
+              title={
+                isDurationLocked
+                  ? 'Unlock selection duration'
+                  : 'Lock selection duration'
+              }
+              aria-label={
+                isDurationLocked
+                  ? 'Unlock selection duration'
+                  : 'Lock selection duration'
+              }
+              aria-pressed={isDurationLocked}
+              onClick={() => setIsDurationLocked(!isDurationLocked)}
+            >
+              {isDurationLocked ? (
+                <Lock size={14} aria-hidden="true" />
+              ) : (
+                <Unlock size={14} aria-hidden="true" />
+              )}
+            </button>
+            <button
+              className="icon-button"
+              title="Save selection as clip recipe"
+              aria-label="Save selection as clip recipe"
+              onClick={() => setIsSavingClip(true)}
+            >
+              <BookmarkPlus size={14} aria-hidden="true" />
+            </button>
+            <button
               className="icon-button"
               title="Fit to selection"
               aria-label="Fit to selection"
@@ -613,7 +716,11 @@ export function Waveform({
               className="icon-button"
               title="Clear selection"
               aria-label="Clear selection"
-              onClick={() => updateSelection(null)}
+              onClick={() => {
+                updateSelection(null);
+                setClampFeedback(null);
+                setIsSavingClip(false);
+              }}
             >
               <X size={14} aria-hidden="true" />
             </button>
@@ -684,20 +791,109 @@ export function Waveform({
                   value={activeSelection.start.toFixed(3)}
                   aria-label="Selection start in seconds"
                   onChange={(e) => {
-                    const next = Math.max(
-                      0,
-                      Math.min(
-                        activeSelection.end - 0.001,
-                        Number(e.target.value),
-                      ),
-                    );
-                    updateSelection({
-                      start: next,
-                      end: activeSelection.end,
-                    });
+                    const val = parseFloat(e.target.value);
+                    if (Number.isNaN(val)) return;
+                    const minFrameSec = 1 / sampleRate;
+                    if (isDurationLocked) {
+                      const curSpan = activeSelection.end - activeSelection.start;
+                      let nextStart = Math.max(0, val);
+                      let nextEnd = nextStart + curSpan;
+                      if (nextEnd > safeDuration) {
+                        nextEnd = safeDuration;
+                        nextStart = Math.max(0, safeDuration - curSpan);
+                        setClampFeedback({
+                          message: `Locked duration clamped to file end (${duration(safeDuration)}).`,
+                        });
+                      } else if (val < 0) {
+                        setClampFeedback({ message: 'Start clamped to 0.000s.' });
+                      } else {
+                        setClampFeedback(null);
+                      }
+                      updateSelection({ start: nextStart, end: nextEnd });
+                    } else {
+                      if (val < 0) {
+                        setClampFeedback({
+                          message: 'Start cannot be negative; clamped to 0.000s.',
+                        });
+                      } else if (val >= activeSelection.end) {
+                        setClampFeedback({
+                          message: 'Start clamped: must be before End (min 1 sample frame).',
+                        });
+                      } else {
+                        setClampFeedback(null);
+                      }
+                      const next = Math.max(
+                        0,
+                        Math.min(activeSelection.end - minFrameSec, val),
+                      );
+                      updateSelection({
+                        start: next,
+                        end: activeSelection.end,
+                      });
+                    }
                   }}
                 />
               </label>
+
+              <label>
+                Duration
+                <input
+                  type="number"
+                  step="0.01"
+                  min={1 / sampleRate}
+                  max={safeDuration}
+                  aria-label="Selection duration in seconds"
+                  value={(
+                    activeSelection.end - activeSelection.start
+                  ).toFixed(3)}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (Number.isNaN(val)) return;
+                    const minFrameSec = 1 / sampleRate;
+                    if (val <= 0) {
+                      setClampFeedback({
+                        message: 'Duration must be greater than 0; clamped to 1 sample frame.',
+                      });
+                      updateSelection({
+                        start: activeSelection.start,
+                        end: Math.min(
+                          safeDuration,
+                          activeSelection.start + minFrameSec,
+                        ),
+                      });
+                      return;
+                    }
+                    const targetEnd = activeSelection.start + val;
+                    if (targetEnd > safeDuration) {
+                      const remaining = safeDuration - activeSelection.start;
+                      setClampFeedback({
+                        message: `Duration exceeds file end; clamped to remaining audio: ${remaining.toFixed(3)}s.`,
+                        action: {
+                          label: 'Fit to remaining audio',
+                          handler: () => {
+                            updateSelection({
+                              start: activeSelection.start,
+                              end: safeDuration,
+                            });
+                            setClampFeedback(null);
+                          },
+                        },
+                      });
+                      updateSelection({
+                        start: activeSelection.start,
+                        end: safeDuration,
+                      });
+                    } else {
+                      setClampFeedback(null);
+                      updateSelection({
+                        start: activeSelection.start,
+                        end: targetEnd,
+                      });
+                    }
+                  }}
+                />
+              </label>
+
               <label>
                 End
                 <input
@@ -708,12 +904,23 @@ export function Waveform({
                   value={activeSelection.end.toFixed(3)}
                   aria-label="Selection end in seconds"
                   onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    if (Number.isNaN(val)) return;
+                    const minFrameSec = 1 / sampleRate;
+                    if (val > safeDuration) {
+                      setClampFeedback({
+                        message: `End clamped to file end (${safeDuration.toFixed(3)}s).`,
+                      });
+                    } else if (val <= activeSelection.start) {
+                      setClampFeedback({
+                        message: 'End clamped: must be after Start (min 1 sample frame).',
+                      });
+                    } else {
+                      setClampFeedback(null);
+                    }
                     const next = Math.min(
                       safeDuration,
-                      Math.max(
-                        activeSelection.start + 0.001,
-                        Number(e.target.value),
-                      ),
+                      Math.max(activeSelection.start + minFrameSec, val),
                     );
                     updateSelection({
                       start: activeSelection.start,
@@ -722,59 +929,222 @@ export function Waveform({
                   }}
                 />
               </label>
-              <label>
-                Duration
-                <input
-                  type="number"
-                  step="0.01"
-                  readOnly
-                  aria-label="Selection duration in seconds"
-                  value={(
-                    activeSelection.end - activeSelection.start
-                  ).toFixed(3)}
-                />
-              </label>
             </div>
+
+            {/* Frame boundary indicator */}
+            <div
+              className="selection-frame-indicator"
+              title="Source sample frame boundaries [start, end) where end frame is exclusive"
+            >
+              <span className="frame-range">
+                Frames: {secondsToFrame(activeSelection.start, sampleRate)} –{' '}
+                {secondsToFrame(activeSelection.end, sampleRate)} (exclusive)
+              </span>
+              <span className="frame-rounding-badge">Sample-exact</span>
+            </div>
+
+            {/* Explicit clamp feedback alert */}
+            {clampFeedback && (
+              <div
+                className="selection-clamp-alert"
+                role="alert"
+                aria-live="polite"
+              >
+                <AlertCircle size={14} aria-hidden="true" />
+                <span className="clamp-message">{clampFeedback.message}</span>
+                {clampFeedback.action && (
+                  <button
+                    type="button"
+                    className="compact-button clamp-action"
+                    onClick={clampFeedback.action.handler}
+                  >
+                    {clampFeedback.action.label}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="icon-button close-alert"
+                  aria-label="Dismiss notice"
+                  onClick={() => setClampFeedback(null)}
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+
             <div className="selection-actions">
               <button
                 className="compact-button"
                 title="Set selection start at playhead cursor"
-                onClick={() =>
-                  updateSelection({
-                    start: Math.max(
-                      0,
-                      Math.min(
-                        activeSelection.end - 0.01,
-                        playbackPosition,
-                      ),
-                    ),
-                    end: activeSelection.end,
-                  })
-                }
+                onClick={() => {
+                  const minFrameSec = 1 / sampleRate;
+                  const currentDuration =
+                    activeSelection.end - activeSelection.start;
+                  const nextStart = Math.max(
+                    0,
+                    Math.min(safeDuration - minFrameSec, playbackPosition),
+                  );
+                  if (isDurationLocked) {
+                    let nextEnd = nextStart + currentDuration;
+                    if (nextEnd > safeDuration) {
+                      nextEnd = safeDuration;
+                      setClampFeedback({
+                        message: `Locked duration clamped to file end (${safeDuration.toFixed(3)}s).`,
+                      });
+                    } else {
+                      setClampFeedback(null);
+                    }
+                    updateSelection({ start: nextStart, end: nextEnd });
+                  } else {
+                    const nextEnd = Math.max(
+                      nextStart + minFrameSec,
+                      activeSelection.end,
+                    );
+                    setClampFeedback(null);
+                    updateSelection({ start: nextStart, end: nextEnd });
+                  }
+                }}
               >
-                <Crosshair size={12} aria-hidden="true" /> Start at
-                Playhead
+                <Crosshair size={12} aria-hidden="true" /> Start at Playhead
               </button>
               <button
                 className="compact-button"
                 title="Set selection end at playhead cursor"
-                onClick={() =>
-                  updateSelection({
-                    start: activeSelection.start,
-                    end: Math.min(
-                      safeDuration,
-                      Math.max(
-                        activeSelection.start + 0.01,
-                        playbackPosition,
-                      ),
-                    ),
-                  })
-                }
+                onClick={() => {
+                  const minFrameSec = 1 / sampleRate;
+                  const nextEnd = Math.min(
+                    safeDuration,
+                    Math.max(minFrameSec, playbackPosition),
+                  );
+                  const nextStart = Math.min(
+                    nextEnd - minFrameSec,
+                    activeSelection.start,
+                  );
+                  setClampFeedback(null);
+                  updateSelection({ start: nextStart, end: nextEnd });
+                }}
               >
-                <Crosshair size={12} aria-hidden="true" /> End at
-                Playhead
+                <Crosshair size={12} aria-hidden="true" /> End at Playhead
+              </button>
+              <button
+                className={`compact-button ${isDurationLocked ? 'chosen' : ''}`}
+                title={
+                  isDurationLocked
+                    ? 'Unlock selection duration'
+                    : 'Lock selection duration'
+                }
+                aria-pressed={isDurationLocked}
+                onClick={() => setIsDurationLocked(!isDurationLocked)}
+              >
+                {isDurationLocked ? (
+                  <Lock size={12} aria-hidden="true" />
+                ) : (
+                  <Unlock size={12} aria-hidden="true" />
+                )}
+                {isDurationLocked ? 'Duration Locked' : 'Lock Duration'}
+              </button>
+              <button
+                className="compact-button"
+                title="Save selection as a virtual clip recipe"
+                onClick={() => {
+                  setIsSavingClip(true);
+                  setClipSaveError(null);
+                }}
+              >
+                <BookmarkPlus size={12} aria-hidden="true" /> Save Clip
               </button>
             </div>
+
+            {/* Save Clip form */}
+            {isSavingClip && (
+              <form
+                className="save-clip-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!soundId || !activeSelection) return;
+                  const trimmed = clipName.trim();
+                  if (!trimmed) {
+                    setClipSaveError('Please enter a clip name.');
+                    return;
+                  }
+                  const startFrameStr = secondsToFrame(
+                    activeSelection.start,
+                    sampleRate,
+                  );
+                  const endFrameStr = secondsToFrame(
+                    activeSelection.end,
+                    sampleRate,
+                  );
+                  const recipe: ClipRecipe = {
+                    asset_id: soundId,
+                    asset_version_id: soundHash || '',
+                    source_sample_rate_hz: sampleRate,
+                    start_frame: startFrameStr,
+                    end_frame: endFrameStr,
+                    channel_policy: 'preserve',
+                    gain_db: 0.0,
+                    fade_in_ms: 0,
+                    fade_out_ms: 0,
+                  };
+                  try {
+                    const saved = await createClip(soundId, trimmed, recipe);
+                    setClipSaveSuccess(`Clip "${trimmed}" saved!`);
+                    setIsSavingClip(false);
+                    setClipName('');
+                    setClipSaveError(null);
+                    onClipSaved?.(saved);
+                    setTimeout(() => setClipSaveSuccess(null), 3000);
+                  } catch (err) {
+                    setClipSaveError(String(err));
+                  }
+                }}
+              >
+                <div className="save-clip-row">
+                  <input
+                    type="text"
+                    className="clip-name-input"
+                    placeholder="Clip name (e.g. Intro Stinger)"
+                    value={clipName}
+                    onChange={(e) => setClipName(e.target.value)}
+                    maxLength={100}
+                    autoFocus
+                    aria-label="Clip variant name"
+                  />
+                  <button
+                    type="submit"
+                    className="compact-button save-confirm"
+                    aria-label="Confirm save clip"
+                  >
+                    <Check size={12} aria-hidden="true" /> Save
+                  </button>
+                  <button
+                    type="button"
+                    className="compact-button"
+                    onClick={() => {
+                      setIsSavingClip(false);
+                      setClipSaveError(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                {clipSaveError && (
+                  <small className="clip-save-error" role="alert">
+                    {clipSaveError}
+                  </small>
+                )}
+              </form>
+            )}
+
+            {clipSaveSuccess && (
+              <div
+                className="clip-save-success"
+                role="status"
+                aria-live="polite"
+              >
+                <Check size={13} aria-hidden="true" /> {clipSaveSuccess}
+              </div>
+            )}
           </>
         ) : (
           <div className="selection-prompt">

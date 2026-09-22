@@ -165,3 +165,33 @@ export type WaveformResponse = {
  * Application page routing.
  */
 export type Page = 'library' | 'favorites' | 'imports' | 'settings';
+
+/**
+ * Non-destructive clip recipe using source sample frame boundaries.
+ */
+export type ClipRecipe = {
+  asset_id: string;
+  asset_version_id: string;
+  source_sample_rate_hz: number;
+  start_frame: string;
+  end_frame: string;
+  channel_policy?: string;
+  gain_db?: number;
+  fade_in_ms?: number;
+  fade_out_ms?: number;
+};
+
+/**
+ * Saved virtual clip variant.
+ */
+export type Clip = {
+  id: string;
+  sound_id: string;
+  name: string;
+  recipe: ClipRecipe;
+  revision: number;
+  is_stale: boolean;
+  stale_reason?: string | null;
+  created_at: number;
+  updated_at: number;
+};

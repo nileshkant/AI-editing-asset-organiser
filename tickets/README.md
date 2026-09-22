@@ -45,7 +45,7 @@ This is the canonical implementation order. It prioritizes a reliable local
 editing workflow before integrations and keeps optional AI off the critical
 path.
 
-1. [SS-012: Clip recipes and selection](SS-012.md) | not-started | add exact non-destructive selections
+1. [SS-012: Clip recipes and selection](SS-012.md) | in-review | add exact non-destructive selections
 2. [SS-013: Clip export and handoff](SS-013.md) | not-started | produce verified editor-ready media
 3. [SS-026: Individual-file import](SS-026.md) | not-started | extend stable source scopes
 4. [SS-021: Portable catalog and migration](SS-021.md) | not-started | add portable export/import after identity work stabilizes
