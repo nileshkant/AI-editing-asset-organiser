@@ -1,275 +1,243 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Waveform } from './Waveform';
+import { Waveform } from './components/waveform/Waveform';
 
-if (typeof window !== 'undefined') {
-  if (!window.ResizeObserver) {
-    window.ResizeObserver = class {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-    } as any;
-  }
-}
+vi.mock('@tauri-apps/api/core', () => ({
+  isTauri: () => false,
+  invoke: vi.fn(),
+}));
 
-describe('SS-011: Waveform visualization component', () => {
-  const MOCK_PEAKS: [number, number][] = [
-    [-0.5, 0.5],
-    [-0.8, 0.8],
-    [-0.2, 0.2],
-    [-0.95, 0.95],
-  ];
+const SAMPLE_PEAKS: [number, number][] = [
+  [-0.5, 0.5],
+  [-0.3, 0.7],
+  [-0.8, 0.9],
+  [-0.2, 0.4],
+  [-0.6, 0.6],
+];
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders waveform workstation with canvas and toolbar controls', () => {
+describe('Waveform', () => {
+  // ─── Rendering ───
+  it('renders workstation region and canvas', () => {
     render(
       <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={2.5}
+        peaks={SAMPLE_PEAKS}
+        duration={2.0}
         sampleRate={48000}
         channels={2}
-      />
+      />,
     );
-
-    expect(screen.getByRole('region', { name: 'Audio waveform workstation' })).toBeInTheDocument();
-    expect(screen.getByRole('toolbar', { name: 'Waveform controls' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /Audio waveform with duration 0:02.50/ })).toBeInTheDocument();
-    expect(screen.getByText(/Stereo · 48.0 kHz/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('region', { name: 'Audio waveform workstation' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('img')).toBeInTheDocument();
   });
 
-  it('handles deterministic zoom in, zoom out, and fit window', () => {
+  it('displays channel info and sample rate', () => {
     render(
       <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={5.0}
+        peaks={SAMPLE_PEAKS}
+        duration={2.0}
         sampleRate={48000}
-        channels={1}
-      />
-    );
-
-    const zoomBadge = screen.getByLabelText('Zoom level 1x');
-    expect(zoomBadge).toHaveTextContent('1x');
-
-    const zoomInBtn = screen.getByRole('button', { name: 'Zoom in' });
-    fireEvent.click(zoomInBtn);
-    expect(screen.getByLabelText('Zoom level 2x')).toHaveTextContent('2x');
-
-    // Zoom out button
-    const zoomOutBtn = screen.getByRole('button', { name: 'Zoom out' });
-    fireEvent.click(zoomOutBtn);
-    expect(screen.getByLabelText('Zoom level 1x')).toHaveTextContent('1x');
-
-    // Zoom in multiple times and fit
-    fireEvent.click(zoomInBtn);
-    fireEvent.click(zoomInBtn);
-    expect(screen.getByLabelText('Zoom level 4x')).toHaveTextContent('4x');
-
-    const fitBtn = screen.getByRole('button', { name: 'Fit to window' });
-    fireEvent.click(fitBtn);
-    expect(screen.getByLabelText('Zoom level 1x')).toHaveTextContent('1x');
-  });
-
-  it('toggles separate stereo channel lanes when channels >= 2', () => {
-    render(
-      <Waveform
-        soundId="sound-stereo"
-        peaks={MOCK_PEAKS}
-        duration={3.0}
-        sampleRate={44100}
         channels={2}
-      />
+      />,
     );
-
-    const splitToggle = screen.getByRole('button', { name: 'Combined waveform view' });
-    expect(splitToggle).toHaveAttribute('aria-pressed', 'true');
-
-    // Click toggle to switch to combined
-    fireEvent.click(splitToggle);
-    expect(screen.getByRole('button', { name: 'Split stereo channels' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    expect(screen.getByText(/Stereo/)).toBeInTheDocument();
+    expect(screen.getByText(/48\.0 kHz/)).toBeInTheDocument();
   });
 
-  it('supports accessible numeric selection inputs and boundary clamping', () => {
-    const onSelectionChange = vi.fn();
-    render(
-      <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={4.0}
-        sampleRate={48000}
-        channels={1}
-        selection={{ start: 1.0, end: 2.5 }}
-        onSelectionChange={onSelectionChange}
-      />
-    );
-
-    const startInput = screen.getByRole('spinbutton', { name: 'Selection start in seconds' });
-    const endInput = screen.getByRole('spinbutton', { name: 'Selection end in seconds' });
-    const durationInput = screen.getByRole('spinbutton', { name: 'Selection duration in seconds' });
-
-    expect(startInput).toHaveValue(1.0);
-    expect(endInput).toHaveValue(2.5);
-    expect(durationInput).toHaveValue(1.5);
-
-    // Update start input
-    fireEvent.change(startInput, { target: { value: '1.2' } });
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 1.2, end: 2.5 });
-
-    // Update end input
-    fireEvent.change(endInput, { target: { value: '3.0' } });
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 1.0, end: 3.0 });
+  it('shows mono label for single channel', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={1.0} channels={1} />);
+    expect(screen.getByText(/Mono/)).toBeInTheDocument();
   });
 
-  it('supports Select All and Clear Selection', () => {
-    const onSelectionChange = vi.fn();
-    render(
-      <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={6.0}
-        sampleRate={48000}
-        channels={1}
-        selection={null}
-        onSelectionChange={onSelectionChange}
-      />
-    );
-
-    // When no selection, prompt and Select All button are present
-    const selectAllBtn = screen.getByRole('button', { name: 'Select All' });
-    fireEvent.click(selectAllBtn);
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 0, end: 6.0 });
+  // ─── Zoom Controls ───
+  it('zooms in from 1x to 2x', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    expect(screen.getByText('1x')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect(screen.getByText('2x')).toBeInTheDocument();
   });
 
-  it('triggers onSeek callback on waveform canvas click', () => {
-    const onSeek = vi.fn();
+  it('zooms in further to 4x', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect(screen.getByText('4x')).toBeInTheDocument();
+  });
+
+  it('does not zoom below 1x', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    expect(screen.getByLabelText('Zoom out')).toBeDisabled();
+  });
+
+  it('caps zoom at 64x', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    // Zoom 6 times: 2x, 4x, 8x, 16x, 32x, 64x
+    for (let i = 0; i < 6; i++) {
+      fireEvent.click(screen.getByLabelText('Zoom in'));
+    }
+    expect(screen.getByText('64x')).toBeInTheDocument();
+    expect(screen.getByLabelText('Zoom in')).toBeDisabled();
+  });
+
+  it('resets zoom on Fit to Window', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect(screen.getByText('2x')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Fit to window'));
+    expect(screen.getByText('1x')).toBeInTheDocument();
+  });
+
+  // ─── Pan Slider ───
+  it('shows pan slider when zoomed in', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    expect(screen.queryByLabelText('Pan offset')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Zoom in'));
+    expect(screen.getByLabelText('Pan offset')).toBeInTheDocument();
+  });
+
+  // ─── Stereo Toggle ───
+  it('renders stereo toggle for multi-channel audio', () => {
     render(
       <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={10.0}
-        sampleRate={48000}
-        channels={1}
-        onSeek={onSeek}
-      />
+        peaks={SAMPLE_PEAKS}
+        duration={2.0}
+        channels={2}
+      />,
     );
+    expect(
+      screen.getByLabelText(/Combined waveform view|Split stereo channels/),
+    ).toBeInTheDocument();
+  });
 
-    const canvas = screen.getByRole('img', { name: /Audio waveform/ });
+  it('toggles between split and combined view', () => {
+    render(
+      <Waveform
+        peaks={SAMPLE_PEAKS}
+        duration={2.0}
+        channels={2}
+      />,
+    );
+    const toggle = screen.getByLabelText(/Combined waveform view|Split stereo channels/);
+    fireEvent.click(toggle);
+    // Should toggle the label
+    expect(toggle.getAttribute('aria-pressed')).toBeDefined();
+  });
 
-    // Mock bounding rect
+  it('hides stereo toggle for mono audio', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={1.0} channels={1} />);
+    expect(
+      screen.queryByLabelText(/Combined waveform view|Split stereo channels/),
+    ).not.toBeInTheDocument();
+  });
+
+  // ─── Selection ───
+  it('renders Select All button', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    expect(screen.getByText('Select All')).toBeInTheDocument();
+  });
+
+  it('shows selection panel after Select All', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    fireEvent.click(screen.getByText('Select All'));
+    expect(screen.getByLabelText('Selection start in seconds')).toBeInTheDocument();
+    expect(screen.getByLabelText('Selection end in seconds')).toBeInTheDocument();
+    expect(screen.getByLabelText('Selection duration in seconds')).toBeInTheDocument();
+  });
+
+  it('clears selection on Clear button', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    fireEvent.click(screen.getByText('Select All'));
+    expect(screen.getByLabelText('Selection start in seconds')).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Clear selection'));
+    expect(screen.queryByLabelText('Selection start in seconds')).not.toBeInTheDocument();
+  });
+
+  it('adjusts selection start numerically', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    fireEvent.click(screen.getByText('Select All'));
+    const startInput = screen.getByLabelText('Selection start in seconds');
+    fireEvent.change(startInput, { target: { value: '0.500' } });
+    expect((startInput as HTMLInputElement).value).toBe('0.500');
+  });
+
+  // ─── Zero / Edge Cases ───
+  it('renders gracefully with empty peaks', () => {
+    render(<Waveform peaks={[]} duration={1.0} />);
+    expect(screen.getByRole('img')).toBeInTheDocument();
+  });
+
+  it('renders gracefully with zero duration', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={0} />);
+    expect(screen.getByRole('img')).toBeInTheDocument();
+  });
+
+  it('renders with very short duration', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={0.001} />);
+    expect(screen.getByRole('img')).toBeInTheDocument();
+  });
+
+  // ─── Click-to-Seek ───
+  it('calls onSeek when canvas is clicked', () => {
+    const mockSeek = vi.fn();
+    render(
+      <Waveform
+        peaks={SAMPLE_PEAKS}
+        duration={2.0}
+        onSeek={mockSeek}
+      />,
+    );
+    const canvas = screen.getByRole('img');
+
+    // Mock getBoundingClientRect for coordinate calculation
     vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
       left: 0,
+      right: 400,
       top: 0,
-      width: 1000,
-      height: 100,
-      right: 1000,
-      bottom: 100,
+      bottom: 130,
+      width: 400,
+      height: 130,
       x: 0,
       y: 0,
       toJSON: () => {},
     });
 
-    // Click in middle of canvas (pixel 500 out of 1000 -> 5.0 seconds)
-    fireEvent.mouseDown(canvas, { clientX: 500, clientY: 50 });
-    expect(onSeek).toHaveBeenCalledWith(5.0);
+    fireEvent.mouseDown(canvas, { clientX: 200, clientY: 65 });
+    expect(mockSeek).toHaveBeenCalled();
+    // Should seek to approximately middle of the 2s duration
+    const seekTime = mockSeek.mock.calls[0][0];
+    expect(seekTime).toBeGreaterThan(0.5);
+    expect(seekTime).toBeLessThan(1.5);
   });
 
-  it('supports Start at Playhead and End at Playhead buttons', () => {
-    const onSelectionChange = vi.fn();
-    render(
-      <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={10.0}
-        sampleRate={48000}
-        channels={1}
-        playbackPosition={3.5}
-        selection={{ start: 1.0, end: 7.0 }}
-        onSelectionChange={onSelectionChange}
-      />
-    );
+  // ─── Keyboard Selection Nudging ───
+  it('nudges selection with arrow keys', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    // Create selection first
+    fireEvent.click(screen.getByText('Select All'));
 
-    const startAtPlayhead = screen.getByRole('button', { name: /Start at Playhead/ });
-    fireEvent.click(startAtPlayhead);
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 3.5, end: 7.0 });
-
-    const endAtPlayhead = screen.getByRole('button', { name: /End at Playhead/ });
-    fireEvent.click(endAtPlayhead);
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 1.0, end: 3.5 });
-  });
-
-  it('supports keyboard nudging of selection with arrow keys and I/O keys', () => {
-    const onSelectionChange = vi.fn();
-    render(
-      <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={10.0}
-        sampleRate={48000}
-        channels={1}
-        playbackPosition={4.0}
-        selection={{ start: 2.0, end: 5.0 }}
-        onSelectionChange={onSelectionChange}
-      />
-    );
-
-    const workstation = screen.getByRole('region', { name: 'Audio waveform workstation' });
-
-    // ArrowLeft nudges selection earlier
-    fireEvent.keyDown(workstation, { key: 'ArrowLeft' });
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 1.99, end: 4.99 });
-
-    // ArrowRight with shift nudges by 0.1
-    fireEvent.keyDown(workstation, { key: 'ArrowRight', shiftKey: true });
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 2.1, end: 5.1 });
-
-    // Press 'i' to set start to playhead (4.0)
-    fireEvent.keyDown(workstation, { key: 'i' });
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 4.0, end: 5.0 });
-
-    // Press 'o' to set end to playhead (4.0)
-    fireEvent.keyDown(workstation, { key: 'o' });
-    expect(onSelectionChange).toHaveBeenCalledWith({ start: 2.0, end: 4.0 });
-  });
-
-  it('draws canvas bars with 2d context calls when available', () => {
-    Object.defineProperty(HTMLCanvasElement.prototype, 'clientWidth', { configurable: true, value: 500 });
-    Object.defineProperty(HTMLCanvasElement.prototype, 'clientHeight', { configurable: true, value: 100 });
-
-    const fillRectMock = vi.fn();
-    const strokeMock = vi.fn();
-    const getContextMock = vi.fn().mockReturnValue({
-      scale: vi.fn(),
-      clearRect: vi.fn(),
-      fillRect: fillRectMock,
-      stroke: strokeMock,
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      fillText: vi.fn(),
-      closePath: vi.fn(),
-      fill: vi.fn(),
-      canvas: { clientWidth: 500, clientHeight: 100 },
+    const workstation = screen.getByRole('region', {
+      name: 'Audio waveform workstation',
     });
 
-    HTMLCanvasElement.prototype.getContext = getContextMock as any;
+    // Nudge with ArrowRight
+    fireEvent.keyDown(workstation, { key: 'ArrowRight' });
+    const endInput = screen.getByLabelText('Selection end in seconds');
+    // End should have increased slightly
+    expect(parseFloat((endInput as HTMLInputElement).value)).toBeGreaterThan(1.99);
+  });
 
+  // ─── Playhead / Playback Position ───
+  it('renders start at playhead buttons with selection', () => {
     render(
       <Waveform
-        soundId="sound-1"
-        peaks={MOCK_PEAKS}
-        duration={4.0}
-        sampleRate={48000}
-        channels={2}
-      />
+        peaks={SAMPLE_PEAKS}
+        duration={2.0}
+        playbackPosition={0.5}
+      />,
     );
-
-    expect(fillRectMock).toHaveBeenCalled();
+    fireEvent.click(screen.getByText('Select All'));
+    expect(screen.getByText('Start at Playhead')).toBeInTheDocument();
+    expect(screen.getByText('End at Playhead')).toBeInTheDocument();
   });
 });

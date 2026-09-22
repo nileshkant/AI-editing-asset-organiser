@@ -1,0 +1,154 @@
+.transport {
+  min-height: 76px;
+  padding: 12px 32px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: rgba(24, 24, 29, 0.85);
+  backdrop-filter: blur(8px);
+  color: #eee;
+  z-index: 20;
+}
+
+.transport-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transport-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 140px;
+  max-width: 240px;
+  overflow: hidden;
+}
+
+.transport-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transport-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transport-scrub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.transport-time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: #bdbdc7;
+  white-space: nowrap;
+}
+
+/* Custom Sliders */
+.transport-slider, .volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  padding: 0;
+  border: none;
+  height: 24px;
+  outline: none;
+}
+
+.transport-slider {
+  flex: 1;
+}
+
+.volume-slider {
+  width: 75px;
+}
+
+.transport-slider::-webkit-slider-runnable-track,
+.volume-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.transport-slider::-webkit-slider-thumb,
+.volume-slider::-webkit-slider-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  -webkit-appearance: none;
+  margin-top: -5px; /* (4px track / 2) - (14px thumb / 2) */
+  transition: transform 0.1s;
+}
+
+.transport-slider::-webkit-slider-thumb:hover,
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.transport-slider::-moz-range-track,
+.volume-slider::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.transport-slider::-moz-range-thumb,
+.volume-slider::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+  transition: transform 0.1s;
+}
+
+.transport-slider::-moz-range-thumb:hover,
+.volume-slider::-moz-range-thumb:hover {
+  transform: scale(1.2);
+}
+
+.transport-meter {
+  width: 40px;
+  height: 12px;
+  background: #25252d;
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.transport-meter-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.08s ease-out;
+}
+
+.transport-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
