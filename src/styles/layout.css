@@ -1,0 +1,164 @@
+.app-shell {
+  height: 100dvh;
+  min-height: 500px;
+  display: grid;
+  grid-template-columns: 212px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.sidebar {
+  border-right: 1px solid var(--border-default);
+  padding: 26px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-input);
+}
+
+.brand {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  font-size: 20px;
+  margin: 2px 10px 36px;
+}
+
+.brand svg {
+  color: var(--accent);
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nav {
+  justify-content: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 12px;
+}
+
+.nav.active {
+  background: #272930;
+  color: #f3f4f7;
+}
+
+.nav.active svg {
+  color: var(--accent);
+}
+
+.source-heading {
+  margin: 28px 10px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.source-heading button {
+  width: 25px;
+  height: 25px;
+  border: 0;
+  background: none;
+}
+
+.source-links {
+  overflow: auto;
+  min-height: 0;
+}
+
+.source-link {
+  width: 100%;
+  text-align: left;
+  justify-content: flex-start;
+  padding: 9px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  color: #b8b8c0;
+}
+
+.source-link span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-link svg {
+  flex-shrink: 0;
+}
+
+.source-link.chosen {
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.status-dot {
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.offline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  flex-shrink: 0;
+}
+
+.count {
+  margin-left: auto;
+  background: #45454d;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-header {
+  padding: 32px 32px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.build-label {
+  color: var(--warning);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}

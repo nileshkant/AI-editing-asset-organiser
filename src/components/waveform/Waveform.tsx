@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
-import { ZoomIn, ZoomOut, Maximize2, Split, Layers, X, Bookmark, Crosshair } from 'lucide-react';
-import { call, duration, type WaveformResponse, type ChannelBucket } from './api';
+import {
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Split,
+  Layers,
+  X,
+  Bookmark,
+  Crosshair,
+} from 'lucide-react';
+import { call, duration } from '../../api';
+import { PitchOverlay } from './PitchOverlay';
+import type { WaveformResponse, ChannelBucket } from '../../types';
 
 export interface WaveformProps {
   soundId?: string;
@@ -10,10 +21,11 @@ export interface WaveformProps {
   sampleRate?: number;
   channels?: number;
   playbackPosition?: number;
-  isCurrentPlaying?: boolean;
   onSeek?: (seconds: number) => void;
   selection?: { start: number; end: number } | null;
-  onSelectionChange?: (selection: { start: number; end: number } | null) => void;
+  onSelectionChange?: (
+    selection: { start: number; end: number } | null,
+  ) => void;
 }
 
 export function Waveform({
@@ -23,21 +35,30 @@ export function Waveform({
   sampleRate = 48000,
   channels = 1,
   playbackPosition = 0,
-  isCurrentPlaying = false,
   onSeek,
   selection: controlledSelection,
   onSelectionChange,
 }: WaveformProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
-  const [panOffset, setPanOffset] = useState(0); // 0.0 to 1.0
+  const [panOffset, setPanOffset] = useState(0);
   const [stereoSeparate, setStereoSeparate] = useState(channels >= 2);
-  const [internalSelection, setInternalSelection] = useState<{ start: number; end: number } | null>(null);
+  const [internalSelection, setInternalSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
   const [tiles, setTiles] = useState<WaveformResponse | null>(null);
-  const [isDragging, setIsDragging] = useState<'create' | 'start' | 'end' | null>(null);
+  const [isDragging, setIsDragging] = useState<
+    'create' | 'start' | 'end' | null
+  >(null);
   const [dragAnchor, setDragAnchor] = useState<number>(0);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  const activeSelection = controlledSelection !== undefined ? controlledSelection : internalSelection;
+  const activeSelection =
+    controlledSelection !== undefined
+      ? controlledSelection
+      : internalSelection;
   const updateSelection = useCallback(
     (sel: { start: number; end: number } | null) => {
       if (controlledSelection === undefined) {
@@ -45,7 +66,7 @@ export function Waveform({
       }
       onSelectionChange?.(sel);
     },
-    [controlledSelection, onSelectionChange]
+    [controlledSelection, onSelectionChange],
   );
 
   const safeDuration = Math.max(0.01, totalDuration);
@@ -58,30 +79,47 @@ export function Waveform({
   const startFrame = Math.round(windowStart * sampleRate);
   const endFrame = Math.round(windowEnd * sampleRate);
 
-  // Fetch multiresolution tiles from backend
+  // Debounced tile fetching to prevent IPC flooding during pan
+  const tileRequestRef = useRef(0);
   useEffect(() => {
     if (!isTauri() || !soundId) {
       setTiles(null);
       return;
     }
-    let alive = true;
-    call<WaveformResponse>('get_waveform', {
-      id: soundId,
-      startFrame,
-      endFrame,
-      maxPoints: 1200,
-    })
-      .then((res) => {
-        if (alive) setTiles(res);
+    const requestId = ++tileRequestRef.current;
+    const timer = setTimeout(() => {
+      call<WaveformResponse>('get_waveform', {
+        id: soundId,
+        startFrame,
+        endFrame,
+        maxPoints: 1200,
       })
-      .catch(() => {
-        if (alive) setTiles(null);
-      });
+        .then((res) => {
+          if (tileRequestRef.current === requestId) setTiles(res);
+        })
+        .catch(() => {
+          if (tileRequestRef.current === requestId) setTiles(null);
+        });
+    }, 100); // 100ms debounce
 
-    return () => {
-      alive = false;
-    };
+    return () => clearTimeout(timer);
   }, [soundId, startFrame, endFrame]);
+
+  // Track container size for PitchOverlay
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   // Zoom controls
   const handleZoomIn = () => setZoom((z) => Math.min(64, z * 2));
@@ -102,7 +140,8 @@ export function Waveform({
     const selSpan = activeSelection.end - activeSelection.start;
     if (selSpan <= 0.001) return;
     const targetZoom = Math.min(64, Math.max(1, safeDuration / selSpan));
-    const targetPan = maxPanStart > 0 ? activeSelection.start / maxPanStart : 0;
+    const targetPan =
+      maxPanStart > 0 ? activeSelection.start / maxPanStart : 0;
     setZoom(targetZoom);
     setPanOffset(Math.max(0, Math.min(1, targetPan)));
   };
@@ -113,7 +152,7 @@ export function Waveform({
       const fraction = Math.max(0, Math.min(1, pixelX / width));
       return windowStart + fraction * visibleDuration;
     },
-    [windowStart, visibleDuration]
+    [windowStart, visibleDuration],
   );
 
   // Convert seconds to canvas pixel X
@@ -122,10 +161,10 @@ export function Waveform({
       const fraction = (sec - windowStart) / visibleDuration;
       return fraction * width;
     },
-    [windowStart, visibleDuration]
+    [windowStart, visibleDuration],
   );
 
-  // Draw canvas
+  // Draw canvas — separated static waveform from dynamic overlays
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -143,7 +182,8 @@ export function Waveform({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    // Background grid
+    // Background
+    ctx.fillStyle = 'var(--bg-app, #18181d)';
     ctx.fillStyle = '#18181d';
     ctx.fillRect(0, 0, width, height);
 
@@ -169,10 +209,17 @@ export function Waveform({
       ctx.stroke();
     }
 
-    // Time ticks / ruler at top
+    // Time ticks / ruler
     ctx.fillStyle = '#7a7a88';
     ctx.font = '10px monospace';
-    const tickInterval = visibleDuration > 30 ? 10 : visibleDuration > 10 ? 2 : visibleDuration > 2 ? 0.5 : 0.1;
+    const tickInterval =
+      visibleDuration > 30
+        ? 10
+        : visibleDuration > 10
+          ? 2
+          : visibleDuration > 2
+            ? 0.5
+            : 0.1;
     const firstTick = Math.ceil(windowStart / tickInterval) * tickInterval;
     for (let t = firstTick; t <= windowEnd; t += tickInterval) {
       const x = secondsToPixel(t, width);
@@ -197,9 +244,10 @@ export function Waveform({
     if (tiles && tiles.channels.length > 0) {
       if (isSplit) {
         channelData.push(tiles.channels[0] || []);
-        channelData.push(tiles.channels[1] || tiles.channels[0] || []);
+        channelData.push(
+          tiles.channels[1] || tiles.channels[0] || [],
+        );
       } else {
-        // Combined mode: merge channels
         const ch0 = tiles.channels[0] || [];
         const ch1 = tiles.channels[1] || [];
         const len = Math.max(ch0.length, ch1.length);
@@ -210,13 +258,14 @@ export function Waveform({
           combined.push({
             min: Math.min(b0.min, b1.min),
             max: Math.max(b0.max, b1.max),
-            rms: Math.sqrt(((b0.rms || 0) ** 2 + (b1.rms || 0) ** 2) / 2),
+            rms: Math.sqrt(
+              ((b0.rms || 0) ** 2 + (b1.rms || 0) ** 2) / 2,
+            ),
           });
         }
         channelData.push(combined);
       }
     } else if (peaks.length > 0) {
-      // Fallback from profile peaks
       const fallbackBuckets: ChannelBucket[] = peaks.map(([min, max]) => ({
         min,
         max,
@@ -242,22 +291,34 @@ export function Waveform({
         const b = buckets[i];
         const x = i * bucketWidth;
 
-        // Draw Peak envelope bar
-        const topY = centerY - Math.min(1, Math.max(0, b.max)) * halfLane;
-        const bottomY = centerY - Math.max(-1, Math.min(0, b.min)) * halfLane;
+        // Peak envelope bar
+        const topY =
+          centerY - Math.min(1, Math.max(0, b.max)) * halfLane;
+        const bottomY =
+          centerY - Math.max(-1, Math.min(0, b.min)) * halfLane;
         const barHeight = Math.max(1, bottomY - topY);
 
         ctx.fillStyle = '#7a9657';
-        ctx.fillRect(x, topY, Math.max(1, bucketWidth - 0.5), barHeight);
+        ctx.fillRect(
+          x,
+          topY,
+          Math.max(1, bucketWidth - 0.5),
+          barHeight,
+        );
 
-        // Draw RMS center energy bar
+        // RMS center energy bar
         const rmsHeight = Math.min(halfLane, b.rms * halfLane);
         ctx.fillStyle = '#b8f56a';
-        ctx.fillRect(x, centerY - rmsHeight, Math.max(1, bucketWidth - 0.5), rmsHeight * 2);
+        ctx.fillRect(
+          x,
+          centerY - rmsHeight,
+          Math.max(1, bucketWidth - 0.5),
+          rmsHeight * 2,
+        );
       }
     }
 
-    // Shaded selection region
+    // Selection region
     if (activeSelection) {
       const selStart = Math.max(windowStart, activeSelection.start);
       const selEnd = Math.min(windowEnd, activeSelection.end);
@@ -268,7 +329,6 @@ export function Waveform({
         ctx.fillStyle = 'rgba(184, 245, 106, 0.16)';
         ctx.fillRect(x1, 0, x2 - x1, height);
 
-        // Handles
         ctx.strokeStyle = '#b8f56a';
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -278,7 +338,6 @@ export function Waveform({
         ctx.lineTo(x2, height);
         ctx.stroke();
 
-        // Handle tags
         ctx.fillStyle = '#b8f56a';
         ctx.fillRect(x1 - 2, 0, 4, 14);
         ctx.fillRect(x2 - 2, 0, 4, 14);
@@ -286,7 +345,10 @@ export function Waveform({
     }
 
     // Playback cursor
-    if (playbackPosition >= windowStart && playbackPosition <= windowEnd) {
+    if (
+      playbackPosition >= windowStart &&
+      playbackPosition <= windowEnd
+    ) {
       const cursorX = secondsToPixel(playbackPosition, width);
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
@@ -295,7 +357,7 @@ export function Waveform({
       ctx.lineTo(cursorX, height);
       ctx.stroke();
 
-      // Playhead indicator triangle at top
+      // Playhead triangle
       ctx.fillStyle = '#b8f56a';
       ctx.beginPath();
       ctx.moveTo(cursorX - 5, 0);
@@ -329,7 +391,7 @@ export function Waveform({
     return () => observer.disconnect();
   }, [draw]);
 
-  // Mouse interaction: seek, drag-to-select, and handle dragging
+  // Mouse interaction — attach move/up to window for robust drag handling
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -337,7 +399,7 @@ export function Waveform({
     const clickX = e.clientX - rect.left;
     const clickTime = pixelToSeconds(clickX, rect.width);
 
-    // Check if clicked near selection handles
+    // Check if near selection handles
     if (activeSelection) {
       const startX = secondsToPixel(activeSelection.start, rect.width);
       const endX = secondsToPixel(activeSelection.end, rect.width);
@@ -351,43 +413,71 @@ export function Waveform({
       }
     }
 
-    // Otherwise start new selection or seek
     if (e.shiftKey) {
       setIsDragging('create');
       setDragAnchor(clickTime);
       updateSelection({ start: clickTime, end: clickTime });
     } else {
-      // Seek on simple click
+      // Seek on simple click — only seek, don't start selection
       onSeek?.(clickTime);
-      setIsDragging('create');
-      setDragAnchor(clickTime);
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas || !isDragging) return;
-    const rect = canvas.getBoundingClientRect();
-    const curTime = pixelToSeconds(e.clientX - rect.left, rect.width);
+  // Attach move/up to window to fix early termination on mouse leave
+  useEffect(() => {
+    if (!isDragging) return;
 
-    if (isDragging === 'create') {
-      const start = Math.min(dragAnchor, curTime);
-      const end = Math.max(dragAnchor, curTime);
-      if (end - start > 0.01) {
-        updateSelection({ start, end });
+    const handleMove = (e: PointerEvent) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const curTime = pixelToSeconds(
+        e.clientX - rect.left,
+        rect.width,
+      );
+
+      if (isDragging === 'create') {
+        const start = Math.min(dragAnchor, curTime);
+        const end = Math.max(dragAnchor, curTime);
+        if (end - start > 0.01) {
+          updateSelection({ start, end });
+        }
+      } else if (isDragging === 'start' && activeSelection) {
+        const nextStart = Math.min(
+          activeSelection.end - 0.001,
+          Math.max(0, curTime),
+        );
+        updateSelection({ start: nextStart, end: activeSelection.end });
+      } else if (isDragging === 'end' && activeSelection) {
+        const nextEnd = Math.max(
+          activeSelection.start + 0.001,
+          Math.min(safeDuration, curTime),
+        );
+        updateSelection({
+          start: activeSelection.start,
+          end: nextEnd,
+        });
       }
-    } else if (isDragging === 'start' && activeSelection) {
-      const nextStart = Math.min(activeSelection.end - 0.001, Math.max(0, curTime));
-      updateSelection({ start: nextStart, end: activeSelection.end });
-    } else if (isDragging === 'end' && activeSelection) {
-      const nextEnd = Math.max(activeSelection.start + 0.001, Math.min(safeDuration, curTime));
-      updateSelection({ start: activeSelection.start, end: nextEnd });
-    }
-  };
+    };
 
-  const handleMouseUp = () => {
-    setIsDragging(null);
-  };
+    const handleUp = () => {
+      setIsDragging(null);
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+  }, [
+    isDragging,
+    dragAnchor,
+    activeSelection,
+    pixelToSeconds,
+    updateSelection,
+    safeDuration,
+  ]);
 
   // Keyboard nudging for selection
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -401,16 +491,30 @@ export function Waveform({
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       const end = Math.min(safeDuration, activeSelection.end + step);
-      const start = Math.min(end - 0.001, activeSelection.start + step);
+      const start = Math.min(
+        end - 0.001,
+        activeSelection.start + step,
+      );
       updateSelection({ start, end });
     } else if (e.key === 'i' || e.key === 'I') {
       e.preventDefault();
-      updateSelection({ start: playbackPosition, end: Math.max(playbackPosition + 0.01, activeSelection.end) });
+      updateSelection({
+        start: playbackPosition,
+        end: Math.max(playbackPosition + 0.01, activeSelection.end),
+      });
     } else if (e.key === 'o' || e.key === 'O') {
       e.preventDefault();
-      updateSelection({ start: Math.min(playbackPosition - 0.01, activeSelection.start), end: playbackPosition });
+      updateSelection({
+        start: Math.min(
+          playbackPosition - 0.01,
+          activeSelection.start,
+        ),
+        end: playbackPosition,
+      });
     }
   };
+
+  const isPlaying = playbackPosition > 0;
 
   return (
     <div
@@ -420,22 +524,43 @@ export function Waveform({
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
-      {/* Waveform Controls Toolbar */}
-      <div className="waveform-toolbar" role="toolbar" aria-label="Waveform controls">
+      {/* Toolbar */}
+      <div
+        className="waveform-toolbar"
+        role="toolbar"
+        aria-label="Waveform controls"
+      >
         <div className="waveform-group">
           {channels >= 2 && (
             <button
               className={`icon-button ${stereoSeparate ? 'chosen' : ''}`}
-              title={stereoSeparate ? 'Combined waveform view' : 'Split stereo channels'}
-              aria-label={stereoSeparate ? 'Combined waveform view' : 'Split stereo channels'}
+              title={
+                stereoSeparate
+                  ? 'Combined waveform view'
+                  : 'Split stereo channels'
+              }
+              aria-label={
+                stereoSeparate
+                  ? 'Combined waveform view'
+                  : 'Split stereo channels'
+              }
               aria-pressed={stereoSeparate}
               onClick={() => setStereoSeparate(!stereoSeparate)}
             >
-              {stereoSeparate ? <Split size={14} aria-hidden="true" /> : <Layers size={14} aria-hidden="true" />}
+              {stereoSeparate ? (
+                <Split size={14} aria-hidden="true" />
+              ) : (
+                <Layers size={14} aria-hidden="true" />
+              )}
             </button>
           )}
           <span className="waveform-stat">
-            {channels === 1 ? 'Mono' : channels === 2 ? 'Stereo' : `${channels} Ch`} · {(sampleRate / 1000).toFixed(1)} kHz
+            {channels === 1
+              ? 'Mono'
+              : channels === 2
+                ? 'Stereo'
+                : `${channels} Ch`}{' '}
+            · {(sampleRate / 1000).toFixed(1)} kHz
           </span>
         </div>
 
@@ -449,7 +574,10 @@ export function Waveform({
           >
             <ZoomOut size={14} aria-hidden="true" />
           </button>
-          <span className="zoom-badge" aria-label={`Zoom level ${zoom}x`}>
+          <span
+            className="zoom-badge"
+            aria-label={`Zoom level ${zoom}x`}
+          >
             {zoom}x
           </span>
           <button
@@ -493,23 +621,36 @@ export function Waveform({
         )}
       </div>
 
-      {/* Main Canvas Viewport */}
-      <div className="waveform-canvas-container">
+      {/* Canvas Viewport with Pitch Overlay */}
+      <div className="waveform-canvas-container" ref={containerRef}>
         <canvas
           ref={canvasRef}
           className="waveform-canvas"
           role="img"
           aria-label={`Audio waveform with duration ${duration(safeDuration)}`}
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
         />
+        {peaks.length > 0 && containerSize.width > 0 && (
+          <PitchOverlay
+            peaks={peaks}
+            duration={safeDuration}
+            playbackPosition={playbackPosition}
+            isPlaying={isPlaying}
+            width={containerSize.width}
+            height={containerSize.height}
+            windowStart={windowStart}
+            windowEnd={windowEnd}
+          />
+        )}
       </div>
 
-      {/* Horizontal Pan Scrollbar when Zoomed In */}
+      {/* Pan Scrollbar when Zoomed */}
       {zoom > 1 && (
-        <div className="waveform-pan-bar" role="group" aria-label="Waveform pan navigation">
+        <div
+          className="waveform-pan-bar"
+          role="group"
+          aria-label="Waveform pan navigation"
+        >
           <input
             type="range"
             min="0"
@@ -524,8 +665,12 @@ export function Waveform({
         </div>
       )}
 
-      {/* Accessible Numeric Selection Panel */}
-      <div className="waveform-selection-panel" role="group" aria-label="Selection boundaries">
+      {/* Selection Panel */}
+      <div
+        className="waveform-selection-panel"
+        role="group"
+        aria-label="Selection boundaries"
+      >
         {activeSelection ? (
           <>
             <div className="numeric-input-group">
@@ -539,8 +684,17 @@ export function Waveform({
                   value={activeSelection.start.toFixed(3)}
                   aria-label="Selection start in seconds"
                   onChange={(e) => {
-                    const next = Math.max(0, Math.min(activeSelection.end - 0.001, Number(e.target.value)));
-                    updateSelection({ start: next, end: activeSelection.end });
+                    const next = Math.max(
+                      0,
+                      Math.min(
+                        activeSelection.end - 0.001,
+                        Number(e.target.value),
+                      ),
+                    );
+                    updateSelection({
+                      start: next,
+                      end: activeSelection.end,
+                    });
                   }}
                 />
               </label>
@@ -554,8 +708,17 @@ export function Waveform({
                   value={activeSelection.end.toFixed(3)}
                   aria-label="Selection end in seconds"
                   onChange={(e) => {
-                    const next = Math.min(safeDuration, Math.max(activeSelection.start + 0.001, Number(e.target.value)));
-                    updateSelection({ start: activeSelection.start, end: next });
+                    const next = Math.min(
+                      safeDuration,
+                      Math.max(
+                        activeSelection.start + 0.001,
+                        Number(e.target.value),
+                      ),
+                    );
+                    updateSelection({
+                      start: activeSelection.start,
+                      end: next,
+                    });
                   }}
                 />
               </label>
@@ -566,7 +729,9 @@ export function Waveform({
                   step="0.01"
                   readOnly
                   aria-label="Selection duration in seconds"
-                  value={(activeSelection.end - activeSelection.start).toFixed(3)}
+                  value={(
+                    activeSelection.end - activeSelection.start
+                  ).toFixed(3)}
                 />
               </label>
             </div>
@@ -576,12 +741,19 @@ export function Waveform({
                 title="Set selection start at playhead cursor"
                 onClick={() =>
                   updateSelection({
-                    start: Math.max(0, Math.min(activeSelection.end - 0.01, playbackPosition)),
+                    start: Math.max(
+                      0,
+                      Math.min(
+                        activeSelection.end - 0.01,
+                        playbackPosition,
+                      ),
+                    ),
                     end: activeSelection.end,
                   })
                 }
               >
-                <Crosshair size={12} aria-hidden="true" /> Start at Playhead
+                <Crosshair size={12} aria-hidden="true" /> Start at
+                Playhead
               </button>
               <button
                 className="compact-button"
@@ -589,20 +761,32 @@ export function Waveform({
                 onClick={() =>
                   updateSelection({
                     start: activeSelection.start,
-                    end: Math.min(safeDuration, Math.max(activeSelection.start + 0.01, playbackPosition)),
+                    end: Math.min(
+                      safeDuration,
+                      Math.max(
+                        activeSelection.start + 0.01,
+                        playbackPosition,
+                      ),
+                    ),
                   })
                 }
               >
-                <Crosshair size={12} aria-hidden="true" /> End at Playhead
+                <Crosshair size={12} aria-hidden="true" /> End at
+                Playhead
               </button>
             </div>
           </>
         ) : (
           <div className="selection-prompt">
-            <small className="muted">Shift+drag or click on the waveform to create a selection region</small>
+            <small className="muted">
+              Shift+drag or click on the waveform to create a selection
+              region
+            </small>
             <button
               className="compact-button"
-              onClick={() => updateSelection({ start: 0, end: safeDuration })}
+              onClick={() =>
+                updateSelection({ start: 0, end: safeDuration })
+              }
             >
               Select All
             </button>
