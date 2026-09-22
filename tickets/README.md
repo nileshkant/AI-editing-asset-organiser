@@ -33,6 +33,7 @@ blocker and move to the next unblocked ticket without changing the queue.
 - [SS-006: Folder relink and availability](SS-006.md) | complete
 - [SS-007: User tags comments and favorites](SS-007.md) | complete
 - [SS-008: Offline natural language and fuzzy search](SS-008.md) | complete
+- [SS-009: Library workspace and accessibility](SS-009.md) | complete
 - [SS-010: Native audio playback](SS-010.md) | complete
 - [SS-027: macOS 26 native startup compatibility](SS-027.md) | complete
 - [SS-028: Windows application icon resource](SS-028.md) | complete
@@ -43,31 +44,30 @@ This is the canonical implementation order. It prioritizes a reliable local
 editing workflow before integrations and keeps optional AI off the critical
 path.
 
-1. [SS-009: Library workspace and accessibility](SS-009.md) | partial | finish against real playback and large libraries
-2. [SS-011: Waveform visualization](SS-011.md) | not-started | add playback-synced multiresolution waveform
-4. [SS-012: Clip recipes and selection](SS-012.md) | not-started | add exact non-destructive selections
-6. [SS-013: Clip export and handoff](SS-013.md) | not-started | produce verified editor-ready media
-7. [SS-026: Individual-file import](SS-026.md) | not-started | extend stable source scopes
-8. [SS-021: Portable catalog and migration](SS-021.md) | not-started | add portable export/import after identity work stabilizes
-9. [SS-018: MCP lifecycle authentication](SS-018.md) | not-started | establish the secured local service
-10. [SS-019: MCP catalog and clip tools](SS-019.md) | not-started | expose the completed common services
-11. [SS-020: Editor integrations and agent skill](SS-020.md) | not-started | build on working exports and MCP
-12. [SS-014: Provider configuration and credentials](SS-014.md) | not-started | add optional provider infrastructure
-13. [SS-022: Settings diagnostics and backup](SS-022.md) | not-started | consolidate service, provider, backup, and diagnostics controls
-14. [SS-023: Security and performance qualification](SS-023.md) | not-started | qualify the completed local and MCP workflows
-15. [SS-024: Cross platform installers and releases](SS-024.md) | not-started | package only after qualification passes
-16. [SS-025: Subscription-backed MCP access](SS-025.md) | not-started | add client-specific setup to the released MCP service
-17. [SS-015: AI query interpretation](SS-015.md) | not-started | optional enhancement after offline search is complete
-18. [SS-016: AI sound description and suggestions](SS-016.md) | not-started | optional, consented enrichment
-19. [SS-017: Optional offline model packs](SS-017.md) | not-started | optional model distribution after baseline qualification
+1. [SS-011: Waveform visualization](SS-011.md) | not-started | add playback-synced multiresolution waveform
+2. [SS-012: Clip recipes and selection](SS-012.md) | not-started | add exact non-destructive selections
+3. [SS-013: Clip export and handoff](SS-013.md) | not-started | produce verified editor-ready media
+4. [SS-026: Individual-file import](SS-026.md) | not-started | extend stable source scopes
+5. [SS-021: Portable catalog and migration](SS-021.md) | not-started | add portable export/import after identity work stabilizes
+6. [SS-018: MCP lifecycle authentication](SS-018.md) | not-started | establish the secured local service
+7. [SS-019: MCP catalog and clip tools](SS-019.md) | not-started | expose the completed common services
+8. [SS-020: Editor integrations and agent skill](SS-020.md) | not-started | build on working exports and MCP
+9. [SS-014: Provider configuration and credentials](SS-014.md) | not-started | add optional provider infrastructure
+10. [SS-022: Settings diagnostics and backup](SS-022.md) | not-started | consolidate service, provider, backup, and diagnostics controls
+11. [SS-023: Security and performance qualification](SS-023.md) | not-started | qualify the completed local and MCP workflows
+12. [SS-024: Cross platform installers and releases](SS-024.md) | not-started | package only after qualification passes
+13. [SS-025: Subscription-backed MCP access](SS-025.md) | not-started | add client-specific setup to the released MCP service
+14. [SS-015: AI query interpretation](SS-015.md) | not-started | optional enhancement after offline search is complete
+15. [SS-016: AI sound description and suggestions](SS-016.md) | not-started | optional, consented enrichment
+16. [SS-017: Optional offline model packs](SS-017.md) | not-started | optional model distribution after baseline qualification
 
 ## Progress snapshot
 
-- Complete: 9 of 28 tickets.
+- Complete: 12 of 28 tickets.
 - In review: 0 of 28 tickets.
-- Partial: 2 of 28 tickets.
-- Not started: 17 of 28 tickets.
-- Next ticket: SS-008.
+- Partial: 0 of 28 tickets.
+- Not started: 16 of 28 tickets.
+- Next ticket: SS-011.
 
 ## Release definition
 
