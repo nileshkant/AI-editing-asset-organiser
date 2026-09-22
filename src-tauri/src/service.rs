@@ -1,4 +1,11 @@
-use soundshelf_core::{catalog::{Catalog,Source},jobs::{now_secs,Job},library::{scan,Progress},media::MediaTools,playback::Player};
+use soundshelf_core::{
+    catalog::{Catalog, Source},
+    jobs::{now_secs, Job},
+    library::{scan, Progress},
+    media::MediaTools,
+    playback::Player,
+    waveform::WaveformService,
+};
 use std::{path::PathBuf,sync::{Arc,Mutex,mpsc::{sync_channel,SyncSender,RecvTimeoutError},atomic::{AtomicBool,Ordering}},thread,time::Duration};
 use uuid::Uuid;
 
@@ -10,6 +17,7 @@ pub struct AppState {
     pub tools:Option<MediaTools>,
     pub player:Arc<Player>,
     pub progress:Arc<Mutex<Vec<Progress>>>,
+    pub waveforms:Arc<WaveformService>,
     pub cancel:Arc<AtomicBool>,
     stop:Arc<AtomicBool>,
     sender:SyncSender<Work>,
@@ -18,6 +26,9 @@ pub struct AppState {
 impl AppState {
     pub fn new(data_directory:PathBuf,resources:PathBuf)->Result<Self,Box<dyn std::error::Error>>{
         std::fs::create_dir_all(&data_directory)?;
+        let cache_dir = data_directory.join("cache").join("waveforms");
+        std::fs::create_dir_all(&cache_dir)?;
+        let waveforms = Arc::new(WaveformService::new(cache_dir));
         let catalog=Arc::new(Mutex::new(Catalog::open(&data_directory.join("library.sqlite"))?));
         let mut tools=MediaTools{ffmpeg:resources.join("media").join(if cfg!(windows){"ffmpeg.exe"}else{"ffmpeg"}),ffprobe:resources.join("media").join(if cfg!(windows){"ffprobe.exe"}else{"ffprobe"})};
         if tools.validate().is_err() {
@@ -59,7 +70,7 @@ impl AppState {
             }
         });
         let player=Arc::new(Player::new(tools.clone()));
-        let state=Self{data_directory,catalog,tools,player,progress,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))};
+        let state=Self{data_directory,catalog,tools,player,progress,waveforms,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))};
         state.resume_persisted()?;
         Ok(state)
     }

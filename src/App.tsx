@@ -721,6 +721,9 @@ export function App() {
                 <SoundInspector
                   key={selected.id}
                   sound={selected}
+                  playback={playback}
+                  onPlay={playSound}
+                  onSeek={seekPlayback}
                   onClose={() => setSelected(null)}
                   onSave={async (tags, comment) => {
                     await call("annotate", {
@@ -1072,11 +1075,17 @@ export function App() {
 
 function SoundInspector({
   sound,
+  playback,
+  onPlay,
+  onSeek,
   onClose,
   onSave,
   onError,
 }: {
   sound: Sound;
+  playback: PlaybackStatus | null;
+  onPlay: (sound: Sound) => Promise<unknown>;
+  onSeek: (pos: number) => Promise<unknown>;
   onClose: () => void;
   onSave: (tags: string[], comment: string) => Promise<void>;
   onError: (e: string) => void;
@@ -1087,6 +1096,8 @@ function SoundInspector({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const p = sound.profile;
+  const isThisSound = playback?.sound_id === sound.id;
+  const currentPos = isThisSound ? (playback?.position_seconds || 0) : 0;
   const addTag = () => {
     const next = tag.replaceAll("_", " ").trim();
     if (next && !tags.some((t) => t.toLowerCase() === next.toLowerCase()))
@@ -1111,7 +1122,22 @@ function SoundInspector({
       <small className="muted path-text">{sound.relative_path}</small>
       {p && (
         <>
-          <Waveform peaks={p.waveform} />
+          <Waveform
+            soundId={sound.id}
+            peaks={p.waveform}
+            duration={p.duration}
+            sampleRate={p.sample_rate}
+            channels={p.channels}
+            playbackPosition={currentPos}
+            isCurrentPlaying={isThisSound && playback?.state === "playing"}
+            onSeek={(sec) => {
+              if (isThisSound) {
+                void onSeek(sec);
+              } else {
+                void onPlay(sound).then(() => onSeek(sec));
+              }
+            }}
+          />
           <div className="audio-facts">
             <span>{duration(p.duration)}</span>
             <span>{(p.sample_rate / 1000).toFixed(1)} kHz</span>
