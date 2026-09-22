@@ -172,16 +172,25 @@ impl Catalog {
 
     pub fn sound(&self, id: &str) -> Result<Sound> { self.all_sounds()?.into_iter().find(|s| s.id == id).ok_or_else(||invalid("Sound not found")) }
 
-    pub fn resolve(&self, id: &str) -> Result<PathBuf> {
+    pub fn ready_sound(&self, id: &str) -> Result<Sound> {
         let sound = self.sound(id)?;
         if sound.status != "ready" { return Err(invalid("Sound is not ready")); }
         let source = self.source(&sound.source_id)?;
         if !source.available { return Err(invalid("Source is offline")); }
+        Ok(sound)
+    }
+
+    pub fn resolve(&self, id: &str) -> Result<PathBuf> {
+        let sound = self.ready_sound(id)?;
+        let source = self.source(&sound.source_id)?;
         contained(Path::new(&source.root), &sound.relative_path)
     }
 
     pub fn annotate(&self, id: &str, tags: &[String], comment: &str, favorite: bool) -> Result<()> {
-        let _ = self.sound(id)?;
+        let sound = self.sound(id)?;
+        if sound.status == "missing" { return Err(invalid("Cannot annotate missing sound")); }
+        let source = self.source(&sound.source_id)?;
+        if !source.available { return Err(invalid("Cannot annotate sound in offline source")); }
         if comment.chars().count() > 10_000 || tags.len() > 64 { return Err(invalid("Annotation is too large")); }
         let mut normalized = vec![];
         for tag in tags {
