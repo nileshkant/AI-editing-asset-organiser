@@ -11,3 +11,4 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 soundshelf-core = { path = "../crates/core" }
 tauri-plugin-dialog = "2"
+uuid = { version = "1", features = ["v4"] }

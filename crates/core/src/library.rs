@@ -4,11 +4,11 @@ use std::{path::Path,sync::{Arc,Mutex,atomic::{AtomicBool,Ordering}}};
 use walkdir::WalkDir;
 
 #[derive(Clone,Default,Debug,Serialize,Deserialize)]
-pub struct Progress {pub source_id:String,pub status:String,pub completed:usize,pub total:usize,pub reused:usize,pub failed:usize,pub current:String,pub errors:Vec<String>}
+pub struct Progress {pub job_id:String,pub source_id:String,pub status:String,pub completed:usize,pub total:usize,pub reused:usize,pub failed:usize,pub current:String,pub errors:Vec<String>}
 
-pub fn scan(catalog:Arc<Mutex<Catalog>>,source:Source,tools:&MediaTools,cancel:Arc<AtomicBool>,mut progress:impl FnMut(Progress))->Result<Progress>{
+pub fn scan(catalog:Arc<Mutex<Catalog>>,source:Source,tools:&MediaTools,cancel:Arc<AtomicBool>,job_id:String,mut progress:impl FnMut(Progress))->Result<Progress>{
     tools.validate()?;
-    let root=Path::new(&source.root);let mut state=Progress{source_id:source.id.clone(),status:"discovering".into(),..Default::default()};progress(state.clone());
+    let root=Path::new(&source.root);let mut state=Progress{job_id:job_id.clone(),source_id:source.id.clone(),status:"discovering".into(),..Default::default()};progress(state.clone());
     if !root.is_dir(){catalog.lock().map_err(|_|invalid("Catalog unavailable"))?.set_available(&source.id,false)?;return Err(invalid("Source is offline or inaccessible"));}
     catalog.lock().map_err(|_|invalid("Catalog unavailable"))?.set_available(&source.id,true)?;
     let mut files=vec![];let mut complete=true;
