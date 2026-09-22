@@ -13,7 +13,38 @@ impl MediaTools {
 #[derive(Deserialize)]
 struct Probe { streams: Vec<Stream> }
 #[derive(Deserialize)]
-struct Stream { sample_rate: String, channels: u16, duration: Option<String> }
+struct Stream {
+    sample_rate: String,
+    channels: u16,
+    duration: Option<String>,
+    channel_layout: Option<String>,
+}
+
+pub fn normalize_layout(channels: u16, raw_layout: Option<&str>) -> String {
+    if let Some(layout) = raw_layout {
+        let clean = layout.trim().to_lowercase();
+        if !clean.is_empty() && clean != "unknown" {
+            return match clean.as_str() {
+                "mono" => "mono".into(),
+                "stereo" => "stereo".into(),
+                "2.1" => "2.1".into(),
+                "5.1" | "5.1(side)" => "5.1 surround".into(),
+                "7.1" | "7.1(wide)" => "7.1 surround".into(),
+                "quad" | "quad(side)" => "quadraphonic".into(),
+                other => other.replace('_', " ").replace('(', " ").replace(')', "").trim().to_string(),
+            };
+        }
+    }
+    match channels {
+        1 => "mono".into(),
+        2 => "stereo".into(),
+        3 => "2.1".into(),
+        4 => "quadraphonic".into(),
+        6 => "5.1 surround".into(),
+        8 => "7.1 surround".into(),
+        _ => "multichannel".into(),
+    }
+}
 
 // Watchdog owns process cleanup even when pipe reads block on a broken decoder.
 pub fn run_stream<T>(mut command: Command, cancel: Arc<AtomicBool>, timeout: Duration, read: impl FnOnce(&mut dyn Read)->Result<T>) -> Result<T> {
@@ -34,7 +65,7 @@ pub fn run_stream<T>(mut command: Command, cancel: Arc<AtomicBool>, timeout: Dur
 pub fn analyze(tools:&MediaTools,path:&Path,cancel:Arc<AtomicBool>) -> Result<Profile> {
     tools.validate()?;
     let mut probe=Command::new(&tools.ffprobe);
-    probe.args(["-v","error","-select_streams","a:0","-show_entries","stream=sample_rate,channels,duration","-of","json"]).arg(path);
+    probe.args(["-v","error","-select_streams","a:0","-show_entries","stream=sample_rate,channels,duration,channel_layout","-of","json"]).arg(path);
     let bytes=run_stream(probe,cancel.clone(),Duration::from_secs(30),|r| {let mut b=Vec::new();r.take(1_048_577).read_to_end(&mut b)?;if b.len()>1_048_576{return Err(invalid("Metadata exceeds limit"));}Ok(b)})?;
     let probe:Probe=serde_json::from_slice(&bytes)?;
     let stream=probe.streams.first().ok_or_else(||invalid("No audio stream"))?;
@@ -45,23 +76,98 @@ pub fn analyze(tools:&MediaTools,path:&Path,cancel:Arc<AtomicBool>) -> Result<Pr
     let mut decode=Command::new(&tools.ffmpeg);
     decode.args(["-v","error","-nostdin","-threads","1","-i"]).arg(path).args(["-map","0:a:0","-vn","-f","f32le","-acodec","pcm_f32le","pipe:1"]);
     let channels=stream.channels;
+    let layout=normalize_layout(channels, stream.channel_layout.as_deref());
     let mut profile=run_stream(decode,cancel,Duration::from_secs(7200),|r| measure_pcm(r,rate,channels,bucket))?;
-    let texture=if profile.rms<0.01 {"quiet"} else if profile.rms>0.2 {"loud"} else {"moderate level"};
-    let envelope=if profile.peak/(profile.rms.max(0.00001))>6.0 {"pronounced peaks"} else {"a relatively even level"};
-    profile.description=format!("A {:.2}-second recording with {texture} average energy and {envelope}. Measured across the full recording; the event itself has not been identified by listening.",profile.duration);
-    profile.tags=vec![texture.into(),if profile.duration<3.0 {"short"}else if profile.duration>30.0 {"long"}else{"medium duration"}.into(),if channels==1{"mono"}else{"multichannel"}.into()];
-    if profile.peak<0.0001 {profile.tags.push("near silence".into());}
+    profile.channel_layout = layout.clone();
+
+    let is_silent = profile.peak < 0.0001 || profile.rms < 0.0001;
+    let texture = if is_silent {
+        "silent"
+    } else if profile.rms < 0.01 {
+        "quiet"
+    } else if profile.rms > 0.2 {
+        "loud"
+    } else {
+        "moderate level"
+    };
+
+    let envelope = if is_silent {
+        "uniform silent level"
+    } else if profile.peak / (profile.rms.max(0.00001)) > 6.0 {
+        "pronounced peaks"
+    } else {
+        "a relatively even level"
+    };
+
+    let duration_tag = if profile.duration < 3.0 {
+        "short"
+    } else if profile.duration > 30.0 {
+        "long"
+    } else {
+        "medium duration"
+    };
+
+    let layout_tag = match channels {
+        1 => "mono",
+        2 => "stereo",
+        6 => "5.1 surround",
+        8 => "7.1 surround",
+        _ => "multichannel",
+    };
+
+    if is_silent {
+        profile.description = format!(
+            "A {:.2}-second silent recording with uniform silent level. Measured across the full recording; the event itself has not been identified by listening.",
+            profile.duration
+        );
+        profile.tags = vec![
+            "silence".into(),
+            "quiet".into(),
+            duration_tag.into(),
+            layout_tag.into(),
+        ];
+    } else {
+        profile.description = format!(
+            "A {:.2}-second recording with {texture} average energy and {envelope}. Measured across the full recording; the event itself has not been identified by listening.",
+            profile.duration
+        );
+        profile.tags = vec![
+            texture.into(),
+            duration_tag.into(),
+            layout_tag.into(),
+        ];
+        if profile.peak < 0.0005 {
+            profile.tags.push("near silence".into());
+        }
+        if profile.peak / profile.rms.max(0.00001) > 6.0 && profile.rms >= 0.01 {
+            profile.tags.push("dynamic range".into());
+        }
+    }
     Ok(profile)
 }
 
 pub fn measure_pcm(reader:&mut dyn Read,rate:u32,channels:u16,initial_bucket:usize)->Result<Profile>{
     if rate==0||channels==0{return Err(invalid("Invalid PCM format"));}
     let frame_bytes=channels as usize*4;let mut bytes=vec![0u8;frame_bytes];let mut samples=0u64;let mut sum=0.0f64;let mut peak=0.0f32;let mut frames=0u64;
+    let mut channel_peaks=vec![0.0f32; channels as usize];
+    let mut channel_sums=vec![0.0f64; channels as usize];
     let mut waveform:Vec<[f32;2]>=vec![];let mut bucket=initial_bucket.max(1);let mut count=0usize;let mut low=f32::INFINITY;let mut high=f32::NEG_INFINITY;
     loop {
         let mut have=0;while have<frame_bytes {let n=reader.read(&mut bytes[have..])?;if n==0{break;}have+=n;}
         if have==0{break;}if have!=frame_bytes{return Err(invalid("Truncated decoded PCM"));}
-        for raw in bytes.chunks_exact(4){let sample=f32::from_le_bytes(raw.try_into().unwrap());if !sample.is_finite(){return Err(invalid("Non-finite decoded samples"));}peak=peak.max(sample.abs());sum+=(sample as f64).powi(2);samples+=1;low=low.min(sample);high=high.max(sample);}
+        for (ch, raw) in bytes.chunks_exact(4).enumerate(){
+            let sample=f32::from_le_bytes(raw.try_into().unwrap());
+            if !sample.is_finite(){return Err(invalid("Non-finite decoded samples"));}
+            let abs = sample.abs();
+            peak=peak.max(abs);
+            channel_peaks[ch]=channel_peaks[ch].max(abs);
+            let sq = (sample as f64).powi(2);
+            sum+=sq;
+            channel_sums[ch]+=sq;
+            samples+=1;
+            low=low.min(sample);
+            high=high.max(sample);
+        }
         frames+=1;count+=1;
         if count==bucket {waveform.push([low,high]);count=0;low=f32::INFINITY;high=f32::NEG_INFINITY;
             if waveform.len()>=3200 {waveform=waveform.chunks_exact(2).map(|p|[p[0][0].min(p[1][0]),p[0][1].max(p[1][1])]).collect();bucket*=2;}
@@ -69,14 +175,47 @@ pub fn measure_pcm(reader:&mut dyn Read,rate:u32,channels:u16,initial_bucket:usi
     }
     if samples==0{return Err(invalid("Audio has no decoded frames"));}
     if count>0{waveform.push([low,high]);}
-    Ok(Profile{duration:frames as f64/rate as f64,sample_rate:rate,channels,frames,peak,rms:(sum/samples as f64).sqrt() as f32,description:String::new(),tags:vec![],waveform})
+    let channel_rms = channel_sums.into_iter().map(|s| (s / frames as f64).sqrt() as f32).collect();
+    let overall_rms = (sum / samples as f64).sqrt() as f32;
+    let channel_layout = normalize_layout(channels, None);
+    Ok(Profile{
+        duration:frames as f64/rate as f64,
+        sample_rate:rate,
+        channels,
+        frames,
+        peak,
+        rms:overall_rms,
+        channel_peaks,
+        channel_rms,
+        channel_layout,
+        description:String::new(),
+        tags:vec![],
+        waveform,
+    })
 }
 
 #[cfg(test)]mod tests{
  use super::*;
- #[test]fn stereo_does_not_cancel(){let data:Vec<u8>=[0.5f32,-0.5,0.5,-0.5].into_iter().flat_map(f32::to_le_bytes).collect();let p=measure_pcm(&mut &data[..],48000,2,1).unwrap();assert_eq!(p.rms,0.5);assert_eq!(p.peak,0.5);assert_eq!(p.frames,2);assert_eq!(p.waveform[0],[-0.5,0.5]);}
+ #[test]fn stereo_does_not_cancel(){
+     let data:Vec<u8>=[0.5f32,-0.5,0.5,-0.5].into_iter().flat_map(f32::to_le_bytes).collect();
+     let p=measure_pcm(&mut &data[..],48000,2,1).unwrap();
+     assert_eq!(p.rms,0.5);
+     assert_eq!(p.peak,0.5);
+     assert_eq!(p.frames,2);
+     assert_eq!(p.channel_peaks, vec![0.5, 0.5]);
+     assert_eq!(p.channel_rms, vec![0.5, 0.5]);
+     assert_eq!(p.channel_layout, "stereo");
+     assert_eq!(p.waveform[0],[-0.5,0.5]);
+ }
  #[test]fn nonfinite_rejected(){assert!(measure_pcm(&mut &f32::NAN.to_le_bytes()[..],48000,1,1).is_err());}
  #[test]fn truncated_rejected(){assert!(measure_pcm(&mut &[0u8;3][..],48000,1,1).is_err());}
  #[test]fn waveform_bounded(){let data:Vec<u8>=(0..100000).flat_map(|_|0.2f32.to_le_bytes()).collect();let p=measure_pcm(&mut &data[..],48000,1,1).unwrap();assert!(p.waveform.len()<3200);assert_eq!(p.frames,100000);}
- #[test]fn silence_valid(){let p=measure_pcm(&mut &[0u8;16][..],48000,1,2).unwrap();assert_eq!(p.rms,0.0);assert_eq!(p.waveform,vec![[0.0,0.0];2]);}
+ #[test]fn silence_valid(){
+     let p=measure_pcm(&mut &[0u8;16][..],48000,1,2).unwrap();
+     assert_eq!(p.rms,0.0);
+     assert_eq!(p.peak,0.0);
+     assert_eq!(p.channel_peaks, vec![0.0]);
+     assert_eq!(p.channel_rms, vec![0.0]);
+     assert_eq!(p.waveform,vec![[0.0,0.0];2]);
+ }
 }

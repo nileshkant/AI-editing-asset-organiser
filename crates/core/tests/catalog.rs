@@ -2,7 +2,22 @@ use soundshelf_core::catalog::*;
 use std::{fs, path::Path};
 use tempfile::tempdir;
 
-fn profile() -> Profile { Profile {duration:1.0,sample_rate:48000,channels:1,frames:48000,peak:0.8,rms:0.2,description:"Measured".into(),tags:vec!["short".into()],waveform:vec![[-0.8,0.8]]} }
+fn profile() -> Profile {
+    Profile {
+        duration: 1.0,
+        sample_rate: 48000,
+        channels: 1,
+        frames: 48000,
+        peak: 0.8,
+        rms: 0.2,
+        channel_peaks: vec![0.8],
+        channel_rms: vec![0.2],
+        channel_layout: "mono".into(),
+        description: "Measured".into(),
+        tags: vec!["short".into()],
+        waveform: vec![[-0.8, 0.8]],
+    }
+}
 fn db() -> Catalog { Catalog::open(Path::new(":memory:")).unwrap() }
 fn add(c: &mut Catalog, root: &Path) -> (Source,String,String) {
     fs::write(root.join("test.wav"),b"test audio").unwrap();

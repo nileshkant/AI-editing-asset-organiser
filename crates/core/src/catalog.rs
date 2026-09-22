@@ -23,6 +23,12 @@ pub struct Profile {
     pub frames: u64,
     pub peak: f32,
     pub rms: f32,
+    #[serde(default)]
+    pub channel_peaks: Vec<f32>,
+    #[serde(default)]
+    pub channel_rms: Vec<f32>,
+    #[serde(default)]
+    pub channel_layout: String,
     pub description: String,
     pub tags: Vec<String>,
     pub waveform: Vec<[f32; 2]>,
@@ -225,5 +231,11 @@ pub fn hash_file(path: &Path) -> Result<String> {
 }
 fn validate_profile(p: &Profile) -> Result<()> {
     if !p.duration.is_finite() || p.duration<=0.0 || p.sample_rate==0 || p.channels==0 || p.frames==0 || !p.peak.is_finite() || !p.rms.is_finite() || p.peak<0.0 || p.rms<0.0 || p.waveform.is_empty() || p.waveform.iter().any(|b| !b[0].is_finite() || !b[1].is_finite() || b[0]>b[1]) { return Err(invalid("Invalid measured profile")); }
+    if !p.channel_peaks.is_empty() && p.channel_peaks.len() != p.channels as usize { return Err(invalid("Channel peaks count does not match channel count")); }
+    if !p.channel_rms.is_empty() && p.channel_rms.len() != p.channels as usize { return Err(invalid("Channel rms count does not match channel count")); }
+    if p.channel_peaks.iter().any(|v| !v.is_finite() || *v < 0.0) { return Err(invalid("Channel peaks must be finite and non-negative")); }
+    if p.channel_rms.iter().any(|v| !v.is_finite() || *v < 0.0) { return Err(invalid("Channel rms must be finite and non-negative")); }
+    if p.tags.iter().any(|t| t.contains('_')) { return Err(invalid("Tags must not contain underscore separators")); }
+    if p.description.trim().is_empty() { return Err(invalid("Profile description must not be empty")); }
     Ok(())
 }
