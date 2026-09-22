@@ -25,7 +25,7 @@ async fn relink_source(state:tauri::State<'_,AppState>,id:String,path:String)->R
 #[tauri::command]
 async fn search_sounds(state:tauri::State<'_,AppState>,query:SearchQuery)->Result<SearchResults,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||{let c=c.lock().map_err(|e|e.to_string())?;let online=c.sources().map_err(|e|e.to_string())?.into_iter().filter(|s|s.available).map(|s|s.id).collect::<Vec<_>>();search(c.all_sounds().map_err(|e|e.to_string())?,&query,&online).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())?}
 #[tauri::command]
-async fn get_sound(state:tauri::State<'_,AppState>,id:String)->Result<Sound,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.sound(&id).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
+async fn get_sound(state:tauri::State<'_,AppState>,id:String)->Result<Sound,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.ready_sound(&id).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
 async fn annotate(state:tauri::State<'_,AppState>,id:String,tags:Vec<String>,comment:String,favorite:bool)->Result<(),String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.annotate(&id,&tags,&comment,favorite).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
