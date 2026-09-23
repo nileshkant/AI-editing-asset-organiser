@@ -417,3 +417,25 @@ fn test_app_quit_cleanup() {
     drop(player);
     assert!(start.elapsed() < Duration::from_secs(5), "Player drop must terminate cleanly and promptly");
 }
+
+#[test]
+fn test_play_clip_duration_bounded() {
+    let tools = match test_tools() {
+        Some(t) => t,
+        None => return,
+    };
+
+    let dir = tempdir().unwrap();
+    let wav_file = dir.path().join("clip_test.wav");
+    create_tone_wav(&tools, &wav_file, 5.0); // 5 second original file
+
+    let player = Player::new_loopback(Some(tools));
+    // Play clip from 1.0s to 1.5s (duration = 0.5s)
+    player.play_clip("clip-test-1", &wav_file, 1.0, 0.5).unwrap();
+
+    let sink = player.loopback_sink().unwrap();
+    assert!(wait_for_data(&sink, Duration::from_secs(10)));
+
+    let status = player.status();
+    assert_eq!(status.duration_seconds, 0.5, "Clip duration in status should match requested clip length");
+}

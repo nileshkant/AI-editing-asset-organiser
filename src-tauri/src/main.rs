@@ -2,7 +2,7 @@
 mod service;
 use service::AppState;
 use soundshelf_core::{
-    catalog::{SavedSearch, Source, Sound},
+    catalog::{Clip, ClipRecipe, SavedSearch, Source, Sound},
     library::Progress,
     playback::PlaybackStatus,
     search::{SearchQuery, SearchResults},
@@ -55,6 +55,30 @@ async fn playback_play(state: tauri::State<'_, AppState>, id: String) -> Result<
     };
     state.player.play(&id, &path, duration).map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+async fn playback_play_clip(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    clip_id: String,
+) -> Result<(), String> {
+    let (path, start_seconds, clip_duration) = {
+        let c = state.catalog.lock().map_err(|e| e.to_string())?;
+        let clip = c.get_clip(&clip_id).map_err(|e| e.to_string())?;
+        let path = c.resolve(&id).map_err(|e| e.to_string())?;
+        let rate = clip.recipe.source_sample_rate_hz as f64;
+        let start_frame: u64 = clip.recipe.start_frame.parse()
+            .map_err(|_| "Invalid start frame".to_string())?;
+        let end_frame: u64 = clip.recipe.end_frame.parse()
+            .map_err(|_| "Invalid end frame".to_string())?;
+        let start_seconds = start_frame as f64 / rate;
+        let clip_duration = (end_frame - start_frame) as f64 / rate;
+        (path, start_seconds, clip_duration)
+    };
+    state.player.play_clip(&id, &path, start_seconds, clip_duration)
+        .map_err(|e| e.to_string())
+}
+
 
 #[tauri::command]
 fn playback_pause(state: tauri::State<'_, AppState>) {
@@ -116,6 +140,107 @@ async fn get_waveform(
         ).map_err(|e| e.to_string())?;
 
         Ok(pyramid.query_window(start_frame, end_frame, max_points))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn create_clip(
+    state: tauri::State<'_, AppState>,
+    sound_id: String,
+    name: String,
+    recipe: ClipRecipe,
+) -> Result<Clip, String> {
+    let c = state.catalog.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        c.lock()
+            .map_err(|e| e.to_string())?
+            .create_clip(&sound_id, &name, &recipe)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn get_clip(
+    state: tauri::State<'_, AppState>,
+    id: String,
+) -> Result<Clip, String> {
+    let c = state.catalog.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        c.lock()
+            .map_err(|e| e.to_string())?
+            .get_clip(&id)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn list_clips(
+    state: tauri::State<'_, AppState>,
+    sound_id: String,
+) -> Result<Vec<Clip>, String> {
+    let c = state.catalog.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        c.lock()
+            .map_err(|e| e.to_string())?
+            .list_clips_for_sound(&sound_id)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn update_clip(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    name: String,
+    recipe: ClipRecipe,
+    expected_revision: u32,
+) -> Result<Clip, String> {
+    let c = state.catalog.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        c.lock()
+            .map_err(|e| e.to_string())?
+            .update_clip(&id, &name, &recipe, expected_revision)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn rebind_clip(
+    state: tauri::State<'_, AppState>,
+    id: String,
+) -> Result<Clip, String> {
+    let c = state.catalog.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        c.lock()
+            .map_err(|e| e.to_string())?
+            .rebind_clip(&id)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn delete_clip(
+    state: tauri::State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    let c = state.catalog.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        c.lock()
+            .map_err(|e| e.to_string())?
+            .delete_clip(&id)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -184,13 +309,20 @@ fn main() {
             jobs,
             cancel_import,
             playback_play,
+            playback_play_clip,
             playback_pause,
             playback_resume,
             playback_stop,
             playback_seek,
             playback_set_volume,
             playback_status,
-            get_waveform
+            get_waveform,
+            create_clip,
+            get_clip,
+            list_clips,
+            update_clip,
+            rebind_clip,
+            delete_clip
         ])
         .build(tauri::generate_context!()).expect("SoundShelf could not start")
         .run(|app,event|if matches!(event,tauri::RunEvent::Exit){app.state::<AppState>().shutdown();});

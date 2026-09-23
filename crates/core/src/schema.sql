@@ -42,3 +42,36 @@ CREATE TABLE saved_searches (
   query TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE clips (
+  id TEXT PRIMARY KEY,
+  sound_id TEXT NOT NULL REFERENCES sounds(id),
+  name TEXT NOT NULL,
+  asset_version_id TEXT NOT NULL,
+  source_sample_rate_hz INTEGER NOT NULL,
+  start_frame TEXT NOT NULL,
+  end_frame TEXT NOT NULL,
+  channel_policy TEXT NOT NULL DEFAULT 'preserve',
+  gain_db REAL NOT NULL DEFAULT 0.0,
+  fade_in_ms INTEGER NOT NULL DEFAULT 0,
+  fade_out_ms INTEGER NOT NULL DEFAULT 0,
+  revision INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX clips_sound ON clips(sound_id);
+CREATE TABLE clip_revisions (
+  id TEXT PRIMARY KEY,
+  clip_id TEXT NOT NULL REFERENCES clips(id) ON DELETE CASCADE,
+  revision INTEGER NOT NULL,
+  asset_version_id TEXT NOT NULL,
+  source_sample_rate_hz INTEGER NOT NULL,
+  start_frame TEXT NOT NULL,
+  end_frame TEXT NOT NULL,
+  channel_policy TEXT NOT NULL DEFAULT 'preserve',
+  gain_db REAL NOT NULL DEFAULT 0.0,
+  fade_in_ms INTEGER NOT NULL DEFAULT 0,
+  fade_out_ms INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  UNIQUE(clip_id, revision)
+);
+CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);

@@ -2,10 +2,14 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Waveform } from './components/waveform/Waveform';
 
+const mockInvoke = vi.fn();
+let mockIsTauri = false;
+
 vi.mock('@tauri-apps/api/core', () => ({
-  isTauri: () => false,
-  invoke: vi.fn(),
+  isTauri: () => mockIsTauri,
+  invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
+
 
 const SAMPLE_PEAKS: [number, number][] = [
   [-0.5, 0.5],
@@ -16,6 +20,12 @@ const SAMPLE_PEAKS: [number, number][] = [
 ];
 
 describe('Waveform', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsTauri = false;
+    mockInvoke.mockImplementation(() => Promise.resolve(null));
+  });
+
   // ─── Rendering ───
   it('renders workstation region and canvas', () => {
     render(
@@ -240,4 +250,191 @@ describe('Waveform', () => {
     expect(screen.getByText('Start at Playhead')).toBeInTheDocument();
     expect(screen.getByText('End at Playhead')).toBeInTheDocument();
   });
+
+  // ─── SS-012: Start + Duration Selection & Decimal Frames ───
+  it('supports Start + Duration entry (e.g. click start, enter 15s)', () => {
+    render(
+      <Waveform
+        peaks={SAMPLE_PEAKS}
+        duration={30.0}
+        sampleRate={48000}
+      />,
+    );
+    fireEvent.click(screen.getByText('Select All'));
+
+    const startInput = screen.getByLabelText('Selection start in seconds');
+    const durInput = screen.getByLabelText('Selection duration in seconds');
+    const endInput = screen.getByLabelText('Selection end in seconds');
+
+    // Click start, enter 5.000s
+    fireEvent.change(startInput, { target: { value: '5.000' } });
+    expect((startInput as HTMLInputElement).value).toBe('5.000');
+
+    // Enter 15.000s duration
+    fireEvent.change(durInput, { target: { value: '15.000' } });
+    expect((endInput as HTMLInputElement).value).toBe('20.000');
+
+    // Check sample-exact frame boundary indicator [start, end) exclusive
+    expect(
+      screen.getByText(/Frames: 240000 – 960000 \(exclusive\)/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Sample-exact')).toBeInTheDocument();
+  });
+
+  // ─── SS-012: Lock Duration ───
+  it('shifts end when start changes in locked duration mode', () => {
+    render(
+      <Waveform
+        peaks={SAMPLE_PEAKS}
+        duration={30.0}
+        sampleRate={48000}
+      />,
+    );
+    fireEvent.click(screen.getByText('Select All'));
+
+    const startInput = screen.getByLabelText('Selection start in seconds');
+    const durInput = screen.getByLabelText('Selection duration in seconds');
+    const endInput = screen.getByLabelText('Selection end in seconds');
+
+    // Set 10s selection (5s to 15s)
+    fireEvent.change(startInput, { target: { value: '5.000' } });
+    fireEvent.change(durInput, { target: { value: '10.000' } });
+    expect((endInput as HTMLInputElement).value).toBe('15.000');
+
+    // Lock duration
+    const lockBtn = screen.getByRole('button', { name: /Lock Duration/i });
+    fireEvent.click(lockBtn);
+    expect(lockBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Duration Locked')).toBeInTheDocument();
+
+    // Shift start to 10.000s -> end should shift to 20.000s
+    fireEvent.change(startInput, { target: { value: '10.000' } });
+    expect((endInput as HTMLInputElement).value).toBe('20.000');
+    expect((durInput as HTMLInputElement).value).toBe('10.000');
+  });
+
+  // ─── SS-012: Clamping with Explicit Feedback ───
+  it('displays explicit clamp alert and provides "Fit to remaining audio" action', () => {
+    render(
+      <Waveform
+        peaks={SAMPLE_PEAKS}
+        duration={20.0}
+        sampleRate={48000}
+      />,
+    );
+    fireEvent.click(screen.getByText('Select All'));
+
+    const startInput = screen.getByLabelText('Selection start in seconds');
+    const durInput = screen.getByLabelText('Selection duration in seconds');
+
+    // Start at 16s, enter 10s duration (would overshoot 20s audio)
+    fireEvent.change(startInput, { target: { value: '16.000' } });
+    fireEvent.change(durInput, { target: { value: '10.000' } });
+
+    // Explicit alert feedback must be visible
+    const alert = screen.getByRole('alert');
+    expect(alert).toBeInTheDocument();
+    expect(alert).toHaveTextContent(/clamped to remaining audio/i);
+
+    // "Fit to remaining audio" button should be available
+    const fitBtn = screen.getByRole('button', { name: /Fit to remaining audio/i });
+    expect(fitBtn).toBeInTheDocument();
+
+    fireEvent.click(fitBtn);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('displays clamp feedback when start is negative', () => {
+    render(
+      <Waveform
+        peaks={SAMPLE_PEAKS}
+        duration={10.0}
+        sampleRate={48000}
+      />,
+    );
+    fireEvent.click(screen.getByText('Select All'));
+
+    const startInput = screen.getByLabelText('Selection start in seconds');
+    fireEvent.change(startInput, { target: { value: '-2.000' } });
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(/Start cannot be negative; clamped to 0\.000s/i);
+    expect((startInput as HTMLInputElement).value).toBe('0.000');
+  });
+
+  // ─── SS-012: Save Clip Recipe Workflow ───
+  it('saves clip recipe through inline form and invokes onClipSaved', async () => {
+    mockIsTauri = true;
+    const mockClip = {
+      id: 'clip-saved-1',
+      sound_id: 'sound-test-1',
+      name: 'Stinger Variant',
+      asset_version_id: 'hash-abc-123',
+      revision: 1,
+      recipe: {
+        asset_id: 'sound-test-1',
+        asset_version_id: 'hash-abc-123',
+        source_sample_rate_hz: 48000,
+        start_frame: '48000',
+        end_frame: '96000',
+        channel_policy: 'preserve',
+        gain_db: 0.0,
+        fade_in_ms: 0,
+        fade_out_ms: 0,
+      },
+      is_stale: false,
+      stale_reason: null,
+      created_at: 1700000000,
+      updated_at: 1700000000,
+    };
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'create_clip') return Promise.resolve(mockClip);
+      return Promise.resolve(null);
+    });
+
+    const onClipSaved = vi.fn();
+    render(
+      <Waveform
+        soundId="sound-test-1"
+        soundHash="hash-abc-123"
+        peaks={SAMPLE_PEAKS}
+        duration={10.0}
+        sampleRate={48000}
+        onClipSaved={onClipSaved}
+      />,
+    );
+    fireEvent.click(screen.getByText('Select All'));
+
+    const startInput = screen.getByLabelText('Selection start in seconds');
+    const durInput = screen.getByLabelText('Selection duration in seconds');
+    fireEvent.change(startInput, { target: { value: '1.000' } });
+    fireEvent.change(durInput, { target: { value: '1.000' } });
+
+    // Open Save Clip form
+    const saveClipBtn = screen.getByRole('button', { name: /Save Clip/i });
+    fireEvent.click(saveClipBtn);
+
+    const nameInput = screen.getByLabelText('Clip variant name');
+    expect(nameInput).toBeInTheDocument();
+
+    fireEvent.change(nameInput, { target: { value: 'Stinger Variant' } });
+    const confirmBtn = screen.getByLabelText('Confirm save clip');
+    fireEvent.click(confirmBtn);
+
+    await vi.waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('create_clip', {
+        soundId: 'sound-test-1',
+        name: 'Stinger Variant',
+        recipe: expect.objectContaining({
+          asset_id: 'sound-test-1',
+          asset_version_id: 'hash-abc-123',
+          start_frame: '48000',
+          end_frame: '96000',
+          source_sample_rate_hz: 48000,
+        }),
+      });
+      expect(onClipSaved).toHaveBeenCalledWith(mockClip);
+    });
+  });
 });
+

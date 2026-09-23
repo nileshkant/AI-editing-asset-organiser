@@ -218,6 +218,7 @@ impl Player {
             path,
             duration_seconds,
             start_seconds,
+            None, // no clip trim — play full file from start_seconds
             tools,
             shared,
             sink,
@@ -461,12 +462,77 @@ impl Player {
         (OutputSink::Loopback(sink), shared, producer)
     }
 
+    pub fn play_clip(
+        &self,
+        sound_id: &str,
+        path: &Path,
+        start_seconds: f64,
+        clip_duration_seconds: f64,
+    ) -> Result<()> {
+        // Duration in status is shown from 0 to clip_duration_seconds for UX clarity.
+        self.play_at_with_clip_duration(sound_id, path, start_seconds, clip_duration_seconds, true)
+    }
+
+    fn play_at_with_clip_duration(
+        &self,
+        sound_id: &str,
+        path: &Path,
+        start_seconds: f64,
+        clip_duration_seconds: f64,
+        start_playing: bool,
+    ) -> Result<()> {
+        self.stop();
+        *self.last_error.lock().unwrap() = None;
+
+        if !path.is_file() {
+            let err = format!("Audio file does not exist: {}", path.display());
+            *self.last_error.lock().unwrap() = Some(err.clone());
+            return Err(invalid(&err));
+        }
+
+        let tools = self.tools.as_ref().ok_or_else(|| {
+            let err = "Media tools unavailable for playback decoding";
+            *self.last_error.lock().unwrap() = Some(err.into());
+            invalid(err)
+        })?;
+
+        let volume = self.volume();
+        let (sink, shared, producer) = self.create_sink(volume)?;
+
+        let track = self.start_decoder_and_track(
+            sound_id,
+            path,
+            clip_duration_seconds,
+            start_seconds,
+            Some(clip_duration_seconds),
+            tools,
+            shared,
+            sink,
+            producer,
+        )?;
+
+        if start_playing {
+            track.shared.is_playing.store(true, Ordering::Relaxed);
+            if let OutputSink::Cpal(ref stream) = track.sink {
+                if let Err(e) = stream.play() {
+                    let msg = format!("Failed to start audio stream: {e}");
+                    *self.last_error.lock().unwrap() = Some(msg.clone());
+                    return Err(invalid(&msg));
+                }
+            }
+        }
+
+        *self.active.lock().unwrap() = Some(track);
+        Ok(())
+    }
+
     fn start_decoder_and_track(
         &self,
         sound_id: &str,
         path: &Path,
         duration_seconds: f64,
         seek_offset_seconds: f64,
+        clip_duration_seconds: Option<f64>,
         tools: &MediaTools,
         shared: Arc<SharedAudioState>,
         sink: OutputSink,
@@ -479,6 +545,7 @@ impl Player {
             tools.clone(),
             path.to_path_buf(),
             seek_offset_seconds,
+            clip_duration_seconds,
             shared.sample_rate,
             shared.channels,
             producer,
@@ -560,6 +627,7 @@ fn spawn_decoder(
     tools: MediaTools,
     path: PathBuf,
     seek_seconds: f64,
+    clip_duration_seconds: Option<f64>,
     sample_rate: u32,
     channels: u16,
     mut producer: Producer<f32>,
@@ -581,6 +649,12 @@ fn spawn_decoder(
             "-vn",
             "-ar", &format!("{}", sample_rate),
             "-ac", &format!("{}", channels),
+        ]);
+        // When playing a clip region, tell ffmpeg to stop after clip_duration_seconds.
+        if let Some(dur) = clip_duration_seconds {
+            cmd.args(["-t", &format!("{:.6}", dur)]);
+        }
+        cmd.args([
             "-f", "f32le",
             "-acodec", "pcm_f32le",
             "pipe:1",

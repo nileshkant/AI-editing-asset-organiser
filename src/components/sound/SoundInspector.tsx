@@ -1,8 +1,25 @@
-import React, { memo, useState, useCallback } from 'react';
-import { Check, Tag, X } from 'lucide-react';
+import React, { memo, useState, useCallback, useEffect } from 'react';
+import {
+  Check,
+  Tag,
+  X,
+  Play,
+  RefreshCw,
+  Trash2,
+  AlertTriangle,
+  BookmarkCheck,
+} from 'lucide-react';
 import { Waveform } from '../waveform/Waveform';
-import { call, duration } from '../../api';
-import type { Sound, PlaybackStatus } from '../../types';
+import {
+  call,
+  duration,
+  listClips,
+  rebindClip,
+  deleteClip,
+  frameToSeconds,
+  playClip,
+} from '../../api';
+import type { Sound, PlaybackStatus, Clip } from '../../types';
 
 interface SoundInspectorProps {
   sound: Sound;
@@ -39,11 +56,88 @@ export const SoundInspector = memo(function SoundInspector({
   const [comment, setComment] = useState(sound.comment);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [selection, setSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [clips, setClips] = useState<Clip[]>([]);
+  const [loadingClips, setLoadingClips] = useState(false);
+  const [rebindingId, setRebindingId] = useState<string | null>(null);
 
   const p = sound.profile;
   const isThisSound = playback?.sound_id === sound.id;
   const currentPos = isThisSound ? playback?.position_seconds || 0 : 0;
   const pitchKey = extractPitchInfo(sound);
+
+  useEffect(() => {
+    let active = true;
+    setLoadingClips(true);
+    listClips(sound.id)
+      .then((res) => {
+        if (active) setClips(Array.isArray(res) ? res : []);
+      })
+      .catch(() => {
+        if (active) setClips([]);
+      })
+      .finally(() => {
+        if (active) setLoadingClips(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [sound.id]);
+
+  const safeClips = Array.isArray(clips) ? clips : [];
+
+  const handleClipSaved = useCallback((newClip: Clip) => {
+    setClips((prev) => {
+      const idx = prev.findIndex((c) => c.id === newClip.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = newClip;
+        return copy;
+      }
+      return [...prev, newClip];
+    });
+  }, []);
+
+  const handleLoadClip = useCallback(
+    (clip: Clip) => {
+      const rate = clip.recipe.source_sample_rate_hz || p?.sample_rate || 48000;
+      const start = frameToSeconds(clip.recipe.start_frame, rate);
+      const end = frameToSeconds(clip.recipe.end_frame, rate);
+      setSelection({ start, end });
+      handleSeek(start);
+    },
+    [p?.sample_rate],
+  );
+
+  const handleRebind = useCallback(
+    async (clipId: string) => {
+      setRebindingId(clipId);
+      try {
+        const updated = await rebindClip(clipId);
+        setClips((prev) => prev.map((c) => (c.id === clipId ? updated : c)));
+      } catch (err) {
+        onError(String(err));
+      } finally {
+        setRebindingId(null);
+      }
+    },
+    [onError],
+  );
+
+  const handleDeleteClip = useCallback(
+    async (clipId: string) => {
+      try {
+        await deleteClip(clipId);
+        setClips((prev) => prev.filter((c) => c.id !== clipId));
+      } catch (err) {
+        onError(String(err));
+      }
+    },
+    [onError],
+  );
 
   const addTag = useCallback(() => {
     const next = tag.replaceAll('_', ' ').trim();
@@ -106,11 +200,15 @@ export const SoundInspector = memo(function SoundInspector({
         <>
           <Waveform
             soundId={sound.id}
+            soundHash={sound.content_hash}
             peaks={p.waveform}
             duration={p.duration}
             sampleRate={p.sample_rate}
             channels={p.channels}
             playbackPosition={currentPos}
+            selection={selection}
+            onSelectionChange={setSelection}
+            onClipSaved={handleClipSaved}
             onSeek={handleSeek}
           />
 
@@ -129,6 +227,123 @@ export const SoundInspector = memo(function SoundInspector({
               <span className="pitch-badge" title="Detected musical key">
                 🎵 {pitchKey}
               </span>
+            )}
+          </div>
+
+          {/* Saved Clips Section */}
+          <div className="inspector-clips-section">
+            <div className="inspector-subheading">
+              <h3>Saved Clips</h3>
+              <span className="badge-counter">{safeClips.length}</span>
+            </div>
+
+            {loadingClips ? (
+              <small className="muted">Loading clips...</small>
+            ) : safeClips.length === 0 ? (
+              <p className="empty-clips-hint">
+                No clip variants saved yet. Make a selection on the waveform and click <strong>Save Clip</strong>.
+              </p>
+            ) : (
+              <div className="clips-list" role="list" aria-label="Saved clips">
+                {safeClips.map((clip) => {
+                  const rate =
+                    clip.recipe.source_sample_rate_hz || p.sample_rate;
+                  const startSec = frameToSeconds(
+                    clip.recipe.start_frame,
+                    rate,
+                  );
+                  const endSec = frameToSeconds(
+                    clip.recipe.end_frame,
+                    rate,
+                  );
+                  const clipDur = Math.max(0, endSec - startSec);
+
+                  return (
+                    <div
+                      key={clip.id}
+                      className={`clip-card ${clip.is_stale ? 'stale' : ''}`}
+                      role="listitem"
+                    >
+                      <div className="clip-card-header">
+                        <span className="clip-name" title={clip.name}>
+                          <BookmarkCheck size={13} aria-hidden="true" />{' '}
+                          {clip.name}
+                        </span>
+                        <div className="clip-badges">
+                          <span className="clip-revision">
+                            v{clip.revision}
+                          </span>
+                          <span className="clip-duration">
+                            {duration(clipDur)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="clip-frames">
+                        Frames: {clip.recipe.start_frame} –{' '}
+                        {clip.recipe.end_frame}
+                      </div>
+
+                      {clip.is_stale && (
+                        <div className="clip-stale-alert" role="alert">
+                          <AlertTriangle size={13} aria-hidden="true" />
+                          <span>Source changed (stale)</span>
+                          <button
+                            type="button"
+                            className="compact-button rebind-button"
+                            disabled={rebindingId === clip.id}
+                            onClick={() => handleRebind(clip.id)}
+                            title="Rebind clip boundaries to the updated audio file"
+                          >
+                            <RefreshCw
+                              size={11}
+                              className={
+                                rebindingId === clip.id ? 'spinning' : ''
+                              }
+                            />
+                            {rebindingId === clip.id
+                              ? 'Rebinding...'
+                              : 'Rebind'}
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="clip-card-actions">
+                        <button
+                          type="button"
+                          className="compact-button"
+                          title="Load clip selection into waveform editor"
+                          onClick={() => handleLoadClip(clip)}
+                        >
+                          Select
+                        </button>
+                        <button
+                          type="button"
+                          className="compact-button"
+                          title={`Play clip region (${duration(clipDur)})`}
+                          aria-label={`Play clip ${clip.name} (${duration(clipDur)})`}
+                          disabled={clip.is_stale}
+                          onClick={() => {
+                            // Play only the clip region using the dedicated IPC command.
+                            void playClip(sound.id, clip.id).catch(() => {});
+                          }}
+                        >
+                          <Play size={11} aria-hidden="true" /> Play Clip
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-button delete-clip-button"
+                          title="Delete clip"
+                          aria-label={`Delete clip ${clip.name}`}
+                          onClick={() => handleDeleteClip(clip.id)}
+                        >
+                          <Trash2 size={13} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
 

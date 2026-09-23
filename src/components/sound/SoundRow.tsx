@@ -9,6 +9,7 @@ interface SoundRowProps {
   isSelected: boolean;
   isFocused: boolean;
   playback: PlaybackStatus | null;
+  isPlayPending: boolean;
   onSelect: (sound: Sound, index: number) => void;
   onPlay: (sound: Sound) => void;
   onPause: () => void;
@@ -23,6 +24,7 @@ export const SoundRow = memo(function SoundRow({
   isSelected,
   isFocused,
   playback,
+  isPlayPending,
   onSelect,
   onPlay,
   onPause,
@@ -33,6 +35,8 @@ export const SoundRow = memo(function SoundRow({
   const isThisPlaying =
     playback?.sound_id === sound.id && playback?.state === 'playing';
   const isThisActive = playback?.sound_id === sound.id;
+  // Disable the play button while the play IPC for THIS sound is in-flight.
+  const isThisPending = isPlayPending && playback?.sound_id === sound.id;
 
   const handleSelect = useCallback(
     () => onSelect(sound, index),
@@ -42,6 +46,7 @@ export const SoundRow = memo(function SoundRow({
   const handlePlayToggle = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
+      if (isThisPending) return; // guard: ignore while pending
       if (isThisPlaying) {
         onPause();
       } else if (isThisActive && playback?.state === 'paused') {
@@ -50,7 +55,7 @@ export const SoundRow = memo(function SoundRow({
         onPlay(sound);
       }
     },
-    [isThisPlaying, isThisActive, playback?.state, onPause, onResume, onPlay, sound],
+    [isThisPending, isThisPlaying, isThisActive, playback?.state, onPause, onResume, onPlay, sound],
   );
 
   const handleFavorite = useCallback(
@@ -118,8 +123,11 @@ export const SoundRow = memo(function SoundRow({
         className="icon-button"
         title={isThisPlaying ? `Pause ${sound.title}` : `Play ${sound.title}`}
         aria-label={
-          isThisPlaying ? `Pause ${sound.title}` : `Play ${sound.title}`
+          isThisPending
+            ? `Loading ${sound.title}`
+            : isThisPlaying ? `Pause ${sound.title}` : `Play ${sound.title}`
         }
+        disabled={isThisPending}
         onClick={handlePlayToggle}
       >
         {isThisPlaying ? (
