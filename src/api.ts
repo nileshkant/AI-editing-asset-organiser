@@ -111,3 +111,11 @@ export function rebindClip(id: string): Promise<import('./types').Clip> {
 export function deleteClip(id: string): Promise<void> {
   return call('delete_clip', { id });
 }
+
+/**
+ * Plays the clip region of a sound (start_frame → end_frame) using ffmpeg -ss/-t.
+ * The backend resolves clip boundaries from the DB and calls Player::play_clip().
+ */
+export function playClip(soundId: string, clipId: string): Promise<void> {
+  return call('playback_play_clip', { id: soundId, clipId });
+}

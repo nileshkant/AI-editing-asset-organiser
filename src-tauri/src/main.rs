@@ -57,6 +57,30 @@ async fn playback_play(state: tauri::State<'_, AppState>, id: String) -> Result<
 }
 
 #[tauri::command]
+async fn playback_play_clip(
+    state: tauri::State<'_, AppState>,
+    id: String,
+    clip_id: String,
+) -> Result<(), String> {
+    let (path, start_seconds, clip_duration) = {
+        let c = state.catalog.lock().map_err(|e| e.to_string())?;
+        let clip = c.get_clip(&clip_id).map_err(|e| e.to_string())?;
+        let path = c.resolve(&id).map_err(|e| e.to_string())?;
+        let rate = clip.recipe.source_sample_rate_hz as f64;
+        let start_frame: u64 = clip.recipe.start_frame.parse()
+            .map_err(|_| "Invalid start frame".to_string())?;
+        let end_frame: u64 = clip.recipe.end_frame.parse()
+            .map_err(|_| "Invalid end frame".to_string())?;
+        let start_seconds = start_frame as f64 / rate;
+        let clip_duration = (end_frame - start_frame) as f64 / rate;
+        (path, start_seconds, clip_duration)
+    };
+    state.player.play_clip(&id, &path, start_seconds, clip_duration)
+        .map_err(|e| e.to_string())
+}
+
+
+#[tauri::command]
 fn playback_pause(state: tauri::State<'_, AppState>) {
     state.player.pause();
 }
@@ -285,6 +309,7 @@ fn main() {
             jobs,
             cancel_import,
             playback_play,
+            playback_play_clip,
             playback_pause,
             playback_resume,
             playback_stop,

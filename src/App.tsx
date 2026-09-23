@@ -279,6 +279,7 @@ export function App() {
                   playback={playback.playback}
                   selectedId={selected?.id || null}
                   focusedIndex={focusedIndex}
+                  isPlayPending={playback.isPlayPending}
                   onSelect={select}
                   onPlay={playback.playSound}
                   onPause={handlePause}

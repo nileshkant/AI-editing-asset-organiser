@@ -66,15 +66,21 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
   useEffect(() => {
     if (!isTauri()) return;
     let alive = true;
-    let previous = "";
+    // Track the previous "status-level" signature: only job status transitions trigger a
+    // library refresh. Heartbeat-level changes (completed counter, current filename) do NOT.
+    // This prevents constant search re-runs while a scan is running.
+    let previousStatusSig = "";
     const update = async () => {
       try {
         const list = await call<Progress[]>("jobs");
         if (!alive) return;
         setJobs(list || []);
-        const signature = JSON.stringify(list);
-        if (signature !== previous) {
-          previous = signature;
+        // Status signature: only job_id + status pairs (not completed/current/errors counts).
+        const statusSig = JSON.stringify(
+          (list || []).map((j) => ({ id: j.job_id, status: j.status }))
+        );
+        if (statusSig !== previousStatusSig) {
+          previousStatusSig = statusSig;
           refresh();
         }
         const sources = await call<Source[]>("sources");
@@ -132,13 +138,16 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
     return () => clearTimeout(timer);
   }, [text, source, max, page, offset, revision]);
 
+  // Re-fetch selected sound only when selectedId changes — NOT on every results update.
+  // Previously this fired on results changes (every 1.5s poll), causing two IPC calls to
+  // race and momentarily highlight two sounds at once.
   useEffect(() => {
     if (selectedId && isTauri()) {
       call<Sound>("get_sound", { id: selectedId })
         .then((s) => setSelected(s))
         .catch(() => setSelected(null));
     }
-  }, [results, selectedId, setSelected]);
+  }, [selectedId, setSelected]);
 
   return {
     info,

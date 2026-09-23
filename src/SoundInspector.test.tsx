@@ -288,9 +288,10 @@ describe('SoundInspector - Saved Clips & SS-012 features', () => {
     });
   });
 
-  it('clicking Play plays the sound and seeks to clip start', async () => {
+  it('clicking Play Clip invokes playback_play_clip with sound and clip IDs', async () => {
     mockInvoke.mockImplementation((cmd: string) => {
       if (cmd === 'list_clips') return Promise.resolve([FRESH_CLIP]);
+      if (cmd === 'playback_play_clip') return Promise.resolve(null);
       return Promise.resolve(null);
     });
 
@@ -310,12 +311,21 @@ describe('SoundInspector - Saved Clips & SS-012 features', () => {
       expect(screen.getByText('Intro Transient')).toBeInTheDocument();
     });
 
-    const playBtn = screen.getByRole('button', { name: /Play/i });
-    fireEvent.click(playBtn);
+    // The "Play Clip" button triggers playback_play_clip, not onPlay+onSeek.
+    const playClipBtn = screen.getByRole('button', { name: /Play Clip/i });
+    fireEvent.click(playClipBtn);
 
     await waitFor(() => {
-      expect(onPlay).toHaveBeenCalledWith(SAMPLE_SOUND);
-      expect(onSeek).toHaveBeenCalledWith(0);
+      expect(mockInvoke).toHaveBeenCalledWith(
+        'playback_play_clip',
+        expect.objectContaining({
+          id: SAMPLE_SOUND.id,
+          clipId: FRESH_CLIP.id,
+        }),
+      );
+      // onPlay and onSeek should NOT be called by the clip play button.
+      expect(onPlay).not.toHaveBeenCalled();
+      expect(onSeek).not.toHaveBeenCalled();
     });
   });
 });

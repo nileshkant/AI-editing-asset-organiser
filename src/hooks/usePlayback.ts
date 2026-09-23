@@ -9,11 +9,16 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
   const [muted, setMuted] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const [error, setError] = useState("");
+  // True while a play IPC call is in-flight. Used to prevent rapid multi-clicks from stacking.
+  const [isPlayPending, setIsPlayPending] = useState(false);
 
   const stateRef = useRef({ playingSound, selected, resultsItems });
   useEffect(() => {
     stateRef.current = { playingSound, selected, resultsItems };
   }, [playingSound, selected, resultsItems]);
+
+  // Tracks the active play request token to guard against re-entry.
+  const playToken = useRef(0);
 
   const guard = async <T,>(task: () => Promise<T>): Promise<T | undefined> => {
     try {
@@ -27,21 +32,33 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
 
   const playSound = useCallback((sound: Sound) =>
     guard(async () => {
+      // Debounce guard: if a play is already in-flight, ignore re-entry.
+      if (isPlayPending) return;
+      const token = ++playToken.current;
+      setIsPlayPending(true);
+
+      // Optimistic UI update: show immediately, don't wait for IPC.
       setPlayingSound(sound);
       setAnnouncement(`Playing ${sound.title}`);
-      
       setPlayback(prev => ({
         sound_id: sound.id,
         state: 'playing' as const,
         position_seconds: 0,
-        duration_seconds: sound.profile?.duration || 0,
+        duration_seconds: sound.profile?.duration || prev?.duration_seconds || 0,
         volume: prev?.volume ?? 1,
         peak: 0,
         error: null,
       }));
-      
-      await call("playback_play", { id: sound.id });
-    }), []);
+
+      try {
+        await call("playback_play", { id: sound.id });
+      } finally {
+        // Only clear pending if this was still the current token (not superseded).
+        if (playToken.current === token) {
+          setIsPlayPending(false);
+        }
+      }
+    }), [isPlayPending]);
 
   const togglePlay = useCallback(() =>
     guard(async () => {
@@ -62,10 +79,14 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
         else if (selected) await playSound(selected);
         else if (resultsItems.length > 0) await playSound(resultsItems[0]);
       } else if (currentState === "playing") {
+        // Optimistic: update state immediately before IPC confirms.
         setAnnouncement("Playback paused");
+        setPlayback(prev => prev ? { ...prev, state: 'paused' as const } : prev);
         await call("playback_pause");
       } else if (currentState === "paused") {
+        // Optimistic: update state immediately before IPC confirms.
         setAnnouncement("Playback resumed");
+        setPlayback(prev => prev ? { ...prev, state: 'playing' as const } : prev);
         await call("playback_resume");
       }
     }), [playSound]);
@@ -73,6 +94,9 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
   const stopPlayback = useCallback(() =>
     guard(async () => {
       setAnnouncement("Playback stopped");
+      // Optimistic stop: clear state before IPC round-trip.
+      setPlayback(prev => prev ? { ...prev, state: 'stopped' as const, position_seconds: 0 } : prev);
+      setIsPlayPending(false);
       await call("playback_stop");
     }), []);
 
@@ -96,13 +120,21 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
       await call("playback_set_volume", { volume: next ? 0 : volume });
     }), [muted, volume]);
 
+  // Poll the real backend status at 120ms to keep position/peak accurate.
+  // Optimistic state above handles the instant feedback; this reconciles with ground truth.
   useEffect(() => {
     if (!isTauri()) return;
     let alive = true;
     const interval = setInterval(async () => {
       try {
         const s = await call<PlaybackStatus>("playback_status");
-        if (alive) setPlayback(s);
+        if (alive) {
+          setPlayback(s);
+          // Clear pending flag once backend confirms playing or stopped.
+          if (s.state === 'playing' || s.state === 'stopped' || s.state === 'finished') {
+            setIsPlayPending(false);
+          }
+        }
       } catch (_) {}
     }, 120);
     return () => {
@@ -138,6 +170,7 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
     setAnnouncement,
     error,
     setError,
+    isPlayPending,
     playSound,
     togglePlay,
     stopPlayback,

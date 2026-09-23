@@ -17,6 +17,7 @@ import {
   rebindClip,
   deleteClip,
   frameToSeconds,
+  playClip,
 } from '../../api';
 import type { Sound, PlaybackStatus, Clip } from '../../types';
 
@@ -319,13 +320,15 @@ export const SoundInspector = memo(function SoundInspector({
                         <button
                           type="button"
                           className="compact-button"
-                          title="Play clip"
+                          title={`Play clip region (${duration(clipDur)})`}
+                          aria-label={`Play clip ${clip.name} (${duration(clipDur)})`}
+                          disabled={clip.is_stale}
                           onClick={() => {
-                            handleLoadClip(clip);
-                            void onPlay(sound).then(() => onSeek(startSec));
+                            // Play only the clip region using the dedicated IPC command.
+                            void playClip(sound.id, clip.id).catch(() => {});
                           }}
                         >
-                          <Play size={11} aria-hidden="true" /> Play
+                          <Play size={11} aria-hidden="true" /> Play Clip
                         </button>
                         <button
                           type="button"

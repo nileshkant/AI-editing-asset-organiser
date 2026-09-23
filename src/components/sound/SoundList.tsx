@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo } from 'react';
 import { FolderOpen, FolderPlus } from 'lucide-react';
 import { SoundRow } from './SoundRow';
 import type { Sound, PlaybackStatus } from '../../types';
@@ -8,6 +8,7 @@ interface SoundListProps {
   playback: PlaybackStatus | null;
   selectedId: string | null;
   focusedIndex: number;
+  isPlayPending: boolean;
   onSelect: (sound: Sound, index: number) => void;
   onPlay: (sound: Sound) => void;
   onPause: () => void;
@@ -24,6 +25,7 @@ export const SoundList = memo(function SoundList({
   playback,
   selectedId,
   focusedIndex,
+  isPlayPending,
   onSelect,
   onPlay,
   onPause,
@@ -61,6 +63,7 @@ export const SoundList = memo(function SoundList({
           isSelected={selectedId === sound.id}
           isFocused={focusedIndex === index}
           playback={playback}
+          isPlayPending={isPlayPending}
           onSelect={onSelect}
           onPlay={onPlay}
           onPause={onPause}

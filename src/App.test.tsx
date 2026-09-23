@@ -409,4 +409,74 @@ describe('App', () => {
       expect(screen.getByText('Application')).toBeInTheDocument(),
     );
   });
+
+  // ─── Core UX Regression Verifications ───
+  it('prevents multiple playback_play calls when play is in-flight (rapid click debounce)', async () => {
+    let playResolve: () => void = () => {};
+    const playPromise = new Promise<void>((resolve) => {
+      playResolve = resolve;
+    });
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'search_sounds') return Promise.resolve(MOCK_RESULTS);
+      if (cmd === 'playback_status') return Promise.resolve(STOPPED_PLAYBACK);
+      if (cmd === 'playback_play') return playPromise;
+      if (cmd === 'jobs') return Promise.resolve([]);
+      if (cmd === 'sources') return Promise.resolve([]);
+      if (cmd === 'app_info') return Promise.resolve({ version: '0.1.0', data_directory: '/data', desktop: true, media_tools: true });
+      return Promise.resolve(null);
+    });
+
+    render(<App />);
+    await waitFor(() => screen.getByText('Cinematic Whoosh Stereo'));
+
+    const playButtons = screen.getAllByRole('button', { name: /Play Cinematic Whoosh Stereo/i });
+    const rowPlayBtn = playButtons[0];
+
+    // First click initiates play
+    fireEvent.click(rowPlayBtn);
+
+    // Second click immediately while play is still in-flight
+    fireEvent.click(rowPlayBtn);
+
+    const playCalls = mockInvoke.mock.calls.filter((c) => c[0] === 'playback_play');
+    expect(playCalls.length).toBe(1);
+
+    // Resolve play promise
+    playResolve();
+  });
+
+  it('filters library by folder when selecting a source in sidebar', async () => {
+    const mockSource = {
+      id: 'src-folder-1',
+      name: 'Foley Effects',
+      root: '/audio/foley',
+      generation: 1,
+      available: true,
+    };
+
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'sources') return Promise.resolve([mockSource]);
+      if (cmd === 'jobs') return Promise.resolve([]);
+      if (cmd === 'search_sounds') return Promise.resolve(MOCK_RESULTS);
+      if (cmd === 'playback_status') return Promise.resolve(STOPPED_PLAYBACK);
+      if (cmd === 'app_info') return Promise.resolve({ version: '0.1.0', data_directory: '/data', desktop: true, media_tools: true });
+      return Promise.resolve(null);
+    });
+
+    render(<App />);
+    await waitFor(() => screen.getByText('Foley Effects'));
+
+    const folderButton = screen.getByRole('button', { name: /Foley Effects/i });
+    fireEvent.click(folderButton);
+
+    await waitFor(() => {
+      const searchCalls = mockInvoke.mock.calls.filter((c) => c[0] === 'search_sounds');
+      const hasFilteredCall = searchCalls.some((c) => {
+        const query = (c[1] as any)?.query;
+        return query && Array.isArray(query.source_ids) && query.source_ids.includes('src-folder-1');
+      });
+      expect(hasFilteredCall).toBe(true);
+    });
+  });
 });

@@ -10,6 +10,7 @@ import {
   updateClip,
   rebindClip,
   deleteClip,
+  playClip,
 } from './api';
 
 const mockInvoke = vi.fn();
@@ -195,6 +196,15 @@ describe('Clip API Tauri commands', () => {
     mockInvoke.mockResolvedValueOnce(undefined);
     await deleteClip('clip-123');
     expect(mockInvoke).toHaveBeenCalledWith('delete_clip', { id: 'clip-123' });
+  });
+
+  it('calls playback_play_clip with id and clipId', async () => {
+    mockInvoke.mockResolvedValueOnce(undefined);
+    await playClip('sound-abc', 'clip-123');
+    expect(mockInvoke).toHaveBeenCalledWith('playback_play_clip', {
+      id: 'sound-abc',
+      clipId: 'clip-123',
+    });
   });
 });
 

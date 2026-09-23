@@ -265,7 +265,28 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
         Ok(sounds)
     }
 
-    pub fn sound(&self, id: &str) -> Result<Sound> { self.all_sounds()?.into_iter().find(|s| s.id == id).ok_or_else(||invalid("Sound not found")) }
+    /// Direct O(1) SQL primary-key lookup — replaces the previous O(N) full-table scan.
+    pub fn sound(&self, id: &str) -> Result<Sound> {
+        let row = self.db.query_row(
+            "SELECT s.id,s.source_id,s.relative_path,s.title,s.content_hash,s.status,
+             a.profile,COALESCE(m.tags,'[]'),COALESCE(m.comment,''),COALESCE(m.favorite,0)
+             FROM sounds s
+             LEFT JOIN analyses a ON a.content_hash=s.content_hash AND a.analyzer=?2
+             LEFT JOIN annotations m ON m.sound_id=s.id
+             WHERE s.id=?1",
+            params![id, ANALYZER],
+            |r| Ok((
+                r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,String>(2)?,
+                r.get::<_,String>(3)?, r.get::<_,String>(4)?, r.get::<_,String>(5)?,
+                r.get::<_,Option<String>>(6)?, r.get::<_,String>(7)?,
+                r.get::<_,String>(8)?, r.get::<_,bool>(9)?
+            ))
+        ).optional()?.ok_or_else(|| invalid("Sound not found"))?;
+        let (sid, source_id, relative_path, title, content_hash, status, profile_raw, tags_raw, comment, favorite) = row;
+        let profile = profile_raw.map(|s| serde_json::from_str(&s)).transpose()?;
+        let user_tags: Vec<String> = serde_json::from_str(&tags_raw)?;
+        Ok(Sound { id: sid, source_id, relative_path, title, content_hash, status, profile, user_tags, comment, favorite })
+    }
 
     pub fn ready_sound(&self, id: &str) -> Result<Sound> {
         let sound = self.sound(id)?;
@@ -306,9 +327,24 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
     pub fn reconcile(&mut self, source: &Source, seen: &[String], complete: bool) -> Result<()> {
         if !complete { return Ok(()); }
         if self.source(&source.id)?.generation != source.generation { return Err(invalid("Source moved; discard stale scan")); }
-        let missing: Vec<_> = self.all_sounds()?.into_iter().filter(|s|s.source_id==source.id && !seen.contains(&s.relative_path)).collect();
+        // Targeted query: only fetch id+path for this source; no full profile deserialization.
+        // Collect all rows first so the Statement borrow ends before the mutable transaction borrow.
+        let existing: Vec<(String, String)> = {
+            let mut stmt = self.db.prepare(
+                "SELECT id, relative_path FROM sounds WHERE source_id=?1 AND status != 'missing'"
+            )?;
+            let x = stmt.query_map([&source.id], |r| {
+                Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?))
+            })?.collect::<std::result::Result<Vec<_>,_>>()?;
+            x
+        };
+        let to_mark_missing: Vec<String> = existing
+            .into_iter()
+            .filter(|(_, relative_path)| !seen.contains(relative_path))
+            .map(|(id, _)| id)
+            .collect();
         let tx = self.db.transaction()?;
-        for sound in missing { tx.execute("UPDATE sounds SET status='missing' WHERE id=?1",[sound.id])?; }
+        for id in to_mark_missing { tx.execute("UPDATE sounds SET status='missing' WHERE id=?1",[id])?; }
         tx.commit()?;
         Ok(())
     }

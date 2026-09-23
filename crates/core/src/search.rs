@@ -17,13 +17,19 @@ pub struct SearchFacets {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct SearchQuery {
     pub text: String,
+    /// Accepts both snake_case (internal/saved) and camelCase (Tauri v2 IPC).
+    #[serde(alias = "sourceIds")]
     pub source_ids: Vec<String>,
     pub tags: Vec<String>,
+    /// Accepts both snake_case and camelCase from Tauri v2 IPC.
+    #[serde(alias = "favoritesOnly")]
     pub favorites_only: bool,
+    #[serde(alias = "minDuration")]
     pub min_duration: Option<f64>,
+    #[serde(alias = "maxDuration")]
     pub max_duration: Option<f64>,
     pub offset: usize,
     pub limit: Option<usize>,

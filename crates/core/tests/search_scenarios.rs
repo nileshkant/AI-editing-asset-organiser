@@ -421,3 +421,35 @@ fn scale_100k_performance() {
     println!("100k scale search elapsed: {:?} (budget: {}ms)", elapsed, budget_ms);
     assert!(elapsed.as_millis() < budget_ms, "100k search must complete well within performance budget, took {:?}", elapsed);
 }
+
+#[test]
+fn tauri_camel_case_search_query_deserialization_and_filtering() {
+    let json_payload = r#"{
+        "text": "whoosh",
+        "sourceIds": ["src_1"],
+        "favoritesOnly": true,
+        "minDuration": 0.5,
+        "maxDuration": 5.0,
+        "offset": 0,
+        "limit": 10
+    }"#;
+
+    let query: SearchQuery = serde_json::from_str(json_payload).expect("Must deserialize camelCase SearchQuery from Tauri IPC");
+    assert_eq!(query.text, "whoosh");
+    assert_eq!(query.source_ids, vec!["src_1"]);
+    assert_eq!(query.favorites_only, true);
+    assert_eq!(query.min_duration, Some(0.5));
+    assert_eq!(query.max_duration, Some(5.0));
+
+    let mut s1 = make_sound("1", "Whoosh In Source 1", 1.0, vec![], "");
+    s1.source_id = "src_1".into();
+    s1.favorite = true;
+
+    let mut s2 = make_sound("2", "Whoosh In Source 2", 1.0, vec![], "");
+    s2.source_id = "src_2".into();
+    s2.favorite = true;
+
+    let results = search(vec![s1, s2], &query, &["src_1".into(), "src_2".into()]).unwrap();
+    assert_eq!(results.total, 1);
+    assert_eq!(results.items[0].source_id, "src_1", "Folder filter must isolate to source_ids");
+}
