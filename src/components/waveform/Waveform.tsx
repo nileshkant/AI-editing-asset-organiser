@@ -112,10 +112,10 @@ export function Waveform({
         endFrame,
         maxPoints: 1200,
       })
-        .then((res) => {
+        ?.then((res) => {
           if (tileRequestRef.current === requestId) setTiles(res);
         })
-        .catch(() => {
+        ?.catch(() => {
           if (tileRequestRef.current === requestId) setTiles(null);
         });
     }, 100); // 100ms debounce

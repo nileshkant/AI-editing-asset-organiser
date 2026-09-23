@@ -14,7 +14,7 @@ export function call<T>(command: string, args?: Record<string, unknown>): Promis
   if (!isTauri()) {
     return Promise.reject(new Error('Open SoundShelf as a desktop application.'));
   }
-  return invoke<T>(command, args);
+  return Promise.resolve(invoke<T>(command, args));
 }
 
 /**

@@ -20,6 +20,12 @@ const SAMPLE_PEAKS: [number, number][] = [
 ];
 
 describe('Waveform', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockIsTauri = false;
+    mockInvoke.mockImplementation(() => Promise.resolve(null));
+  });
+
   // ─── Rendering ───
   it('renders workstation region and canvas', () => {
     render(
@@ -381,7 +387,10 @@ describe('Waveform', () => {
       created_at: 1700000000,
       updated_at: 1700000000,
     };
-    mockInvoke.mockResolvedValueOnce(mockClip);
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'create_clip') return Promise.resolve(mockClip);
+      return Promise.resolve(null);
+    });
 
     const onClipSaved = vi.fn();
     render(
