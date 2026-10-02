@@ -498,7 +498,7 @@ pub fn render(
     // decode: validation must reject a short output rather than conceal it.
     filters.push(format!("atrim=end_sample={expected}"));
     let mut cmd = Command::new(&tools.ffmpeg);
-    cmd.args(["-v", "error", "-nostdin", "-n", "-threads", "1", "-i"])
+    cmd.args(crate::media::LOCAL_INPUT_ARGS).args(["-v", "error", "-nostdin", "-n", "-threads", "1", "-i"])
         .arg(source)
         .args([
             "-map",

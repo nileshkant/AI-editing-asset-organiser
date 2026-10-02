@@ -2,6 +2,10 @@ use crate::{catalog::Profile, invalid, Result};
 use serde::Deserialize;
 use std::{io::{Read, BufReader}, path::{Path,PathBuf}, process::{Command,Stdio}, sync::{Arc,Mutex,atomic::{AtomicBool,Ordering}}, thread, time::{Duration,Instant}};
 
+/// Restrict nested input access: no networking, playlists, concat or arbitrary protocols.
+/// These demuxers cover supported standalone audio files, including M4A/WMA.
+pub const LOCAL_INPUT_ARGS: [&str; 6] = ["-protocol_whitelist", "file,pipe", "-format_whitelist", "wav,mp3,flac,ogg,mov,aac,aiff,asf,caf", "-max_streams", "64"];
+
 #[derive(Clone)]
 pub struct MediaTools { pub ffmpeg: PathBuf, pub ffprobe: PathBuf }
 
@@ -83,7 +87,7 @@ pub fn analyze(tools:&MediaTools,path:&Path,cancel:Arc<AtomicBool>) -> Result<Pr
     crate::source_catalog::count_decode();
     tools.validate()?;
     let mut probe=Command::new(&tools.ffprobe);
-    probe.args(["-v","error","-select_streams","a:0","-show_entries","stream=sample_rate,channels,duration,channel_layout","-of","json"]).arg(path);
+    probe.args(LOCAL_INPUT_ARGS).args(["-v","error","-select_streams","a:0","-show_entries","stream=sample_rate,channels,duration,channel_layout","-of","json"]).arg(path);
     let bytes=run_stream(probe,cancel.clone(),Duration::from_secs(30),|r| {let mut b=Vec::new();r.take(1_048_577).read_to_end(&mut b)?;if b.len()>1_048_576{return Err(invalid("Metadata exceeds limit"));}Ok(b)})?;
     let probe:Probe=serde_json::from_slice(&bytes)?;
     let stream=probe.streams.first().ok_or_else(||invalid("No audio stream"))?;
@@ -92,7 +96,7 @@ pub fn analyze(tools:&MediaTools,path:&Path,cancel:Arc<AtomicBool>) -> Result<Pr
     let expected=stream.duration.as_ref().and_then(|s|s.parse::<f64>().ok()).filter(|s|s.is_finite()&&*s>0.0).unwrap_or(60.0);
     let bucket=((expected*rate as f64/1600.0).ceil() as usize).max(1);
     let mut decode=Command::new(&tools.ffmpeg);
-    decode.args(["-v","error","-nostdin","-threads","1","-i"]).arg(path).args(["-map","0:a:0","-vn","-f","f32le","-acodec","pcm_f32le","pipe:1"]);
+    decode.args(LOCAL_INPUT_ARGS).args(["-v","error","-nostdin","-threads","1","-i"]).arg(path).args(["-map","0:a:0","-vn","-f","f32le","-acodec","pcm_f32le","pipe:1"]);
     let channels=stream.channels;
     let layout=normalize_layout(channels, stream.channel_layout.as_deref());
     let mut profile=run_stream(decode,cancel,Duration::from_secs(7200),|r| measure_pcm(r,rate,channels,bucket))?;

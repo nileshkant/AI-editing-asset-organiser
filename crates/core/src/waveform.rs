@@ -1,7 +1,7 @@
 use crate::{invalid, media::{run_stream, MediaTools}, Result};
 use serde::{Deserialize, Serialize};
 use std::{
-    fs::{create_dir_all, File, OpenOptions},
+    fs::{create_dir_all, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
     process::Command,
@@ -14,8 +14,10 @@ use std::{
 
 pub const SSWF_MAGIC: &[u8; 4] = b"SSWF";
 pub const SSWF_FORMAT_VERSION: u32 = 1;
-pub const SSWF_ALGORITHM_VERSION: u32 = 1;
+pub const SSWF_ALGORITHM_VERSION: u32 = 2;
 pub const DEFAULT_BASE_BUCKET: u32 = 256;
+pub const MAX_BASE_BUCKETS: usize = 65536;
+const MAX_CACHE_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ChannelBucket {
@@ -57,10 +59,10 @@ impl WaveformPyramid {
         channels: u16,
         base_bucket: u32,
     ) -> Result<Self> {
-        if sample_rate == 0 || channels == 0 {
+        if sample_rate == 0 || channels == 0 || channels > 32 {
             return Err(invalid("Invalid sample rate or channel count for waveform"));
         }
-        let base_bucket = base_bucket.max(16);
+        let mut base_bucket = base_bucket.max(16);
         let ch_count = channels as usize;
         let frame_bytes = ch_count * 4;
         let mut bytes = vec![0u8; frame_bytes];
@@ -115,6 +117,15 @@ impl WaveformPyramid {
                     channel_sums[ch] = 0.0;
                 }
                 bucket_count = 0;
+                if level0_channels[0].len() >= MAX_BASE_BUCKETS {
+                    for channel in &mut level0_channels {
+                        *channel = channel.chunks_exact(2).map(|pair| ChannelBucket {
+                            min: pair[0].min.min(pair[1].min), max: pair[0].max.max(pair[1].max),
+                            rms: (((pair[0].rms as f64).powi(2)+(pair[1].rms as f64).powi(2))/2.0).sqrt() as f32,
+                        }).collect();
+                    }
+                    base_bucket = base_bucket.checked_mul(2).ok_or_else(|| invalid("Waveform duration exceeds bucket limits"))?;
+                }
             }
         }
 
@@ -206,6 +217,7 @@ impl WaveformPyramid {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() > MAX_CACHE_BYTES { return Err(invalid("Waveform cache exceeds size limit")); }
         if bytes.len() < 64 {
             return Err(invalid("Truncated waveform cache header"));
         }
@@ -216,7 +228,8 @@ impl WaveformPyramid {
         if format_version != SSWF_FORMAT_VERSION {
             return Err(invalid("Unsupported waveform format version"));
         }
-        let _algo_version = u32::from_le_bytes(bytes[8..12].try_into().unwrap());
+        let algorithm = u32::from_le_bytes(bytes[8..12].try_into().unwrap());
+        if algorithm != SSWF_ALGORITHM_VERSION { return Err(invalid("Waveform cache algorithm changed; rebuild cache")); }
         let sample_rate = u32::from_le_bytes(bytes[12..16].try_into().unwrap());
         let channels = u16::from_le_bytes(bytes[16..18].try_into().unwrap());
         let levels_count = bytes[18] as usize;
@@ -224,6 +237,9 @@ impl WaveformPyramid {
         let total_frames = u64::from_le_bytes(bytes[24..32].try_into().unwrap());
         let expected_hash = &bytes[32..64];
 
+        if sample_rate == 0 || channels == 0 || channels > 32 || levels_count == 0 || levels_count > 6 || base_bucket == 0 || total_frames == 0 {
+            return Err(invalid("Invalid waveform cache dimensions"));
+        }
         let payload = &bytes[64..];
         let computed_hash = blake3::hash(payload);
         if computed_hash.as_bytes() != expected_hash {
@@ -244,7 +260,9 @@ impl WaveformPyramid {
                 u32::from_le_bytes(payload[offset + 4..offset + 8].try_into().unwrap()) as usize;
             offset += 8;
 
-            let bucket_bytes = count * 12;
+            let bucket_bytes = count.checked_mul(12).ok_or_else(|| invalid("Waveform cache size overflow"))?;
+            let required = bucket_bytes.checked_mul(ch_count).and_then(|n| offset.checked_add(n)).ok_or_else(|| invalid("Waveform cache size overflow"))?;
+            if count == 0 || count > MAX_BASE_BUCKETS || frames_per_bucket == 0 || required > payload.len() { return Err(invalid("Invalid waveform bucket count")); }
             let mut level_channels = vec![Vec::with_capacity(count); ch_count];
 
             for ch in 0..ch_count {
@@ -258,6 +276,7 @@ impl WaveformPyramid {
                     let min = f32::from_le_bytes(chunk[0..4].try_into().unwrap());
                     let max = f32::from_le_bytes(chunk[4..8].try_into().unwrap());
                     let rms = f32::from_le_bytes(chunk[8..12].try_into().unwrap());
+                    if !min.is_finite() || !max.is_finite() || !rms.is_finite() || min > max || rms < 0.0 { return Err(invalid("Invalid waveform bucket sample")); }
                     level_channels[ch].push(ChannelBucket { min, max, rms });
                 }
             }
@@ -284,9 +303,8 @@ impl WaveformPyramid {
         let temp_path = path.with_extension(format!("tmp.{}", uuid::Uuid::new_v4()));
         let bytes = self.to_bytes();
         let mut file = OpenOptions::new()
-            .create(true)
+            .create_new(true)
             .write(true)
-            .truncate(true)
             .open(&temp_path)?;
         file.write_all(&bytes)?;
         file.sync_all()?;
@@ -295,9 +313,13 @@ impl WaveformPyramid {
     }
 
     pub fn read_from_file(path: &Path) -> Result<Self> {
-        let mut file = File::open(path)?;
+        let mut options = OpenOptions::new(); options.read(true);
+        #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; options.custom_flags(libc::O_NOFOLLOW | libc::O_NONBLOCK); }
+        let mut file = options.open(path)?;
+        let metadata = file.metadata()?;
+        if !metadata.is_file() || metadata.len() > MAX_CACHE_BYTES as u64 { return Err(invalid("Waveform cache exceeds size limit or is not a file")); }
         let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
+        std::io::Read::by_ref(&mut file).take(MAX_CACHE_BYTES as u64 + 1).read_to_end(&mut bytes)?;
         Self::from_bytes(&bytes)
     }
 
@@ -426,6 +448,7 @@ impl WaveformService {
         tools.validate()?;
         let mut decode = Command::new(&tools.ffmpeg);
         decode
+            .args(crate::media::LOCAL_INPUT_ARGS)
             .args(["-v", "error", "-nostdin", "-threads", "1", "-i"])
             .arg(sound_path)
             .args([
