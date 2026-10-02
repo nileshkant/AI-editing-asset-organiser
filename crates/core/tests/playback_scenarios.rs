@@ -64,9 +64,13 @@ fn create_tone_mp3(tools: &MediaTools, path: &Path, duration_secs: f64) {
 }
 
 fn wait_for_data(sink: &Arc<LoopbackSink>, timeout: Duration) -> bool {
+    wait_for_samples(sink, 1, timeout)
+}
+
+fn wait_for_samples(sink: &Arc<LoopbackSink>, minimum: usize, timeout: Duration) -> bool {
     let start = Instant::now();
     while start.elapsed() < timeout {
-        if sink.available_samples() > 0 {
+        if sink.available_samples() >= minimum {
             return true;
         }
         thread::sleep(Duration::from_millis(5));
@@ -137,7 +141,7 @@ fn test_pause_and_resume() {
     player.play("pr-1", &wav_file, 1.0).unwrap();
     let sink = player.loopback_sink().unwrap();
 
-    assert!(wait_for_data(&sink, Duration::from_secs(10)));
+    assert!(wait_for_samples(&sink, 4800 * 2, Duration::from_secs(10)));
     sink.step(4800); // 0.1s worth of frames
 
     let before_pause = player.status();
@@ -159,6 +163,7 @@ fn test_pause_and_resume() {
     player.resume().unwrap();
     assert_eq!(player.status().state, PlaybackState::Playing);
 
+    assert!(wait_for_samples(&sink, 4800 * 2, Duration::from_secs(10)));
     let active_samples = sink.step(4800);
     assert!(active_samples.iter().any(|&s| s.abs() > 0.05), "Resumed playback must produce audible samples");
     assert!(player.status().position_seconds > paused_pos, "Position must advance after resume");

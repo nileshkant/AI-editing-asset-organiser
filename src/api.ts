@@ -119,3 +119,13 @@ export function deleteClip(id: string): Promise<void> {
 export function playClip(soundId: string, clipId: string): Promise<void> {
   return call('playback_play_clip', { id: soundId, clipId });
 }
+
+export function chooseExportDestination(format: 'wav' | 'flac'): Promise<import('./types').DestinationGrant | null> {
+  return call('choose_export_destination', { format });
+}
+export function exportClip(destinationId: string, clipId: string, expectedRevision: number, options: import('./types').ExportOptions): Promise<import('./types').ExportResult> {
+  return call('export_clip', { destinationId, clipId, expectedRevision, options });
+}
+export function cancelExport(destinationId: string): Promise<void> {
+  return call('cancel_export', { destinationId });
+}

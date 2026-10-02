@@ -294,6 +294,7 @@ export function App() {
 
               {selected && (
                 <SoundInspector
+                  onExported={search.refresh}
                   key={selected.id}
                   sound={selected}
                   playback={playback.playback}

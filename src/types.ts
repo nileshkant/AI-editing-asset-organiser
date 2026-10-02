@@ -195,3 +195,18 @@ export type Clip = {
   created_at: number;
   updated_at: number;
 };
+
+export type ExportOptions = {
+  format: 'wav' | 'flac';
+  sample_rate: number | null;
+  fade_in_ms: number | null;
+  fade_out_ms: number | null;
+};
+export type DestinationGrant = { id: string; path: string };
+export type ExportResult = {
+  path: string;
+  manifest_path: string;
+  frames: string;
+  sound_id: string | null;
+  warning: string | null;
+};

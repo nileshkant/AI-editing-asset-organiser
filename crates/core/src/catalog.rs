@@ -820,7 +820,7 @@ pub fn hash_file(path: &Path) -> Result<String> {
     loop { let read = file.read(&mut chunk)?; if read==0 {break;} hash.update(&chunk[..read]); }
     Ok(hash.finalize().to_hex().to_string())
 }
-fn validate_profile(p: &Profile) -> Result<()> {
+pub(crate) fn validate_profile(p: &Profile) -> Result<()> {
     if !p.duration.is_finite() || p.duration<=0.0 || p.sample_rate==0 || p.channels==0 || p.frames==0 || !p.peak.is_finite() || !p.rms.is_finite() || p.peak<0.0 || p.rms<0.0 || p.waveform.is_empty() || p.waveform.iter().any(|b| !b[0].is_finite() || !b[1].is_finite() || b[0]>b[1]) { return Err(invalid("Invalid measured profile")); }
     if !p.channel_peaks.is_empty() && p.channel_peaks.len() != p.channels as usize { return Err(invalid("Channel peaks count does not match channel count")); }
     if !p.channel_rms.is_empty() && p.channel_rms.len() != p.channels as usize { return Err(invalid("Channel rms count does not match channel count")); }

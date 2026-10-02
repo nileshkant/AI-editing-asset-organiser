@@ -5,6 +5,7 @@ pub mod library;
 pub mod jobs;
 pub mod playback;
 pub mod waveform;
+pub mod export;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
