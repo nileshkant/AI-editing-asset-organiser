@@ -60,6 +60,12 @@ new source-catalog requirement before advancing to editor integrations.
 7. [SS-024: Cross platform installers and releases](SS-024.md) | partial
 8. [SS-031: Audio v1 tester release qualification](SS-031.md) | partial
 
+The implementations for SS-023, SS-024, SS-031 and SS-034 are merged in PRs
+#25–#28. Their **partial** status describes outstanding release acceptance,
+not missing or unmerged implementation. This phase verifies the exact installer
+on each supported OS, records signing and installed audio/MCP evidence, and fixes
+any defects discovered in separate follow-up PRs. It does not repeat those tickets.
+
 Three unfinished baseline qualification tickets remain on the audio v1 path, plus SS-034 for the requested Linux release. This is a work count, not a time estimate;
 new defects discovered during qualification may require follow-ups. No ticket
 completion alone proves release readiness.

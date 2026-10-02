@@ -215,13 +215,13 @@ fn dirty_state_survives_restart_and_v6_migration_backs_up() {
         c.db_connection()
             .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        8
+        soundshelf_core::catalog::SCHEMA_VERSION
     );
     assert!(fs::read_dir(dbroot.path()).unwrap().any(|e| e
         .unwrap()
         .file_name()
         .to_string_lossy()
-        .contains("pre-v8")));
+        .contains(&format!("pre-v{}", soundshelf_core::catalog::SCHEMA_VERSION))));
 }
 #[test]
 #[ignore = "requires explicit FFmpeg fixture tools"]

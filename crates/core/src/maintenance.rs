@@ -101,6 +101,13 @@ impl Catalog {
         if violations != 0 {
             return Err(invalid("Backup contains invalid references"));
         }
+        // Search metadata is derived: a valid SQLite file must also agree with
+        // its authoritative profiles before it can replace the live catalog.
+        let stale: i64 = source.query_row(
+            "SELECT count(*) FROM analyses a LEFT JOIN search_profiles s ON s.content_hash=a.content_hash AND s.analyzer=a.analyzer WHERE s.profile IS NULL OR s.profile != CASE WHEN json_valid(a.profile) THEN json_set(a.profile,'$.waveform',json('[]')) ELSE a.profile END",
+            [], |r| r.get(0),
+        )?;
+        if stale != 0 { return Err(invalid("Backup search metadata is inconsistent")); }
         let active: i64 = self.db.query_row(
             "SELECT count(*) FROM jobs WHERE state IN ('queued','running')",
             [],
