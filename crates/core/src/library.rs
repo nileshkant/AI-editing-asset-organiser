@@ -37,6 +37,104 @@ pub fn scan(
 ) -> Result<Progress> {
     scan_paths(catalog, source, tools, cancel, job_id, None, progress)
 }
+pub fn import_scan(
+    catalog: Arc<Mutex<Catalog>>,
+    source: Source,
+    tools: &MediaTools,
+    cancel: Arc<AtomicBool>,
+    job_id: String,
+    mut progress: impl FnMut(Progress),
+) -> Result<Progress> {
+    if source.scope != "folder" {
+        return scan_paths(catalog, source, tools, cancel, job_id, None, progress);
+    }
+    let root = Path::new(&source.root);
+    let Some(snapshot) = crate::source_catalog::read(root)? else {
+        return scan_paths(catalog, source, tools, cancel, job_id, None, progress);
+    };
+    let mut changed = vec![];
+    let mut state = Progress {
+        job_id: job_id.clone(),
+        source_id: source.id.clone(),
+        status: "checking catalog".into(),
+        total: snapshot.catalog.sounds.len(),
+        ..Default::default()
+    };
+    for s in &snapshot.catalog.sounds {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(invalid("Import cancelled"));
+        }
+        let stat = crate::source_catalog::fingerprint(root, &s.relative_path)?;
+        let c = catalog.lock().map_err(|_| invalid("Catalog unavailable"))?;
+        if c.source_generation(&source.id)? != source.generation {
+            return Err(invalid("Source moved; discard stale import"));
+        }
+        match stat {
+            None => {
+                c.set_status(&s.id, "missing")?;
+                state.completed += 1;
+            }
+            Some(stat)
+                if stat == snapshot.fingerprints[&s.relative_path]
+                    && c.sound(&s.id).is_ok_and(|local| {
+                        local.content_hash == s.content_hash && local.profile.is_some()
+                    }) =>
+            {
+                c.db_connection()
+                    .execute("UPDATE sounds SET status='ready' WHERE id=?1", [&s.id])?;
+                state.reused += 1;
+                state.completed += 1;
+            }
+            Some(_) => changed.push(s.relative_path.clone()),
+        }
+        drop(c);
+        progress(state.clone());
+    }
+    if !changed.is_empty() {
+        // Internal catalog membership is already validated; not a renderer file selection.
+        let result = scan_paths(
+            catalog.clone(),
+            source.clone(),
+            tools,
+            cancel.clone(),
+            job_id,
+            Some(changed),
+            |p| {
+                let mut merged = p;
+                merged.total = state.total;
+                merged.completed += state.completed;
+                merged.reused += state.reused;
+                progress(merged);
+            },
+        )?;
+        state.completed += result.completed;
+        state.reused += result.reused;
+        state.failed = result.failed;
+        state.errors = result.errors;
+    } else {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(invalid("Import cancelled"));
+        }
+        if let Err(e) = crate::source_catalog::save(&catalog, &source) {
+            catalog
+                .lock()
+                .map_err(|_| invalid("Catalog unavailable"))?
+                .snapshot_error(&source.id, &e.to_string())?;
+            state
+                .errors
+                .push(format!("Folder catalog needs retry: {e}"));
+        }
+    }
+    state.status = if state.failed > 0 || !state.errors.is_empty() {
+        "completed with warnings"
+    } else {
+        "complete"
+    }
+    .into();
+    progress(state.clone());
+    Ok(state)
+}
+
 pub fn scan_paths(
     catalog: Arc<Mutex<Catalog>>,
     source: Source,
@@ -84,10 +182,11 @@ pub fn scan_paths(
             files.push(root.join(relative));
         }
     } else {
+        crate::source_catalog::count_walk();
         for entry in WalkDir::new(root)
             .follow_links(false)
             .into_iter()
-            .filter_entry(|e| !e.file_name().to_string_lossy().starts_with('.'))
+            .filter_entry(|e| e.depth() == 0 || !e.file_name().to_string_lossy().starts_with('.'))
         {
             if cancel.load(Ordering::Relaxed) {
                 return Err(invalid("Scan cancelled"));
@@ -123,6 +222,7 @@ pub fn scan_paths(
     state.status = "analyzing".into();
     progress(state.clone());
     let mut seen = vec![];
+    let mut verified_fingerprints = std::collections::BTreeMap::new();
     for file in files {
         if cancel.load(Ordering::Relaxed) {
             return Err(invalid("Scan cancelled"));
@@ -136,7 +236,12 @@ pub fn scan_paths(
         progress(state.clone());
         let result = (|| -> Result<()> {
             let file = contained(root, &relative)?;
+            let fingerprint = crate::source_catalog::fingerprint(root, &relative)?
+                .ok_or_else(|| invalid("Source file disappeared"))?;
             let hash = hash_file(&file)?;
+            if crate::source_catalog::fingerprint(root, &relative)?.as_ref() != Some(&fingerprint) {
+                return Err(invalid("File changed while being hashed"));
+            }
             // Reconciliation may only preserve a path after it was verified and hashed.
             // A file deleted between discovery and this point must become missing.
             seen.push(relative.clone());
@@ -151,12 +256,16 @@ pub fn scan_paths(
                 .map_err(|_| invalid("Catalog unavailable"))?
                 .has_cached_profile(&hash)?
             {
+                verified_fingerprints.insert(relative.clone(), fingerprint);
                 state.reused += 1;
                 return Ok(());
             }
             match analyze(tools, &file, cancel.clone()) {
                 Ok(profile) => {
-                    if hash_file(&file)? != hash {
+                    if hash_file(&file)? != hash
+                        || crate::source_catalog::fingerprint(root, &relative)?.as_ref()
+                            != Some(&fingerprint)
+                    {
                         return Err(invalid("File changed while being analyzed"));
                     }
                     catalog
@@ -172,6 +281,7 @@ pub fn scan_paths(
                     return Err(error);
                 }
             }
+            verified_fingerprints.insert(relative.clone(), fingerprint);
             Ok(())
         })();
         if let Err(error) = result {
@@ -204,6 +314,20 @@ pub fn scan_paths(
         "complete"
     }
     .into();
+    if source.scope == "folder" && complete && state.failed == 0 {
+        if let Err(error) =
+            crate::source_catalog::save_scanned(&catalog, &source, &verified_fingerprints)
+        {
+            catalog
+                .lock()
+                .map_err(|_| invalid("Catalog unavailable"))?
+                .snapshot_error(&source.id, &error.to_string())?;
+            state
+                .errors
+                .push(format!("Folder catalog needs retry: {error}"));
+            state.status = "completed with warnings".into();
+        }
+    }
     state.current.clear();
     progress(state.clone());
     Ok(state)

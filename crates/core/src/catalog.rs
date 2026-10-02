@@ -94,7 +94,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 6;
+pub const SCHEMA_VERSION: u32 = 7;
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
@@ -111,6 +111,7 @@ impl Catalog {
         if version == 0 {
             let tx = db.transaction()?;
             tx.execute_batch(include_str!("schema.sql"))?;
+            tx.execute_batch(include_str!("source_catalog_schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         } else {
@@ -184,6 +185,7 @@ CREATE TABLE source_files(source_id TEXT NOT NULL REFERENCES sources(id) ON DELE
 ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             }
             if version < 6 { tx.execute_batch(include_str!("legacy_schema.sql"))?; }
+            if version < 7 { tx.execute_batch(include_str!("source_catalog_schema.sql"))?; }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }
@@ -837,6 +839,7 @@ pub fn contained(root: &Path, relative: &str) -> Result<PathBuf> {
 }
 pub fn path_text(path: &Path) -> Result<String> { path.to_str().map(str::to_owned).ok_or_else(||invalid("Paths must be valid Unicode")) }
 pub fn hash_file(path: &Path) -> Result<String> {
+    crate::source_catalog::count_hash();
     let mut file = File::open(path)?;
     let mut hash = blake3::Hasher::new();
     let mut chunk = [0u8;65536];

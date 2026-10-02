@@ -53,7 +53,9 @@ impl Catalog {
         self.enqueue_paths(source_id, None)
     }
 
-    pub fn enqueue_paths(&self, source_id: &str, mut paths: Option<Vec<String>>) -> Result<Job> {
+    pub fn enqueue_import(&self,source_id:&str)->Result<Job> {self.enqueue_kind(source_id,None,Some("import"))}
+    pub fn enqueue_paths(&self,source_id:&str,paths:Option<Vec<String>>)->Result<Job> {self.enqueue_kind(source_id,paths,None)}
+    fn enqueue_kind(&self, source_id: &str, mut paths: Option<Vec<String>>, mode:Option<&str>) -> Result<Job> {
         if let Some(paths) = &mut paths {
             paths.sort();
             paths.dedup();
@@ -70,7 +72,7 @@ impl Catalog {
         let encoded = paths.as_ref().map(serde_json::to_string).transpose()?;
         let kind = match &encoded {
             Some(value) => format!("files:{}", blake3::hash(value.as_bytes()).to_hex()),
-            None => SCAN.into(),
+            None => mode.unwrap_or(SCAN).into(),
         };
         let now = now_secs();
         if let Some(existing) = self.job_for_source(source_id, &kind)? {
