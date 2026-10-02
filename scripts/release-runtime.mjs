@@ -19,7 +19,10 @@ export function windowsImports(data) {
   }
   const rva = data.readUInt32LE(opt + 120), tableSize = data.readUInt32LE(opt + 124);
   if (rva === 0 && tableSize === 0) return [];
-  demand(rva > 0 && tableSize >= 20 && tableSize <= 20 * 257, 'Invalid PE import table');
+  // GNU-linked PE directory sizes include names/thunks as well as descriptors.
+  // Bound the declared directory to file-backed bytes; cap descriptor reads separately.
+  demand(rva > 0 && tableSize >= 20 && tableSize <= data.length, 'Invalid PE import table');
+  offset(rva, tableSize);
   const names = [];
   for (let i = 0; i < Math.min(257, Math.floor(tableSize / 20)); i++) {
     const o = offset(rva + i * 20, 20);

@@ -22,3 +22,11 @@ it('accepts static ELF and rejects external loader, shared dependency and trunca
   expect(() => verifyRuntimeClosure(dynamic, 'x86_64-unknown-linux-gnu')).toThrow('shared library');
   expect(() => verifyRuntimeClosure(elf().subarray(0, 80), 'x86_64-unknown-linux-gnu')).toThrow('program headers');
 });
+
+it('accepts a GNU-linked import directory containing extra thunk/name data but keeps bounded reads', () => {
+  const b = Buffer.concat([pe(), Buffer.alloc(0x3000)]);
+  b.writeUInt32LE(0x3000, 152 + 240 + 16); b.writeUInt32LE(0x2000, 152 + 124);
+  expect(windowsImports(b)).toEqual(['kernel32.dll']);
+  b.writeUInt32LE(0xffffffff, 152 + 124);
+  expect(() => windowsImports(b)).toThrow('Invalid PE import table');
+});
