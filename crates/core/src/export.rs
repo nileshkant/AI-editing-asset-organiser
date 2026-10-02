@@ -147,6 +147,12 @@ impl ExportService {
         }
         Err(invalid("Export is no longer running"))
     }
+    pub fn while_idle<T>(&self, action: impl FnOnce() -> Result<T>) -> Result<T> {
+        let mut state = self.state.lock().map_err(|_| invalid("Export state unavailable"))?;
+        if state.active.is_some() { return Err(invalid("Finish or cancel the export before restoring")); }
+        state.grant = None;
+        action()
+    }
     pub fn shutdown(&self) {
         if let Ok(state) = self.state.lock() {
             if let Some((_, flag)) = &state.active {

@@ -3,6 +3,7 @@ import { RefreshCw } from 'lucide-react';
 import { call } from '../../api';
 import { McpSettings } from './McpSettings';
 import { FolderCatalogs } from './FolderCatalogs';
+import { RecoverySettings } from './RecoverySettings';
 import { CatalogData } from './CatalogData';
 import type { AppInfo, Source } from '../../types';
 
@@ -95,11 +96,12 @@ export const SettingsView = memo(function SettingsView({
       </section></div>}
       <FolderCatalogs roots={roots} onError={onError} />
       <CatalogData onError={onError} />
+      <RecoverySettings onError={onError} />
       <McpSettings roots={roots} onError={onError} />
       <h2>Intelligence</h2>
       <div className="setting-row">
         <span>AI features</span>
-        <span className="muted">Disabled · AI API or local model needed</span>
+        <span className="muted">Unavailable · no recognition model enabled</span>
       </div>
 
       <h2>Application</h2>
