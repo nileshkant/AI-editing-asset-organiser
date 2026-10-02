@@ -7,6 +7,8 @@ resolver = "2"
 # applicationDidFinishLaunching. Keep the compatibility fix local until tao
 # ships the deferred initial-event change upstream.
 tao = { path = "vendor/tao" }
+# RUSTSEC-2024-0429: upstream two-line mutable out-pointer fix, kept on GTK3 ABI.
+glib = { path = "vendor/glib" }
 
 [profile.release]
 lto = "thin"

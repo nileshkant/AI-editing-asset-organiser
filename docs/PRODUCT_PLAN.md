@@ -44,7 +44,7 @@ Current delivery is implemented in part, not a production-qualified release.
   MCP is an access protocol, not a recognition model. AI remains optional for the
   baseline tester release; if shipped, its acceptance checks are required.
 - Audio v1 queue: finish SS-019 review, then SS-029, SS-030, SS-020, SS-022,
-  SS-023, SS-024 and SS-031. SS-014/015/016/017/025 are optional enhancements.
+  SS-023, SS-024 and SS-031, plus SS-034 GTK remediation for the requested Linux release. SS-014/015/016/017/025 are optional enhancements.
   Generic export, Remotion audio handoff and agent instructions are v1; direct
   Resolve automation is deferred. Provider setup must not block baseline backup.
 - SS-031 certifies a concrete signed candidate on a stated tested OS/CPU matrix:
@@ -878,3 +878,7 @@ Not launch guarantees: a tiny installer including every runtime and every AI mod
 Release prerequisites that will be concrete later: final app name/identifier, signing identities, distribution location, tested dependency lock, and qualified optional model licenses. Development and reversible local testing can proceed before distribution credentials exist.
 
 Current implementation order and completion evidence are maintained in tickets/README.md. The historical phase structure above does not override that queue or imply that an installer is qualified.
+
+## 2026-10-02 qualification progress
+
+Source-catalog, CreativeShelf display branding, editor handoff and recovery implementations are in main. Security/resource hardening is also merged, while its installed qualification remains partial. Packaging and exact-artifact tester gates are prepared in their own PRs; no signed installer has been qualified. The requested first tester release includes macOS, Windows and Linux. SS-034 backports the reviewed GTK pointer fix with upstream source-integrity checks and optimized Linux regression CI; Linux remains unqualified until this and installed platform evidence pass. Four qualification tickets remain (SS-023/024/031/034), including external signing and physical machine evidence; pinned minimal media now builds and passes macOS/Linux CI. Images/presets remain upcoming, and baseline audio event recognition is disclosed as absent until optional provider/semantic tagging tickets are delivered.

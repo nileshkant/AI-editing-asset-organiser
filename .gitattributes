@@ -1,0 +1,2 @@
+# Source-integrity hashes refer to upstream byte content, including line endings.
+vendor/glib/** -text
