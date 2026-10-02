@@ -94,7 +94,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 8;
+pub const SCHEMA_VERSION: u32 = 9;
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
@@ -113,6 +113,7 @@ impl Catalog {
             tx.execute_batch(include_str!("schema.sql"))?;
             tx.execute_batch(include_str!("source_catalog_schema.sql"))?;
             tx.execute_batch(include_str!("settings_schema.sql"))?;
+            tx.execute_batch(include_str!("search_profile_schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         } else {
@@ -188,6 +189,7 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             if version < 6 { tx.execute_batch(include_str!("legacy_schema.sql"))?; }
             if version < 7 { tx.execute_batch(include_str!("source_catalog_schema.sql"))?; }
             if version < 8 { tx.execute_batch(include_str!("settings_schema.sql"))?; }
+            if version < 9 { tx.execute_batch(include_str!("search_profile_schema.sql"))?; }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }
@@ -298,17 +300,36 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
         Ok(sounds)
     }
 
-    /// Read only explicitly authorized sources before decoding profiles or searching.
+    /// Read full profiles only for explicitly authorized sources.
     pub fn scoped_sounds(&self, source_ids: &[String]) -> Result<Vec<Sound>> {
+        self.read_scoped_sounds(source_ids, false)
+    }
+
+    /// Search needs semantic/measurement metadata, never waveform samples.
+    pub(crate) fn search_sounds(&self, source_ids: &[String]) -> Result<Vec<Sound>> {
+        self.read_scoped_sounds(source_ids, true)
+    }
+
+    /// Read only explicitly authorized sources before decoding profiles or searching.
+    fn read_scoped_sounds(&self, source_ids: &[String], compact: bool) -> Result<Vec<Sound>> {
         if source_ids.len()>128 {return Err(invalid("Too many source scopes"));}
         if source_ids.is_empty(){return Ok(vec![]);}
         let placeholders=(0..source_ids.len()).map(|_|"?").collect::<Vec<_>>().join(",");
-        let sql=format!("SELECT s.id,s.source_id,s.relative_path,s.title,s.content_hash,s.status,a.profile,COALESCE(m.tags,'[]'),COALESCE(m.comment,''),COALESCE(m.favorite,0) FROM sounds s LEFT JOIN analyses a ON a.content_hash=s.content_hash AND a.analyzer=? LEFT JOIN annotations m ON m.sound_id=s.id WHERE s.source_id IN ({placeholders}) ORDER BY s.title,s.id");
+        let profiles = if compact { "search_profiles" } else { "analyses" };
+        let sql=format!("SELECT s.id,s.source_id,s.relative_path,s.title,s.content_hash,s.status,a.profile,COALESCE(m.tags,'[]'),COALESCE(m.comment,''),COALESCE(m.favorite,0) FROM sounds s LEFT JOIN {profiles} a ON a.content_hash=s.content_hash AND a.analyzer=? LEFT JOIN annotations m ON m.sound_id=s.id WHERE s.source_id IN ({placeholders}) ORDER BY s.title,s.id");
         let mut query=self.db.prepare(&sql)?;
         let values=std::iter::once(ANALYZER.to_owned()).chain(source_ids.iter().cloned());
         let rows=query.query_map(rusqlite::params_from_iter(values),|r|Ok((Sound{id:r.get(0)?,source_id:r.get(1)?,relative_path:r.get(2)?,title:r.get(3)?,content_hash:r.get(4)?,status:r.get(5)?,profile:None,user_tags:vec![],comment:r.get(8)?,favorite:r.get(9)?},r.get::<_,Option<String>>(6)?,r.get::<_,String>(7)?)))?;
         let mut sounds=vec![];
         for row in rows {let(mut sound,profile,tags)=row?;sound.profile=profile.map(|p|serde_json::from_str(&p)).transpose()?;sound.user_tags=serde_json::from_str(&tags)?;sounds.push(sound);}
+        Ok(sounds)
+    }
+
+    fn all_search_sounds(&self) -> Result<Vec<Sound>> {
+        let ids = self.source_headers()?.into_iter().map(|s| s.id).collect::<Vec<_>>();
+        // UI source count is not limited to MCP's maximum grant count.
+        let mut sounds = Vec::new();
+        for ids in ids.chunks(128) { sounds.extend(self.search_sounds(ids)?); }
         Ok(sounds)
     }
 
@@ -378,7 +399,7 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
 
     pub fn search(&self, query: &crate::search::SearchQuery) -> Result<crate::search::SearchResults> {
         let online: Vec<String> = self.source_headers()?.into_iter().filter(|s| s.available).map(|s| s.id).collect();
-        crate::search::search(self.all_sounds()?, query, &online)
+        crate::search::search(self.all_search_sounds()?, query, &online)
     }
 
     pub fn save_search(&self, name: &str, query: &crate::search::SearchQuery) -> Result<SavedSearch> {

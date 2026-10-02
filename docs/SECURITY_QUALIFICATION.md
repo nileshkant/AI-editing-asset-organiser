@@ -44,12 +44,17 @@ Keyboard-only search, selection, playback, clip export, settings/confirmation
 and MCP pairing must remain usable; focus must be visible and trapped/restored
 in dialogs. Screen reader and WCAG contrast checks require native qualification.
 
-The new 100k benchmark exercises actual SQLite load/search with one shared small
-profile, five repeated rain queries, exact total/page assertions and relative
-asset names. It does not represent large per-file waveform profiles or fuzzy
-worst cases. Search currently materializes catalog profiles; output pagination
-bounds responses but not all intermediate memory. Record peak RSS and investigate
-larger profiles before advertising large-library readiness.
+Search now reads a compact derived profile containing tags and measurements,
+without waveform samples. Full profiles remain authoritative for playback,
+inspection and source catalogs. Schema 9 builds this search cache transactionally
+with a pre-migration database backup; analysis insert/update/delete changes keep
+it synchronized. Restore checks agreement with authoritative profiles first.
+Pagination still does not bound the metadata working set: search reads candidate
+metadata and ranks it in memory. The repeatable benchmark supports up to 100k
+records, 3,200 waveform buckets and distinct per-file profiles, plus the former
+full-profile materialization path for controlled comparison. Runtime measurements
+and fixture limitations are in `docs/reviews/SS-023.md`. These checks do not certify
+a two-hour session, all query patterns, or platform installer behavior.
 
 ## Required installed stress checks
 

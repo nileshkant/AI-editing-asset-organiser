@@ -1,0 +1,25 @@
+
+running 1 test
+QUALIFICATION_REPORT={"arch":"aarch64","database_bytes":333754368,"distinct_profiles":10001,"full_profile_reference":true,"mode":"release","os":"macos","records":10000,"search_ms":[2075,1862,1839,2058,1432],"seed_ms":4801,"waveform_buckets_per_profile":3200}
+test catalog_search_100k_records ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 14.10s
+
+       14.50 real         4.94 user         8.27 sys
+           370245632  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+               24103  page reclaims
+                   1  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                1377  voluntary context switches
+               48199  involuntary context switches
+        177797099395  instructions retired
+         47570251159  cycles elapsed
+           356238056  peak memory footprint

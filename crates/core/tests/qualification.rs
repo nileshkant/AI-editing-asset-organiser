@@ -9,6 +9,11 @@ fn catalog_search_100k_records() {
     let temp = tempfile::tempdir().unwrap();
     let mut catalog = Catalog::open(&temp.path().join("benchmark.sqlite")).unwrap();
     let source = catalog.add_source(temp.path()).unwrap();
+    let records: usize = std::env::var("CREATIVESHELF_BENCHMARK_RECORDS").ok().map(|v| v.parse().unwrap()).unwrap_or(100_000);
+    let buckets: usize = std::env::var("CREATIVESHELF_BENCHMARK_BUCKETS").ok().map(|v| v.parse().unwrap()).unwrap_or(1);
+    assert!((1..=100_000).contains(&records) && (1..=3200).contains(&buckets));
+    let full_profiles = std::env::var("CREATIVESHELF_BENCHMARK_FULL_PROFILES").as_deref() == Ok("1");
+    let unique = std::env::var("CREATIVESHELF_BENCHMARK_UNIQUE").as_deref() == Ok("1");
     let profile = Profile {
         duration: 1.0,
         sample_rate: 48000,
@@ -21,28 +26,32 @@ fn catalog_search_100k_records() {
         channel_layout: "mono".into(),
         description: "Measured fixture".into(),
         tags: vec!["mono".into()],
-        waveform: vec![[0.0, 0.5]],
+        waveform: vec![[0.0, 0.5]; buckets],
     };
     let start = Instant::now();
     let tx = catalog.db_connection_mut().transaction().unwrap();
+    let profile_json = serde_json::to_string(&profile).unwrap();
     tx.execute(
         "INSERT INTO analyses(content_hash,analyzer,profile) VALUES(?1,?2,?3)",
         rusqlite::params![
             "fixturehash",
             soundshelf_core::catalog::ANALYZER,
-            serde_json::to_string(&profile).unwrap()
+            profile_json
         ],
     )
     .unwrap();
     {
-        let mut insert=tx.prepare("INSERT INTO sounds(id,source_id,relative_path,title,content_hash,status) VALUES(?1,?2,?3,?4,'fixturehash','ready')").unwrap();
-        for i in 0..100_000 {
+        let mut insert=tx.prepare("INSERT INTO sounds(id,source_id,relative_path,title,content_hash,status) VALUES(?1,?2,?3,?4,?5,'ready')").unwrap();
+        for i in 0..records {
+            let hash = if unique { format!("hash-{i}") } else { "fixturehash".into() };
+            if unique { tx.execute("INSERT INTO analyses VALUES(?1,?2,?3)",rusqlite::params![hash,soundshelf_core::catalog::ANALYZER,profile_json]).unwrap(); }
             insert
                 .execute(rusqlite::params![
                     format!("id-{i}"),
                     source.id,
                     format!("{i}.wav"),
-                    format!("rain ambience {i}")
+                    format!("rain ambience {i}"),
+                    hash
                 ])
                 .unwrap();
         }
@@ -52,18 +61,16 @@ fn catalog_search_100k_records() {
     let mut times = vec![];
     for _ in 0..5 {
         let start = Instant::now();
-        let result = catalog
-            .search(&SearchQuery {
-                text: "rain".into(),
-                limit: Some(100),
-                ..Default::default()
-            })
-            .unwrap();
+        let query = SearchQuery { text: "rain".into(), limit: Some(100), ..Default::default() };
+        let result = if full_profiles {
+            // Reproduce the previous materialization path for a controlled comparison.
+            soundshelf_core::search::search(catalog.all_sounds().unwrap(), &query, &[source.id.clone()])
+        } else { catalog.search(&query) }.unwrap();
         times.push(start.elapsed().as_millis());
-        assert_eq!(result.total, 100_000);
-        assert_eq!(result.items.len(), 100);
+        assert_eq!(result.total, records);
+        assert_eq!(result.items.len(), records.min(100));
     }
-    let report = serde_json::json!({"records":100000,"waveform_buckets_per_profile":1,"shared_profiles":1,"seed_ms":seed_ms,"search_ms":times,"os":std::env::consts::OS,"arch":std::env::consts::ARCH,"mode":if cfg!(debug_assertions){"debug"}else{"release"}});
+    let report = serde_json::json!({"records":records,"full_profile_reference":full_profiles,"waveform_buckets_per_profile":buckets,"distinct_profiles":if unique { records + 1 } else { 1 },"database_bytes":std::fs::metadata(temp.path().join("benchmark.sqlite")).unwrap().len(),"seed_ms":seed_ms,"search_ms":times,"os":std::env::consts::OS,"arch":std::env::consts::ARCH,"mode":if cfg!(debug_assertions){"debug"}else{"release"}});
     println!("QUALIFICATION_REPORT={report}");
     if let Some(path) = std::env::var_os("CREATIVESHELF_BENCHMARK_REPORT") {
         std::fs::write(path, serde_json::to_vec_pretty(&report).unwrap()).unwrap();

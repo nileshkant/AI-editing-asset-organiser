@@ -121,7 +121,7 @@ fn v7_migration_preserves_catalog_and_backs_up_before_preferences_schema() {
     let db = Catalog::open(&path).unwrap();
     let source = db.add_source(temp.path()).unwrap();
     db.db_connection()
-        .execute_batch("DROP TABLE app_settings; PRAGMA user_version=7;")
+        .execute_batch("DROP TRIGGER analyses_search_insert; DROP TRIGGER analyses_search_update; DROP TABLE search_profiles; DROP TABLE app_settings; PRAGMA user_version=7;")
         .unwrap();
     drop(db);
     let db = Catalog::open(&path).unwrap();
@@ -131,5 +131,24 @@ fn v7_migration_preserves_catalog_and_backs_up_before_preferences_schema() {
         .unwrap()
         .file_name()
         .to_string_lossy()
-        .contains("pre-v8")));
+        .contains(&format!("pre-v{}",soundshelf_core::catalog::SCHEMA_VERSION))));
+}
+
+#[test]
+fn restore_rejects_inconsistent_derived_search_metadata_before_rollback() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut live = Catalog::open(&temp.path().join("live.sqlite")).unwrap();
+    let source = live.add_source(temp.path()).unwrap();
+    let id = live.register(&source, "rain.wav", "hash").unwrap();
+    live.annotate(&id, &[], "keep", true).unwrap();
+    let backup = temp.path().join("backup.sqlite");
+    live.backup_database(&backup).unwrap();
+    let altered = rusqlite::Connection::open(&backup).unwrap();
+    altered.execute("INSERT INTO analyses VALUES('hash',?1,'{}')",[soundshelf_core::catalog::ANALYZER]).unwrap();
+    altered.execute("UPDATE search_profiles SET profile='different'",[]).unwrap();
+    drop(altered);
+    let rollback = temp.path().join("rollback.sqlite");
+    assert!(live.restore_database(&backup, &rollback).is_err());
+    assert!(!rollback.exists());
+    assert_eq!(live.sound(&id).unwrap().comment,"keep");
 }

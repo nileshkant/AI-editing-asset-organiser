@@ -297,7 +297,7 @@ impl AgentLibrary {
         query: &SearchQuery,
     ) -> Result<crate::search::SearchResults> {
         let sounds = c
-            .scoped_sounds(&access.source_ids)
+            .search_sounds(&access.source_ids)
             .map_err(mapped)?
             .into_iter()
             .filter(|s| {

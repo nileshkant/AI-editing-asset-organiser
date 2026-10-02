@@ -418,3 +418,75 @@ fn tauri_camel_case_search_query_deserialization_and_filtering() {
     assert_eq!(results.total, 1);
     assert_eq!(results.items[0].source_id, "src_1", "Folder filter must isolate to source_ids");
 }
+
+#[test]
+fn search_keeps_full_profiles_out_of_results_and_tracks_profile_changes() {
+    let root = tempdir().unwrap();
+    let mut catalog = Catalog::open(&root.path().join("catalog.sqlite")).unwrap();
+    let source = catalog.add_source(root.path()).unwrap();
+    let id = catalog.register(&source, "rain.wav", "rain-hash").unwrap();
+    let mut profile = test_profile(1.0, 1, "mono", vec!["rain".into()]);
+    profile.waveform = vec![[-0.5, 0.5]; 3200];
+    catalog.publish(&source, &id, "rain-hash", &profile).unwrap();
+    catalog.annotate(&id, &["outdoors".into()], "field recording", true).unwrap();
+    let query = SearchQuery { text: "rain".into(), ..Default::default() };
+    let result = catalog.search(&query).unwrap();
+    assert_eq!(result.total, 1);
+    assert!(result.items[0].profile.as_ref().unwrap().waveform.is_empty());
+    assert_eq!(result.items[0].comment, "field recording");
+    assert_eq!(catalog.sound(&id).unwrap().profile.unwrap().waveform.len(), 3200);
+    assert_eq!(catalog.cached_profile("rain-hash").unwrap().unwrap().waveform.len(), 3200);
+    let (full, compact): (i64, i64) = catalog.db_connection().query_row(
+        "SELECT length(a.profile),length(s.profile) FROM analyses a JOIN search_profiles s USING(content_hash,analyzer)", [], |r| Ok((r.get(0)?,r.get(1)?))
+    ).unwrap();
+    assert!(compact * 20 < full, "search metadata should exclude waveform bytes");
+    profile.tags = vec!["thunder".into()];
+    catalog.publish(&source, &id, "rain-hash", &profile).unwrap();
+    assert_eq!(catalog.search(&SearchQuery { text: "thunder".into(), ..Default::default() }).unwrap().total, 1);
+    catalog.db_connection().execute("DELETE FROM analyses", []).unwrap();
+    let count: i64 = catalog.db_connection().query_row("SELECT count(*) FROM search_profiles", [], |r| r.get(0)).unwrap();
+    assert_eq!(count, 0);
+}
+
+#[test]
+fn v8_upgrade_preserves_full_profiles_annotations_and_original_backup() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("v8.sqlite");
+    let mut catalog = Catalog::open(&path).unwrap();
+    let source = catalog.add_source(root.path()).unwrap();
+    let id = catalog.register(&source, "rain.wav", "rain-hash").unwrap();
+    let mut profile = test_profile(1.0, 1, "mono", vec!["rain".into()]);
+    profile.waveform = vec![[-0.5, 0.5]; 3200];
+    catalog.publish(&source, &id, "rain-hash", &profile).unwrap();
+    catalog.annotate(&id, &["custom".into()], "preserved", true).unwrap();
+    catalog.db_connection().execute_batch("DROP TRIGGER analyses_search_insert; DROP TRIGGER analyses_search_update; DROP TABLE search_profiles; PRAGMA user_version=8;").unwrap();
+    drop(catalog);
+    let catalog = Catalog::open(&path).unwrap();
+    assert_eq!(catalog.sound(&id).unwrap().profile.unwrap().waveform.len(), 3200);
+    let result = catalog.search(&SearchQuery { text: "rain".into(), ..Default::default() }).unwrap();
+    assert_eq!(result.total, 1);
+    assert_eq!(result.items[0].comment, "preserved");
+    assert!(result.items[0].favorite);
+    assert!(result.items[0].profile.as_ref().unwrap().waveform.is_empty());
+    let backup = fs::read_dir(root.path()).unwrap().map(|e|e.unwrap().path()).find(|p|p.to_string_lossy().contains("pre-v9")).unwrap();
+    let old = rusqlite::Connection::open(backup).unwrap();
+    assert_eq!(old.pragma_query_value(None,"user_version",|r|r.get::<_,u32>(0)).unwrap(),8);
+    assert_eq!(old.query_row("SELECT comment FROM annotations",[],|r|r.get::<_,String>(0)).unwrap(),"preserved");
+}
+
+#[test]
+fn v8_search_migration_failure_keeps_original_version_and_data() {
+    let root = tempdir().unwrap();
+    let path = root.path().join("v8.sqlite");
+    let catalog = Catalog::open(&path).unwrap();
+    let source = catalog.add_source(root.path()).unwrap();
+    let id = catalog.register(&source, "rain.wav", "hash").unwrap();
+    catalog.annotate(&id, &[], "keep", true).unwrap();
+    catalog.db_connection().execute_batch("DROP TRIGGER analyses_search_insert; DROP TRIGGER analyses_search_update; DROP TABLE search_profiles; CREATE TABLE search_profiles(collision TEXT); PRAGMA user_version=8;").unwrap();
+    drop(catalog);
+    assert!(Catalog::open(&path).is_err());
+    let original = rusqlite::Connection::open(path).unwrap();
+    assert_eq!(original.pragma_query_value(None,"user_version",|r|r.get::<_,u32>(0)).unwrap(),8);
+    assert_eq!(original.query_row("SELECT comment FROM annotations",[],|r|r.get::<_,String>(0)).unwrap(),"keep");
+    assert_eq!(original.query_row("SELECT count(*) FROM sqlite_master WHERE name='analyses_search_insert'",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+}
