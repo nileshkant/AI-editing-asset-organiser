@@ -30,6 +30,7 @@ try {
   const suffix=process.platform==='win32'?'.exe':'';
   const stage=await stageResources(media,await readFile(`target/${target}/release/soundshelf-mcp${suffix}`),target,resolve('src-tauri/release-assets'));
   const bundle={resources:stage.resources,targets:process.platform==='darwin'?['app','dmg']:process.platform==='win32'?['nsis']:['appimage','deb']};
+  bundle.icon=process.platform==='win32'?['icons/icon.ico']:['icons/icon.png'];
   if(process.platform==='darwin') {
    for(const file of [`media/ffmpeg`,`media/ffprobe`,`mcp/soundshelf-mcp`]) run('codesign',['--force','--sign','-',resolve('src-tauri/release-assets',file)]);
    bundle.macOS={signingIdentity:'-',minimumSystemVersion:'14.2'};
