@@ -11,3 +11,5 @@ Close CreativeShelf after export and confirm your editor can still play the impo
 If a source changes, rescan and explicitly rebind/review the selection before exporting. Existing rendered files remain usable. If CreativeShelf reports a catalog-indexing warning, retain the audio and import its destination folder to retry indexing. Following an interruption after publication, the same import restores search visibility without creating another copy.
 
 Temporary staging sits beside the chosen output so publication stays on the same filesystem. This requires hard-link support; unsupported destinations fail without replacing anything. If a drive disconnects, reconnect it and restart CreativeShelf to retry cleanup. No original recordings are copied into diagnostics or sidecar manifests.
+
+For a portable Remotion audio manifest and MCP agent workflow, see [Editor handoff](EDITOR_HANDOFF.md).

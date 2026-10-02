@@ -28,3 +28,5 @@ pub mod portable;
 pub mod agent;
 
 pub mod source_catalog;
+
+pub mod handoff;

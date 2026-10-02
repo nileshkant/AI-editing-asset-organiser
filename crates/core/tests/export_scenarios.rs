@@ -751,3 +751,19 @@ fn export_enrolls_only_generated_file_and_preserves_selected_source_scope() {
     assert_eq!(scope.files.len(), 2);
     assert!(c.resolve(&second_id).is_ok());
 }
+
+#[test]
+#[ignore = "requires FFmpeg fixture tools"]
+fn real_export_handoff_relocates_without_source_or_editor() {
+    let f = fixture(48000);
+    let path = output(&f, "wav");
+    render(&f.tools, &f.source, &f.clip, &f.profile, &path, ExportOptions::default(), flag(), &f.root.join("journal")).unwrap();
+    let mut name = path.as_os_str().to_owned(); name.push(".soundshelf.json"); let sidecar = PathBuf::from(name);
+    let root = path.parent().unwrap();
+    let props = soundshelf_core::handoff::remotion_handoff(&sidecar, root).unwrap();
+    assert_eq!(props.duration_seconds, 0.5);
+    assert_eq!(props.sample_frames, "24000");
+    let moved = f.root.join("relocated public"); fs::rename(root, &moved).unwrap();
+    fs::remove_file(&f.source).unwrap();
+    assert_eq!(props, soundshelf_core::handoff::remotion_handoff(&moved.join(sidecar.file_name().unwrap()), &moved).unwrap());
+}
