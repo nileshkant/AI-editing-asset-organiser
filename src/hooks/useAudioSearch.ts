@@ -28,6 +28,8 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
   const [results, setResults] = useState<SearchResults>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
+  const queryKey = JSON.stringify([text, source, max, page, offset, revision]);
+  const [resultKey, setResultKey] = useState("");
   const [filters, setFilters] = useState(false);
   
   const [error, setError] = useState("");
@@ -114,6 +116,8 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
   useEffect(() => {
     if (!isTauri()) return;
     const id = ++request.current;
+    if (page !== "library" && page !== "favorites") return;
+    setBusy(true);
     const timer = setTimeout(() => {
       setBusy(true);
       call<SearchResults>("search_sounds", {
@@ -129,6 +133,7 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
         .then((r) => {
           if (request.current === id) {
             setResults(r);
+            setResultKey(queryKey);
             setAnnouncement(
               r.total === 0
                 ? "No sounds found"
@@ -139,24 +144,30 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
           }
         })
         .catch((e) => {
-          if (request.current === id) setError(String(e));
+          if (request.current === id) {
+            setResults(EMPTY);
+            setResultKey(queryKey);
+            setError(String(e));
+          }
         })
         .finally(() => {
           if (request.current === id) setBusy(false);
         });
     }, 180);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); ++request.current; };
   }, [text, source, max, page, offset, revision]);
 
   // Re-fetch selected sound only when selectedId changes — NOT on every results update.
   // Previously this fired on results changes (every 1.5s poll), causing two IPC calls to
   // race and momentarily highlight two sounds at once.
   useEffect(() => {
+    let active = true;
     if (selectedId && isTauri()) {
       call<Sound>("get_sound", { id: selectedId })
-        .then((s) => setSelected(s))
-        .catch(() => setSelected(null));
+        .then((s) => { if (active) setSelected(s); })
+        .catch(() => { if (active) setSelected(null); });
     }
+    return () => { active = false; };
   }, [selectedId, setSelected]);
 
   return {
@@ -172,8 +183,8 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
     setMax,
     offset,
     setOffset,
-    results,
-    busy,
+    results: resultKey === queryKey ? results : EMPTY,
+    busy: isTauri() && (busy || resultKey !== queryKey),
     revision,
     filters,
     setFilters,

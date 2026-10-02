@@ -480,3 +480,91 @@ describe('App', () => {
     });
   });
 });
+
+describe('Playback and tab regression tests', () => {
+  it('pauses and resumes at the current position without restarting playback', async () => {
+    const base = mockInvoke.getMockImplementation()!;
+    let status = { ...STOPPED_PLAYBACK, sound_id: SOUND_A.id, state: 'playing', position_seconds: 0.6, duration_seconds: 1.5 };
+    mockInvoke.mockImplementation((cmd: string, args?: unknown) => {
+      if (cmd === 'playback_status') return Promise.resolve({ ...status });
+      if (cmd === 'playback_pause') { status.state = 'paused'; return Promise.resolve(); }
+      if (cmd === 'playback_resume') { status.state = 'playing'; return Promise.resolve(); }
+      return base(cmd, args);
+    });
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText('Pause')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('Pause'));
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('playback_pause', undefined));
+    expect(status.position_seconds).toBe(0.6);
+    fireEvent.click(screen.getByLabelText('Play'));
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('playback_resume', undefined));
+    expect(mockInvoke.mock.calls.filter(c => c[0] === 'playback_play')).toHaveLength(0);
+  });
+
+  it('uses the same pause/resume behavior from a sound row', async () => {
+    const base = mockInvoke.getMockImplementation()!;
+    let state = 'playing';
+    mockInvoke.mockImplementation((cmd: string, args?: unknown) => {
+      if (cmd === 'playback_status') return Promise.resolve({ ...STOPPED_PLAYBACK, sound_id: SOUND_A.id, state, position_seconds: 0.6 });
+      if (cmd === 'playback_pause') { state = 'paused'; return Promise.resolve(); }
+      if (cmd === 'playback_resume') { state = 'playing'; return Promise.resolve(); }
+      return base(cmd, args);
+    });
+    render(<App />);
+    const pause = await screen.findByLabelText(`Pause ${SOUND_A.title}`);
+    fireEvent.click(pause);
+    expect(mockInvoke).toHaveBeenCalledWith('playback_pause', undefined);
+    fireEvent.click(await screen.findByLabelText(`Play ${SOUND_A.title}`));
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('playback_resume', undefined));
+    expect(mockInvoke.mock.calls.filter(c => c[0] === 'playback_play')).toHaveLength(0);
+  });
+
+  it('hides library data immediately and shows the animation until favorites resolve', async () => {
+    const base = mockInvoke.getMockImplementation()!;
+    let resolveFavorites!: (r: SearchResults) => void;
+    const pending = new Promise<SearchResults>(resolve => { resolveFavorites = resolve; });
+    mockInvoke.mockImplementation((cmd: string, args?: any) => cmd === 'search_sounds' && args.query.favorites_only
+      ? pending : base(cmd, args));
+    render(<App />);
+    await screen.findByText(SOUND_A.title);
+    fireEvent.click(screen.getByText('Favorites'));
+    expect(screen.queryByText(SOUND_A.title)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Loading sounds')).toBeInTheDocument();
+    expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true');
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('search_sounds', expect.objectContaining({ query: expect.objectContaining({ favorites_only: true }) })));
+    await act(async () => resolveFavorites({ ...MOCK_RESULTS, items: [SOUND_B], total: 1 }));
+    expect(screen.queryByLabelText('Loading sounds')).not.toBeInTheDocument();
+    expect(screen.getByText(SOUND_B.title)).toBeInTheDocument();
+    expect(screen.queryByText(SOUND_A.title)).not.toBeInTheDocument();
+  });
+
+  it('ignores a late favorites response after returning to the library', async () => {
+    const base = mockInvoke.getMockImplementation()!;
+    let resolveFavorites!: (r: SearchResults) => void;
+    const pending = new Promise<SearchResults>(resolve => { resolveFavorites = resolve; });
+    mockInvoke.mockImplementation((cmd: string, args?: any) => cmd === 'search_sounds' && args.query.favorites_only
+      ? pending : base(cmd, args));
+    render(<App />);
+    await screen.findByText(SOUND_A.title);
+    fireEvent.click(screen.getByText('Favorites'));
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('search_sounds', expect.objectContaining({ query: expect.objectContaining({ favorites_only: true }) })));
+    fireEvent.click(screen.getByRole('button', { name: /Library/ }));
+    await screen.findByText(SOUND_A.title);
+    await act(async () => resolveFavorites({ ...MOCK_RESULTS, items: [], total: 0 }));
+    expect(screen.getByText(SOUND_A.title)).toBeInTheDocument();
+  });
+});
+
+it('does not reopen the previous inspector when selection fetch finishes after navigation', async () => {
+  const base = mockInvoke.getMockImplementation()!;
+  let finish!: (s: Sound) => void;
+  const pending = new Promise<Sound>(resolve => { finish = resolve; });
+  mockInvoke.mockImplementation((cmd: string, args?: unknown) => cmd === 'get_sound' ? pending : base(cmd, args));
+  render(<App />);
+  await screen.findByText(SOUND_A.title);
+  fireEvent.click(screen.getByLabelText(/Cinematic Whoosh Stereo, duration/));
+  expect(screen.getByText('DETAILS')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Favorites'));
+  await act(async () => finish(SOUND_A));
+  expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
+});
