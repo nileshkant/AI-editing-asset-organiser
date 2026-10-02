@@ -27,7 +27,10 @@ export async function verifySource(lock, bytes, armoredKey, armoredSignature) {
 }
 function run(command, args, cwd, capture = false) {
   const result = spawnSync(command, args, { cwd, stdio: capture ? 'pipe' : 'inherit', encoding: 'utf8', env: { ...process.env }, maxBuffer: 4 * 1024 * 1024 });
-  if (result.error || result.status !== 0) throw new Error('Static media build command failed');
+  if (result.error || result.status !== 0) {
+    if (capture && result.stderr) console.error(result.stderr.slice(-8192));
+    throw new Error(`Static media build command failed: ${command} (${result.error?.code || result.status})`);
+  }
   return result.stdout;
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -47,10 +50,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const stat = await lstat(source);
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== lock.bytes) throw new Error('Invalid source archive');
     await verifySource(lock, await readFile(source), await readFile('release/ffmpeg-public-key.asc', 'utf8'), await readFile('release/ffmpeg-source-signature.asc', 'utf8'));
-    const names = run('tar', ['-tf', source], undefined, true).split('\n').filter(Boolean);
+    // GNU tar treats a Windows drive colon as a remote host unless forced local.
+    const archive = process.platform === 'win32' ? source.replaceAll('\\', '/') : source;
+    const tarFlags = process.platform === 'win32' ? ['--force-local'] : [];
+    const names = run('tar', [...tarFlags, '-tf', archive], undefined, true).split('\n').filter(Boolean);
     if (names.some(name => !name.startsWith(`ffmpeg-${lock.version}/`) || name.split('/').includes('..'))) throw new Error('Unsafe source archive member');
     const build = resolve(input, `ffmpeg-build-${target}`); await mkdir(build);
-    run('tar', ['-xf', source, '--strip-components=1', '-C', build]);
+    run('tar', [...tarFlags, '-xf', archive, '--strip-components=1', '-C', process.platform === 'win32' ? build.replaceAll('\\', '/') : build]);
     const args = [...audioConfiguration];
     if (process.platform === 'darwin') args.push('--extra-cflags=-mmacosx-version-min=14.2', '--extra-ldflags=-mmacosx-version-min=14.2');
     if (process.platform === 'win32') args.push('--target-os=mingw32', '--extra-ldflags=-static', '--disable-pthreads', '--enable-w32threads');
