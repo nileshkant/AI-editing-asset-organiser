@@ -60,7 +60,8 @@ impl Catalog {
             }
             options.open(&stage)?;
             self.db.execute("VACUUM INTO ?1", [path_text(&stage)?])?;
-            fs::File::open(&stage)?.sync_all()?;
+            // Windows FlushFileBuffers requires a handle with write access.
+            fs::OpenOptions::new().read(true).write(true).open(&stage)?.sync_all()?;
             fs::hard_link(&stage, destination)?;
             #[cfg(unix)]
             fs::File::open(parent)?.sync_all()?;
