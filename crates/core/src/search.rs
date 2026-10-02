@@ -288,7 +288,11 @@ pub fn search(sounds: Vec<Sound>, query: &SearchQuery, online_sources: &[String]
             }
 
             let doc = document(&sound);
-            let doc_deaccent: Vec<String> = doc.iter().map(|s| deaccent(s)).collect();
+            // Exact tokens are the common path. Normalize the full document
+            // only when a term/exclusion needs an accent-insensitive fallback.
+            let doc_deaccent = std::cell::LazyCell::new(|| {
+                doc.iter().map(|s| deaccent(s)).collect::<Vec<_>>()
+            });
 
             // Required unquoted terms: all must match
             for term in &parsed.terms {
