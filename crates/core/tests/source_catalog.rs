@@ -215,13 +215,13 @@ fn dirty_state_survives_restart_and_v6_migration_backs_up() {
         c.db_connection()
             .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        7
+        8
     );
     assert!(fs::read_dir(dbroot.path()).unwrap().any(|e| e
         .unwrap()
         .file_name()
         .to_string_lossy()
-        .contains("pre-v7")));
+        .contains("pre-v8")));
 }
 #[test]
 #[ignore = "requires explicit FFmpeg fixture tools"]
@@ -515,4 +515,15 @@ fn byte_limit_and_non_regular_catalog_fail_before_import() {
         assert!(source_catalog::read(root.path()).is_err());
         assert!(started.elapsed() < std::time::Duration::from_secs(1));
     }
+}
+
+#[test]
+fn restored_database_does_not_overwrite_newer_source_annotations() {
+    let root=tempdir().unwrap();let dbroot=tempdir().unwrap();let (db,source,id)=seed(root.path());
+    let backup=dbroot.path().join("backup.sqlite");db.lock().unwrap().backup_database(&backup).unwrap();
+    db.lock().unwrap().annotate(&id,&["newer".into()],"Newer source annotation",false).unwrap();
+    source_catalog::save(&db,&source).unwrap();
+    db.lock().unwrap().restore_database(&backup,&dbroot.path().join("rollback.sqlite")).unwrap();
+    assert!(source_catalog::save(&db,&source).is_err());
+    assert_eq!(source_catalog::read(root.path()).unwrap().unwrap().catalog.sounds[0].comment,"Newer source annotation");
 }

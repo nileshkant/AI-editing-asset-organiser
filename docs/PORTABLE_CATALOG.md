@@ -55,3 +55,5 @@ folder only and omit credentials, absolute roots, jobs and global saved searches
 Changed local annotations/recipes save in the background when no incomplete or
 failed source jobs remain; failures stay visible until retried. AI event labels
 will require a future versioned extension under SS-016/017.
+
+Database backup/restore and preference migration use SQLite v8; see [Recovery](RECOVERY.md). The portable JSON and source-folder schema versions remain unchanged.

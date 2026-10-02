@@ -152,6 +152,7 @@ pub struct Player {
     volume_bits: AtomicU32,
     active: Mutex<Option<ActiveTrack>>,
     force_loopback: bool,
+    output_device: Mutex<Option<String>>,
     last_error: Mutex<Option<String>>,
 }
 
@@ -162,6 +163,7 @@ impl Player {
             volume_bits: AtomicU32::new(1.0f32.to_bits()),
             active: Mutex::new(None),
             force_loopback: false,
+            output_device: Mutex::new(None),
             last_error: Mutex::new(None),
         }
     }
@@ -172,8 +174,20 @@ impl Player {
             volume_bits: AtomicU32::new(1.0f32.to_bits()),
             active: Mutex::new(None),
             force_loopback: true,
+            output_device: Mutex::new(None),
             last_error: Mutex::new(None),
         }
+    }
+
+    pub fn output_devices() -> Result<Vec<String>> {
+        let devices = cpal::default_host().output_devices().map_err(|_| invalid("Could not enumerate output devices"))?;
+        let mut names = devices.filter_map(|d| d.description().ok().map(|d| d.name().to_owned())).collect::<Vec<_>>();
+        names.sort(); names.dedup(); Ok(names)
+    }
+    pub fn set_output_device(&self, name: Option<String>) -> Result<()> {
+        if name.as_ref().is_some_and(|n| n.is_empty() || n.len()>512 || n.chars().any(char::is_control)) { return Err(invalid("Invalid output device")); }
+        self.stop();
+        *self.output_device.lock().map_err(|_| invalid("Output device lock unavailable"))? = name; Ok(())
     }
 
     pub fn set_volume(&self, volume: f32) {
@@ -401,19 +415,13 @@ impl Player {
 
         // Try CPAL native audio output
         let host = cpal::default_host();
-        let device = match host.default_output_device() {
-            Some(d) => d,
-            None => {
-                return Ok(self.create_loopback_sink_internal(volume));
-            }
-        };
-
-        let config = match device.default_output_config() {
-            Ok(c) => c,
-            Err(_) => {
-                return Ok(self.create_loopback_sink_internal(volume));
-            }
-        };
+        let selected = self.output_device.lock().map_err(|_| invalid("Output device lock unavailable"))?.clone();
+        let device = if let Some(name) = selected {
+            host.output_devices().map_err(|_| invalid("Could not enumerate output devices"))?
+                .find(|d| d.description().ok().is_some_and(|d| d.name()==name))
+                .ok_or_else(|| invalid("Selected output device is unavailable; choose another in Settings"))?
+        } else { host.default_output_device().ok_or_else(|| invalid("No output device is available"))? };
+        let config = device.default_output_config().map_err(|_| invalid("Output device configuration is unavailable"))?;
 
         let sample_rate = config.sample_rate();
         let channels = config.channels();
@@ -442,8 +450,7 @@ impl Player {
         ) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!("Warning: Failed to build CPAL stream ({e}); falling back to loopback sink");
-                return Ok(self.create_loopback_sink_internal(volume));
+                return Err(invalid(&format!("Could not open audio output: {e}")));
             }
         };
 

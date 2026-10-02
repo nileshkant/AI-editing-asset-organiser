@@ -94,7 +94,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 7;
+pub const SCHEMA_VERSION: u32 = 8;
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
@@ -112,6 +112,7 @@ impl Catalog {
             let tx = db.transaction()?;
             tx.execute_batch(include_str!("schema.sql"))?;
             tx.execute_batch(include_str!("source_catalog_schema.sql"))?;
+            tx.execute_batch(include_str!("settings_schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         } else {
@@ -186,6 +187,7 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             }
             if version < 6 { tx.execute_batch(include_str!("legacy_schema.sql"))?; }
             if version < 7 { tx.execute_batch(include_str!("source_catalog_schema.sql"))?; }
+            if version < 8 { tx.execute_batch(include_str!("settings_schema.sql"))?; }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }

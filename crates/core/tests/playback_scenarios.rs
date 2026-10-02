@@ -444,3 +444,11 @@ fn test_play_clip_duration_bounded() {
     let status = player.status();
     assert_eq!(status.duration_seconds, 0.5, "Clip duration in status should match requested clip length");
 }
+
+#[test]
+#[ignore = "requires FFmpeg fixture tools and native device enumeration"]
+fn unavailable_selected_output_reports_error_without_silent_loopback() {
+    let tools=test_tools().expect("Explicit FFmpeg tools required");let temp=tempdir().unwrap();let path=temp.path().join("tone.wav");create_tone_wav(&tools,&path,0.1);
+    let player=Player::new(Some(tools));player.set_output_device(Some(format!("unavailable-{}",uuid::Uuid::new_v4()))).unwrap();
+    assert!(player.play("tone",&path,0.1).is_err());assert!(player.loopback_sink().is_none());assert_ne!(player.status().state,PlaybackState::Playing);
+}
