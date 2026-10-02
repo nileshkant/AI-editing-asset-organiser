@@ -17,6 +17,7 @@ pub(crate) struct Authorization {
     pub id: String,
     pub access: Access,
     pub live: Arc<AtomicBool>,
+    pub permit: Option<Arc<tokio::sync::OwnedSemaphorePermit>>,
 }
 #[derive(Clone)]
 pub(crate) struct StatusService {
@@ -106,6 +107,8 @@ impl ServerHandler for StatusService {
         };
         let method = request.name.to_string();
         let result = tokio::task::spawn_blocking(move || {
+            // Retain the request slot even if HTTP/SDK cancellation drops its caller.
+            let _permit = auth.permit;
             if !auth.live.load(Ordering::Acquire) {
                 return Err(soundshelf_core::agent::Failure {
                     code: "PERMISSION_DENIED",

@@ -82,10 +82,11 @@ async fn guard(State(gate): State<Gate>, request: Request, next: Next) -> Respon
                     id: v.client.id.clone(),
                     access: v.client.access.clone(),
                     live: v.live.clone(),
+                    permit: None,
                 })
         })
     });
-    let Some(authorized) = authorized else {
+    let Some(mut authorized) = authorized else {
         return StatusCode::UNAUTHORIZED.into_response();
     };
     let Ok(_permit) = gate.slots.clone().try_acquire_owned() else {
@@ -101,6 +102,7 @@ async fn guard(State(gate): State<Gate>, request: Request, next: Next) -> Respon
     else {
         return StatusCode::PAYLOAD_TOO_LARGE.into_response();
     };
+    authorized.permit = Some(Arc::new(_permit));
     parts.extensions.insert(authorized);
     next.run(Request::from_parts(parts, Body::from(bytes)))
         .await

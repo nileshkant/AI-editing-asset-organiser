@@ -718,3 +718,69 @@ async fn wait_job(client: &Client, id: &Value) -> Value {
     .await
     .unwrap()
 }
+
+#[tokio::test]
+async fn cancelled_callers_cannot_bypass_blocking_work_limit() {
+    let f = fixture();
+    let paired = f
+        .agent
+        .pair_with_access("bounded".into(), access(&f))
+        .unwrap();
+    let http = reqwest::Client::builder().no_proxy().build().unwrap();
+    let body = json!({"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"library.status","arguments":{}}});
+    // Force accepted catalog work to wait while clients disconnect.
+    let catalog = f.library.catalog.lock().unwrap();
+    let mut requests = vec![];
+    for _ in 0..16 {
+        let http = http.clone();
+        let endpoint = f.endpoint.clone();
+        let token = paired.token.clone();
+        let body = body.clone();
+        requests.push(tokio::spawn(async move {
+            http.post(endpoint)
+                .bearer_auth(token)
+                .header("accept", "application/json, text/event-stream")
+                .header("mcp-protocol-version", "2025-11-25")
+                .json(&body)
+                .timeout(Duration::from_secs(1))
+                .send()
+                .await
+        }));
+    }
+    // Wait for every client timeout, while the detached catalog workers remain blocked.
+    for request in requests {
+        assert!(request.await.unwrap().is_err());
+    }
+    let blocked = http
+        .post(&f.endpoint)
+        .bearer_auth(&paired.token)
+        .header("accept", "application/json, text/event-stream")
+        .header("mcp-protocol-version", "2025-11-25")
+        .json(&body)
+        .timeout(Duration::from_secs(3))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(blocked.status(), 429);
+    drop(catalog);
+    let released = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let response = http
+                .post(&f.endpoint)
+                .bearer_auth(&paired.token)
+                .header("accept", "application/json, text/event-stream")
+                .header("mcp-protocol-version", "2025-11-25")
+                .json(&body)
+                .send()
+                .await
+                .unwrap();
+            if response.status() != 429 {
+                break response;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(released.status(), 200);
+}
