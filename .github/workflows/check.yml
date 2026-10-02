@@ -1,5 +1,8 @@
 name: Verify
 on: [pull_request]
+concurrency:
+  group: verify-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -47,3 +50,25 @@ jobs:
           $env:SOUNDSHELF_FFPROBE = Join-Path $ffmpegBinary.DirectoryName 'ffprobe.exe'
           if (-not (Test-Path -LiteralPath $env:SOUNDSHELF_FFPROBE -PathType Leaf)) { throw 'FFprobe binary not found beside FFmpeg' }
           cargo test --workspace --locked -- --include-ignored
+  advisories:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - name: Audit JavaScript lock
+        run: npm audit --json > npm-advisory-report.json
+      - name: Install pinned RustSec auditor
+        run: cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit Rust lock
+        run: cargo audit --json > rust-advisory-report.json
+      - name: Retain advisory evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: advisory-reports
+          path: '*-advisory-report.json'

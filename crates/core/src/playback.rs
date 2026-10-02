@@ -658,7 +658,7 @@ fn spawn_decoder(
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         let mut cmd = Command::new(&tools.ffmpeg);
-        cmd.args([
+        cmd.args(crate::media::LOCAL_INPUT_ARGS).args([
             "-v", "error",
             "-nostdin",
             "-ss", &format!("{:.3}", seek_seconds),
@@ -673,9 +673,9 @@ fn spawn_decoder(
         ]);
         // When playing a clip region, tell ffmpeg to stop after clip_duration_seconds.
         if let Some(dur) = clip_duration_seconds {
-            cmd.args(["-t", &format!("{:.6}", dur)]);
+            cmd.args(crate::media::LOCAL_INPUT_ARGS).args(["-t", &format!("{:.6}", dur)]);
         }
-        cmd.args([
+        cmd.args(crate::media::LOCAL_INPUT_ARGS).args([
             "-f", "f32le",
             "-acodec", "pcm_f32le",
             "pipe:1",

@@ -9,7 +9,7 @@ is in `docs/PRODUCT_PLAN.md`.
 1. Start a feature branch from its prerequisite branch or merged main.
 2. Implement only the ticket's scope. Add deterministic tests and explicit failure states.
 3. Run the relevant tests and inspect the diff. Record findings and fixes in docs/reviews.
-4. Raise one PR with the matching ticket, test output and known limitations. Dependent PRs target their parent branch until merged.
+4. Raise one PR with the matching ticket, test output and known limitations. Dependent PRs target their parent branch while it is pending. Once that prerequisite lands in main, retarget the next PR to main before it merges; do not merge into a retained already-delivered branch.
 5. Mark criteria only after evidence exists; do not merge automatically unless authorized.
 
 Always take the first unblocked ticket in the execution queue. Do not start a
@@ -52,11 +52,11 @@ This is the canonical implementation order. The 2026-10-02 scope review is in
 new source-catalog requirement before advancing to editor integrations.
 
 1. [SS-019: MCP catalog and clip tools](SS-019.md) | complete
-2. [SS-029: Source-folder metadata catalog](SS-029.md) | in-review
+2. [SS-029: Source-folder metadata catalog](SS-029.md) | complete
 3. [SS-030: CreativeShelf branding and compatibility](SS-030.md) | in-review
 4. [SS-020: Editor integrations and agent skill](SS-020.md) | in-review
 5. [SS-022: Settings diagnostics and backup](SS-022.md) | in-review
-6. [SS-023: Security and performance qualification](SS-023.md) | not-started
+6. [SS-023: Security and performance qualification](SS-023.md) | partial
 7. [SS-024: Cross platform installers and releases](SS-024.md) | not-started
 8. [SS-031: Audio v1 tester release qualification](SS-031.md) | not-started
 
@@ -78,6 +78,10 @@ planned, not current recognition capabilities. MCP access itself is not AI
 recognition. If the tester build includes automatic sound recognition, its
 SS-016/017 acceptance evidence becomes a release gate for that build.
 
+## Platform qualification follow-up
+
+- [SS-034: Linux GTK dependency audit remediation](SS-034.md) | not-started | Linux release gate
+
 ## Upcoming asset types — outside audio v1
 
 - [SS-032: Image assets and reusable elements](SS-032.md) | not-started | upcoming
@@ -85,12 +89,12 @@ SS-016/017 acceptance evidence becomes a release gate for that build.
 
 ## Progress snapshot
 
-- Complete: 19 of 33 tickets.
-- In review: 4 of 33 tickets.
-- Partial: 0 of 33 tickets.
-- Not started: 10 of 33 tickets.
-- Current implementation: SS-022.
-- Next unstarted implementation: SS-023.
+- Complete: 20 of 34 tickets.
+- In review: 3 of 34 tickets.
+- Partial: 1 of 34 tickets.
+- Not started: 10 of 34 tickets.
+- Current implementation: SS-023.
+- Next unstarted implementation: SS-024.
 - New tickets from this review: 5 (3 audio v1, 2 upcoming).
 
 ## Release definition
