@@ -1,3 +1,4 @@
+vi.mock('./components/views/McpSettings', () => ({ McpSettings: () => null }));
 import { render, screen, fireEvent, waitFor, act, renderHook, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SettingsView } from './components/views/SettingsView';
