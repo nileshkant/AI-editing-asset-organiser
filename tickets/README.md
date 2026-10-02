@@ -54,7 +54,7 @@ new source-catalog requirement before advancing to editor integrations.
 1. [SS-019: MCP catalog and clip tools](SS-019.md) | complete
 2. [SS-029: Source-folder metadata catalog](SS-029.md) | in-review
 3. [SS-030: CreativeShelf branding and compatibility](SS-030.md) | in-review
-4. [SS-020: Editor integrations and agent skill](SS-020.md) | not-started
+4. [SS-020: Editor integrations and agent skill](SS-020.md) | in-review
 5. [SS-022: Settings diagnostics and backup](SS-022.md) | not-started
 6. [SS-023: Security and performance qualification](SS-023.md) | not-started
 7. [SS-024: Cross platform installers and releases](SS-024.md) | not-started
@@ -86,11 +86,11 @@ SS-016/017 acceptance evidence becomes a release gate for that build.
 ## Progress snapshot
 
 - Complete: 19 of 33 tickets.
-- In review: 2 of 33 tickets.
+- In review: 3 of 33 tickets.
 - Partial: 0 of 33 tickets.
-- Not started: 12 of 33 tickets.
-- Current implementation: SS-030.
-- Next unstarted implementation: SS-020.
+- Not started: 11 of 33 tickets.
+- Current implementation: SS-020.
+- Next unstarted implementation: SS-022.
 - New tickets from this review: 5 (3 audio v1, 2 upcoming).
 
 ## Release definition
