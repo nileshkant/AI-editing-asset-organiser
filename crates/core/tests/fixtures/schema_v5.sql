@@ -79,5 +79,3 @@ CREATE TABLE clip_revisions (
 CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);
 
 CREATE TABLE source_files(source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE, relative_path TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(source_id,relative_path));
-
-CREATE TABLE legacy_evidence(sound_id TEXT PRIMARY KEY REFERENCES sounds(id) ON DELETE CASCADE, evidence TEXT NOT NULL);

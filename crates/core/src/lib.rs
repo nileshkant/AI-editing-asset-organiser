@@ -22,3 +22,5 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub fn invalid(message: &str) -> Error { Error::Invalid(message.into()) }
 
 pub mod sources;
+
+pub mod portable;

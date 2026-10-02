@@ -1,0 +1,1 @@
+CREATE TABLE legacy_evidence(sound_id TEXT PRIMARY KEY REFERENCES sounds(id) ON DELETE CASCADE, evidence TEXT NOT NULL);
