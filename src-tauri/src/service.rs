@@ -26,6 +26,7 @@ struct Work {
 }
 
 pub struct AppState {
+    pub agent: Arc<soundshelf_agent::Agent>,
     pub data_directory: PathBuf,
     pub catalog_imports: Arc<Mutex<std::collections::HashMap<String, (String, bool)>>>,
     pub catalog_roots: Arc<Mutex<std::collections::HashMap<(String, String), String>>>,
@@ -188,6 +189,7 @@ impl AppState {
         let player = Arc::new(Player::new(tools.clone()));
         let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
         let state = Self {
+            agent: Arc::new(soundshelf_agent::Agent::with_discovery(data_directory.join("runtime/mcp.json"))),
             data_directory,
             catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
             catalog_roots: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -278,6 +280,7 @@ impl AppState {
     }
 
     pub fn shutdown(&self) {
+        self.agent.stop();
         self.exports.shutdown();
         self.player.stop();
         self.stop.store(true, Ordering::Relaxed);
@@ -319,6 +322,21 @@ mod tests {
             state: Some(state),
             root,
         }
+    }
+    #[test]
+    fn desktop_shutdown_closes_mcp_and_clears_pairings() {
+        let root=std::env::temp_dir().join(format!("soundshelf-mcp-shutdown-{}",Uuid::new_v4()));
+        let state=AppState::new(root.join("app"),root.join("resources")).unwrap();
+        assert!(state.agent.status().unwrap().endpoint.is_none());
+        let endpoint=state.agent.start(0).unwrap().endpoint.unwrap();
+        state.agent.pair("test".into()).unwrap();
+        assert!(root.join("app/runtime/mcp.json").exists());
+        state.shutdown();
+        assert!(state.agent.status().unwrap().clients.is_empty());
+        assert!(!root.join("app/runtime/mcp.json").exists());
+        let address=endpoint.strip_prefix("http://").unwrap().strip_suffix("/mcp").unwrap();
+        assert!(std::net::TcpStream::connect(address).is_err());
+        drop(state);fs::remove_dir_all(root).unwrap();
     }
     fn media(f: &Fixture) {
         let t = f.state.as_ref().unwrap().tools.as_ref().unwrap();

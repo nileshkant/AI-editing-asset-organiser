@@ -1,5 +1,5 @@
 [workspace]
-members = ["src-tauri", "crates/core"]
+members = ["src-tauri", "crates/core", "crates/agent"]
 resolver = "2"
 
 [patch.crates-io]
