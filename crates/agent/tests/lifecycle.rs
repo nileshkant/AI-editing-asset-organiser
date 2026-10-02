@@ -201,7 +201,12 @@ async fn compiled_bridge_with_official_sdk() {
     let agent = Agent::with_discovery(discovery.clone());
     let endpoint = agent.start(0).unwrap().endpoint.unwrap();
     let paired = agent.pair("stdio".into()).unwrap();
-    let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_soundshelf-mcp"))
+    // Explicit qualification override exercises a staged/installed executable,
+    // while ordinary CI retains Cargo's own compiled fixture binary.
+    let bridge = std::env::var_os("CREATIVESHELF_QUALIFICATION_BRIDGE")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| env!("CARGO_BIN_EXE_soundshelf-mcp").into());
+    let mut child = tokio::process::Command::new(&bridge)
         .arg("--discovery")
         .arg(&discovery)
         .env("SOUNDSHELF_MCP_TOKEN", &paired.token)
@@ -233,7 +238,7 @@ async fn compiled_bridge_with_official_sdk() {
     assert!(output.status.success());
     assert!(!String::from_utf8_lossy(&output.stderr).contains(&paired.token));
     agent.stop();
-    let output = tokio::process::Command::new(env!("CARGO_BIN_EXE_soundshelf-mcp"))
+    let output = tokio::process::Command::new(&bridge)
         .arg(&endpoint)
         .env("SOUNDSHELF_MCP_TOKEN", &paired.token)
         .output()
