@@ -406,7 +406,9 @@ fn ten_thousand_members_reuse_metadata_without_walk_hash_or_decode() {
         let original = c.all_sounds().unwrap().remove(0);
         for n in 0..9999 {
             let relative = format!("fixture-{n}.wav");
-            fs::hard_link(root.path().join("tone.wav"), root.path().join(&relative)).unwrap();
+            // Independent tiny files keep the 10k fixture portable: Windows limits
+            // the number of hard links to one file. Warm import still reads only stats.
+            fs::write(root.path().join(&relative), b"metadata fixture, not a decoder fixture").unwrap();
             c.register(&source, &relative, &original.content_hash)
                 .unwrap();
         }
