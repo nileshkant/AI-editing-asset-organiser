@@ -89,12 +89,12 @@ SS-016/017 acceptance evidence becomes a release gate for that build.
 
 ## Progress snapshot
 
-- Complete: 20 of 34 tickets.
-- In review: 3 of 34 tickets.
-- Partial: 1 of 34 tickets.
-- Not started: 10 of 34 tickets.
-- Current implementation: SS-023.
-- Next unstarted implementation: SS-024.
+- Complete: 23 of 34 tickets.
+- In review: 0 of 34 tickets.
+- Partial: 4 of 34 tickets.
+- Not started: 7 of 34 tickets.
+- Current implementation: SS-034; optimized Linux CI pending.
+- Remaining baseline work: SS-023 installed qualification, SS-024 all-platform installers/signatures, SS-031 real tester evidence and SS-034 Linux verification.
 - New tickets from this review: 5 (3 audio v1, 2 upcoming).
 
 ## Release definition
