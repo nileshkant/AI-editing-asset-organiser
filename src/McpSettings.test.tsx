@@ -39,3 +39,25 @@ it('reports start failure without claiming to run, and rejects invalid ports', a
   await waitFor(() => expect(error).toHaveBeenCalledWith('Error: Port unavailable'));
   expect(screen.getByText('Stopped')).toBeInTheDocument();
 });
+it('pairs only selected sources with separate write/path/export grants and native destination approval', async () => {
+  const access = { source_ids: ['public'], read: true, edit: false, export: true, paths: false };
+  const client = { id: 'editor', name: 'Editor', access };
+  const running = { endpoint: 'http://127.0.0.1:1234/mcp', clients: [] };
+  mock.mockResolvedValueOnce(running).mockResolvedValueOnce({ client, token: 'token' }).mockResolvedValueOnce({ ...running, clients: [client] }).mockResolvedValueOnce({ id: 'grant', path: '/approved/clip.wav' });
+  const source = { id: 'public', name: 'Public recordings', root: '/public', generation: 0, available: true, scope: 'folder' as const, files: [] };
+  render(<McpSettings roots={[source]} onError={vi.fn()} />);
+  await screen.findByText('Running');
+  expect(screen.getByLabelText('Edit annotations and clips')).not.toBeChecked();
+  expect(screen.getByLabelText('Export clips to approved destinations')).not.toBeChecked();
+  expect(screen.getByLabelText('Reveal local paths')).not.toBeChecked();
+  fireEvent.change(screen.getByLabelText('Client name'), { target: { value: 'Editor' } });
+  fireEvent.click(screen.getByLabelText('Public recordings'));
+  fireEvent.click(screen.getByLabelText('Export clips to approved destinations'));
+  fireEvent.click(screen.getByText('Pair client'));
+  await screen.findByText('Approve WAV destination for Editor');
+  expect(mock).toHaveBeenCalledWith('mcp_pair', { name: 'Editor', access });
+  fireEvent.click(screen.getByText('Approve WAV destination for Editor'));
+  await screen.findByText('/approved/clip.wav');
+  expect(mock).toHaveBeenCalledWith('mcp_approve_destination', { clientId: 'editor', format: 'wav' });
+  expect(screen.getByText('grant')).toBeInTheDocument();
+});

@@ -27,6 +27,7 @@ struct Work {
 
 pub struct AppState {
     pub agent: Arc<soundshelf_agent::Agent>,
+    pub agent_library: Arc<soundshelf_core::agent::AgentLibrary>,
     pub data_directory: PathBuf,
     pub catalog_imports: Arc<Mutex<std::collections::HashMap<String, (String, bool)>>>,
     pub catalog_roots: Arc<Mutex<std::collections::HashMap<(String, String), String>>>,
@@ -188,8 +189,10 @@ impl AppState {
         });
         let player = Arc::new(Player::new(tools.clone()));
         let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
+        let agent_library=Arc::new(soundshelf_core::agent::AgentLibrary::new(catalog.clone(),exports.clone(),tools.clone()));
         let state = Self {
-            agent: Arc::new(soundshelf_agent::Agent::with_discovery(data_directory.join("runtime/mcp.json"))),
+            agent: Arc::new(soundshelf_agent::Agent::with_library(data_directory.join("runtime/mcp.json"),agent_library.clone())),
+            agent_library,
             data_directory,
             catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
             catalog_roots: Arc::new(Mutex::new(std::collections::HashMap::new())),

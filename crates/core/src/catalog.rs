@@ -59,6 +59,7 @@ pub struct SavedSearch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ClipRecipe {
     pub asset_id: String,
     pub asset_version_id: String,
@@ -290,6 +291,20 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
         let rows = query.query_map([ANALYZER], |r| Ok((Sound { id:r.get(0)?, source_id:r.get(1)?, relative_path:r.get(2)?, title:r.get(3)?, content_hash:r.get(4)?, status:r.get(5)?, profile:None,user_tags:vec![],comment:r.get(8)?,favorite:r.get(9)? }, r.get::<_,Option<String>>(6)?,r.get::<_,String>(7)?)))?;
         let mut sounds = vec![];
         for row in rows { let (mut sound,profile,tags) = row?; sound.profile=profile.map(|s|serde_json::from_str(&s)).transpose()?; sound.user_tags=serde_json::from_str(&tags)?; sounds.push(sound); }
+        Ok(sounds)
+    }
+
+    /// Read only explicitly authorized sources before decoding profiles or searching.
+    pub fn scoped_sounds(&self, source_ids: &[String]) -> Result<Vec<Sound>> {
+        if source_ids.len()>128 {return Err(invalid("Too many source scopes"));}
+        if source_ids.is_empty(){return Ok(vec![]);}
+        let placeholders=(0..source_ids.len()).map(|_|"?").collect::<Vec<_>>().join(",");
+        let sql=format!("SELECT s.id,s.source_id,s.relative_path,s.title,s.content_hash,s.status,a.profile,COALESCE(m.tags,'[]'),COALESCE(m.comment,''),COALESCE(m.favorite,0) FROM sounds s LEFT JOIN analyses a ON a.content_hash=s.content_hash AND a.analyzer=? LEFT JOIN annotations m ON m.sound_id=s.id WHERE s.source_id IN ({placeholders}) ORDER BY s.title,s.id");
+        let mut query=self.db.prepare(&sql)?;
+        let values=std::iter::once(ANALYZER.to_owned()).chain(source_ids.iter().cloned());
+        let rows=query.query_map(rusqlite::params_from_iter(values),|r|Ok((Sound{id:r.get(0)?,source_id:r.get(1)?,relative_path:r.get(2)?,title:r.get(3)?,content_hash:r.get(4)?,status:r.get(5)?,profile:None,user_tags:vec![],comment:r.get(8)?,favorite:r.get(9)?},r.get::<_,Option<String>>(6)?,r.get::<_,String>(7)?)))?;
+        let mut sounds=vec![];
+        for row in rows {let(mut sound,profile,tags)=row?;sound.profile=profile.map(|p|serde_json::from_str(&p)).transpose()?;sound.user_tags=serde_json::from_str(&tags)?;sounds.push(sound);}
         Ok(sounds)
     }
 

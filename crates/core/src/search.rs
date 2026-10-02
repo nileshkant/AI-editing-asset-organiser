@@ -232,7 +232,7 @@ pub fn search(sounds: Vec<Sound>, query: &SearchQuery, online_sources: &[String]
     let mut parsed = interpret(query)?;
     let available: Vec<Sound> = sounds
         .into_iter()
-        .filter(|s| s.status == "ready" && s.profile.is_some() && online_sources.contains(&s.source_id))
+        .filter(|s| s.status == "ready" && s.profile.is_some() && online_sources.contains(&s.source_id) && (query.source_ids.is_empty() || query.source_ids.contains(&s.source_id)))
         .collect();
 
     let needs_typo_correction = parsed.terms.iter().any(|t| {

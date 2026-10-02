@@ -93,7 +93,7 @@ export const SettingsView = memo(function SettingsView({
         <button autoFocus disabled={busy} onClick={closeConfirmation}>Cancel</button>
       </section></div>}
       <CatalogData onError={onError} />
-      <McpSettings onError={onError} />
+      <McpSettings roots={roots} onError={onError} />
       <h2>Intelligence</h2>
       <div className="setting-row">
         <span>AI features</span>

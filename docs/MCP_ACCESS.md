@@ -2,7 +2,7 @@
 
 SS-018 adds an opt-in MCP service using the official Rust SDK `rmcp` 3.5.0. Open SoundShelf → Settings → Agent access → Start MCP. Port 0 picks an available port; a fixed occupied port produces an actionable error. Pair each client separately. Copy its displayed HTTP configuration into a header-capable MCP client and keep the credential private. Hiding it or leaving Settings clears the displayed copy.
 
-Only `service_status` is exposed in this ticket. It reports connection status, with no library contents, paths, file access, shell commands or SQL. Catalog and clip capabilities, source restrictions and destination grants belong to SS-019; a status pairing must not be interpreted as permission for those future tools.
+SS-019 adds catalog and clip tools with explicit source and capability grants; see [MCP tool contract](MCP_TOOLS.md). Status-only pairings still grant no catalog access. Shell/SQL/arbitrary filesystem tools remain unavailable.
 
 Pairings are temporary: Stop MCP, full Quit or a process restart invalidates every token. The service does not start automatically. Revoke immediately blocks subsequent requests from that client; an already accepted status request may finish. Another paired client remains authorized. There is no tray mode or background daemon.
 

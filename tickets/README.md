@@ -49,8 +49,8 @@ path.
 1. [SS-013: Clip export and handoff](SS-013.md) | complete | produce verified editor-ready media
 2. [SS-026: Individual-file import](SS-026.md) | complete | extend stable source scopes
 3. [SS-021: Portable catalog and migration](SS-021.md) | complete | add portable export/import after identity work stabilizes
-4. [SS-018: MCP lifecycle authentication](SS-018.md) | in-review | establish the secured local service
-5. [SS-019: MCP catalog and clip tools](SS-019.md) | not-started | expose the completed common services
+4. [SS-018: MCP lifecycle authentication](SS-018.md) | complete | establish the secured local service
+5. [SS-019: MCP catalog and clip tools](SS-019.md) | in-review | expose the completed common services
 6. [SS-020: Editor integrations and agent skill](SS-020.md) | not-started | build on working exports and MCP
 7. [SS-014: Provider configuration and credentials](SS-014.md) | not-started | add optional provider infrastructure
 8. [SS-022: Settings diagnostics and backup](SS-022.md) | not-started | consolidate service, provider, backup, and diagnostics controls
@@ -63,12 +63,12 @@ path.
 
 ## Progress snapshot
 
-- Complete: 17 of 28 tickets.
+- Complete: 18 of 28 tickets.
 - In review: 1 of 28 tickets.
 - Partial: 0 of 28 tickets.
-- Not started: 10 of 28 tickets.
-- Current ticket: SS-018 (MCP lifecycle authentication in review).
-- Next unstarted ticket: SS-019.
+- Not started: 9 of 28 tickets.
+- Current ticket: SS-019 (MCP catalog and clip tools in review).
+- Next unstarted ticket: SS-020.
 
 ## Release definition
 
