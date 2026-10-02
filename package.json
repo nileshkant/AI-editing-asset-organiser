@@ -15,6 +15,7 @@
     "mcp:bridge": "node scripts/cargo.mjs build -p soundshelf-agent --bin soundshelf-mcp --release --locked",
     "release:check": "node scripts/release.mjs check",
     "release:inspect": "node scripts/release.mjs inspect",
+    "release:qualify": "node scripts/qualification.mjs",
     "media:build": "node scripts/media-build.mjs",
     "desktop:local": "node scripts/release.mjs local",
     "release:inspect-local": "node scripts/release.mjs inspect-local"

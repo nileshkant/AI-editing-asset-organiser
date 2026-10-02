@@ -53,14 +53,14 @@ new source-catalog requirement before advancing to editor integrations.
 
 1. [SS-019: MCP catalog and clip tools](SS-019.md) | complete
 2. [SS-029: Source-folder metadata catalog](SS-029.md) | complete
-3. [SS-030: CreativeShelf branding and compatibility](SS-030.md) | in-review
-4. [SS-020: Editor integrations and agent skill](SS-020.md) | in-review
-5. [SS-022: Settings diagnostics and backup](SS-022.md) | in-review
+3. [SS-030: CreativeShelf branding and compatibility](SS-030.md) | complete
+4. [SS-020: Editor integrations and agent skill](SS-020.md) | complete
+5. [SS-022: Settings diagnostics and backup](SS-022.md) | complete
 6. [SS-023: Security and performance qualification](SS-023.md) | partial
 7. [SS-024: Cross platform installers and releases](SS-024.md) | partial
-8. [SS-031: Audio v1 tester release qualification](SS-031.md) | not-started
+8. [SS-031: Audio v1 tester release qualification](SS-031.md) | partial
 
-Seven unfinished implementation/qualification tickets remain on the audio v1 path. This is a work count, not a time estimate;
+Three unfinished baseline qualification tickets remain on the audio v1 path, plus SS-034 for the requested Linux release. This is a work count, not a time estimate;
 new defects discovered during qualification may require follow-ups. No ticket
 completion alone proves release readiness.
 
