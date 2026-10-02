@@ -424,3 +424,6 @@ fn main() {
         .build(tauri::generate_context!()).expect("CreativeShelf could not start")
         .run(|app,event|if matches!(event,tauri::RunEvent::Exit){app.state::<AppState>().shutdown();});
 }
+
+#[cfg(all(test, target_os = "linux"))]
+mod glib_qualification;

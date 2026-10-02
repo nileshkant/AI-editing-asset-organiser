@@ -14,3 +14,6 @@ tauri-plugin-dialog = "2"
 uuid = { version = "1", features = ["v4"] }
 
 soundshelf-agent = { path = "../crates/agent" }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+glib = "0.18.5"

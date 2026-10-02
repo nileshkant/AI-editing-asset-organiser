@@ -29,6 +29,8 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
       - run: npm ci
+      - name: Verify GTK backport source integrity
+        run: node scripts/verify-glib-patch.mjs
       - run: npm test
       - run: npm run build
       - name: Rust and real media fixtures (Unix)
@@ -50,6 +52,9 @@ jobs:
           $env:SOUNDSHELF_FFPROBE = Join-Path $ffmpegBinary.DirectoryName 'ffprobe.exe'
           if (-not (Test-Path -LiteralPath $env:SOUNDSHELF_FFPROBE -PathType Leaf)) { throw 'FFprobe binary not found beside FFmpeg' }
           cargo test --workspace --locked -- --include-ignored
+      - name: Optimized GTK out-pointer regression (Linux)
+        if: runner.os == 'Linux'
+        run: cargo test -p soundshelf --release --locked gtk_variant -- --nocapture
   advisories:
     runs-on: ubuntu-24.04
     steps:
@@ -60,6 +65,8 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
+      - name: Verify GTK backport before registry audit
+        run: node scripts/verify-glib-patch.mjs
       - name: Audit JavaScript lock
         run: npm audit --json > npm-advisory-report.json
       - name: Install pinned RustSec auditor
