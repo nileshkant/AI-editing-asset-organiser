@@ -5,14 +5,14 @@ macOS/Windows/Linux matrix. `npm run release:qualify -- manifest.json proof-dire
 checks that all fourteen required suites have observed pass results, human attribution,
 bounded local proof files and unchanged SHA-256 hashes, and that artifact reports
 agree with the same candidate commit, target and dependency locks. Missing/duplicate
-suites, a partial platform matrix, unsigned artifacts, changed evidence and unresolved
+suites, a partial platform matrix, unsigned artifacts, local/dirty build provenance, changed evidence and unresolved
 critical/high defects fail closed. Medium/low defects require documented workarounds.
 
 Each `stageReport`, `packageReport` and suite `evidence` is `{path, sha256}`, relative
 to a dedicated ignored proof directory. Reports record artifact/installer checksums,
 compressed/uncompressed size, runtime overhead, zero model packs, inventory and
-platform signature verification. macOS package reports come from SS-024 inspection;
-Windows/Linux equivalent native inspectors remain release work. Use aliases rather
+platform signature verification. Reports come from SS-024 native inspection on each
+platform; actual signed installer evidence remains pending. Use aliases rather
 than tester personal information; no source recordings, credentials or database belong
 in proofs. Keep raw private evidence locally and make a redacted review copy.
 

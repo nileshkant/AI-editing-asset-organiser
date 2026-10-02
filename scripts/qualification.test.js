@@ -12,7 +12,7 @@ async function fixture() {
   const commit = 'a'.repeat(40), digest = 'b'.repeat(64), observation = await evidence('observations.txt', 'Synthetic test evidence, not a qualified application install.');
   const targets = [];
   for (const [i, target] of requestedTargets.entries()) {
-    const stageReport = await evidence(`stage-${i}.json`, { commit, target, cargoLockSha256: digest, npmLockSha256: digest });
+    const stageReport = await evidence(`stage-${i}.json`, { commit, target, purpose: 'signed-release-candidate', workspaceDirty: false, cargoLockSha256: digest, npmLockSha256: digest });
     const packageReport = await evidence(`package-${i}.json`, { target, artifact: { sha256: digest, bytes: 1000 }, uncompressedBytes: 1200, resourceBytes: 800, mediaToolBytes: 600, modelPackBytes: 0, entries: [{ path: 'fixture', bytes: 1200, sha256: digest }], signature: { verified: true, publisher: 'Fixture publisher' } });
     targets.push({ target, os: 'Fixture OS', minimumOs: 'Fixture version', tester: 'Automated fixture only', testDate: '2026-10-02', stageReport, packageReport, checks: requiredChecks.map(id => ({ id, result: 'pass', observed: 'Synthetic pass used only to test validator behavior.', evidence: observation })), defects: [] });
   }
@@ -53,4 +53,12 @@ it('blocks high defects and medium defects without workarounds', async () => {
 it('blocks an unsigned artifact even if all human checks say pass', async () => {
   const manifest = await fixture(); manifest.targets[0].packageReport = await evidence('unsigned.json', { target: requestedTargets[0], artifact: { sha256: 'b'.repeat(64), bytes: 1000 }, uncompressedBytes: 1200, resourceBytes: 800, mediaToolBytes: 600, modelPackBytes: 0, entries: ['fixture'], signature: { verified: false, publisher: 'Fixture' } });
   await expect(qualifyCandidate(manifest, root)).rejects.toThrow('signature evidence');
+});
+
+it('blocks local or dirty stage evidence even when a signature report says pass', async () => {
+  const manifest = await fixture();
+  for (const settings of [{ purpose: 'local-development-only', workspaceDirty: false }, { purpose: 'signed-release-candidate', workspaceDirty: true }]) {
+    manifest.targets[0].stageReport = await evidence('local-stage.json', { commit: manifest.commit, target: requestedTargets[0], cargoLockSha256: 'b'.repeat(64), npmLockSha256: 'b'.repeat(64), ...settings });
+    await expect(qualifyCandidate(manifest, root)).rejects.toThrow('Clean signed release provenance');
+  }
 });

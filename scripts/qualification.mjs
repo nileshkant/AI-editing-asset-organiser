@@ -24,6 +24,7 @@ export async function qualifyCandidate(manifest, directory) {
     requireTrue(typeof entry.tester === 'string' && entry.tester.trim() && /^\d{4}-\d{2}-\d{2}$/.test(entry.testDate || ''), 'Human tester attribution and test date required');
     const artifact = JSON.parse(await proof(root, entry.packageReport));
     const stage = JSON.parse(await proof(root, entry.stageReport));
+    requireTrue(stage.purpose === 'signed-release-candidate' && stage.workspaceDirty === false, 'Clean signed release provenance required; local builds cannot qualify');
     requireTrue(stage.commit === manifest.commit && stage.target === entry.target && artifact.target === entry.target, 'Evidence belongs to another commit or target');
     requireTrue(/^[a-f0-9]{64}$/.test(stage.cargoLockSha256 || '') && /^[a-f0-9]{64}$/.test(stage.npmLockSha256 || ''), 'Dependency lock evidence required');
     requireTrue(/^[a-f0-9]{64}$/.test(artifact.artifact?.sha256 || '') && Number.isSafeInteger(artifact.artifact?.bytes) && artifact.artifact.bytes > 0 && Number.isSafeInteger(artifact.uncompressedBytes) && artifact.uncompressedBytes > 0 && artifact.resourceBytes > 0 && artifact.mediaToolBytes > 0 && artifact.modelPackBytes === 0 && Array.isArray(artifact.entries) && artifact.entries.length > 0, 'Exact artifact hash, inventory and sizes required');
