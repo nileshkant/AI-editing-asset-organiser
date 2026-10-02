@@ -1,23 +1,27 @@
 import { createHash } from 'node:crypto';
-import { lstat, readdir, readFile, realpath, mkdir, writeFile } from 'node:fs/promises';
+import { lstat, readdir, readFile, realpath, readlink, mkdir, writeFile } from 'node:fs/promises';
 import { resolve, relative, isAbsolute, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { verifyRuntimeClosure } from './release-runtime.mjs';
 
 export const targets = {
   'aarch64-apple-darwin': { platform: 'darwin', arch: 'arm64', format: 'macho', cpu: 0x100000c },
   'x86_64-apple-darwin': { platform: 'darwin', arch: 'x64', format: 'macho', cpu: 0x1000007 },
   'x86_64-pc-windows-msvc': { platform: 'win32', arch: 'x64', format: 'pe', cpu: 0x8664 },
+  'x86_64-unknown-linux-gnu': { platform: 'linux', arch: 'x64', format: 'elf', cpu: 62 },
 };
 const sha = data => createHash('sha256').update(data).digest('hex');
 const fail = message => { throw new Error(message); };
 export function hostTarget() {
   return Object.keys(targets).find(t => targets[t].platform === process.platform && targets[t].arch === process.arch)
-    || fail('No release candidate target for this host. Linux qualification is blocked by SS-034.');
+    || fail('No release candidate target for this host architecture.');
 }
 export function binaryArchitecture(data, target) {
   const spec = targets[target] || fail('Unsupported candidate target');
   if (spec.format === 'macho') {
     if (data.length < 32 || data.readUInt32LE(0) !== 0xfeedfacf || data.readUInt32LE(4) !== spec.cpu || data.readUInt32LE(12) !== 2) fail('Expected a target-specific 64-bit Mach-O executable');
+  } else if (spec.format === 'elf') {
+    if (data.length < 64 || data.subarray(0, 4).toString('hex') !== '7f454c46' || data[4] !== 2 || data[5] !== 1 || data.readUInt16LE(18) !== spec.cpu || ![2, 3].includes(data.readUInt16LE(16))) fail('Expected target-specific 64-bit ELF executable');
   } else {
     if (data.length < 64 || data.toString('ascii', 0, 2) !== 'MZ') fail('Expected PE executable');
     const pe = data.readUInt32LE(60);
@@ -69,22 +73,27 @@ export function qualifyTools(media, target) {
   for (const name of ['ffmpeg', 'ffprobe']) {
     const output = run(media.files[name].path, ['-version']);
     if (!output.startsWith(`${name} version ${media.entry.version} `) || !output.includes(`configuration: ${media.entry.configuration}`) || /--enable-(gpl|nonfree|shared)\b/.test(output)) fail('Audited media version/configuration mismatch');
+    if (name === 'ffmpeg') {
+      const muxers = run(media.files[name].path, ['-hide_banner', '-muxers']);
+      for (const required of ['wav', 'flac', 'f32le']) if (!new RegExp(`^\\s*E\\s+${required}\\s`, 'm').test(muxers)) fail(`Required audio muxer missing: ${required}`);
+    }
     if (spec.platform === 'darwin') {
       const dependencies = run('/usr/bin/otool', ['-L', media.files[name].path]).split('\n').slice(1).map(s => s.trim()).filter(Boolean);
       if (dependencies.some(d => !d.startsWith('/usr/lib/') && !d.startsWith('/System/Library/'))) fail('Media tools depend on non-system libraries');
-    } else {
-      // A static configure flag alone cannot prove a Windows runtime closure.
-      fail('Windows static dependency/signature qualification is not yet available; candidate packaging is blocked.');
-    }
+    } else verifyRuntimeClosure(media.files[name].data, target);
   }
 }
-export async function inventory(root) {
+export async function inventory(root, allowInternalLinks = false) {
   const entries = [];
   async function walk(path) {
     for (const item of await readdir(path, { withFileTypes: true })) {
       const full = resolve(path, item.name), name = relative(root, full).split('\\').join('/');
-      if (item.isSymbolicLink()) fail(`Linked package member: ${name}`);
-      if (item.isDirectory()) await walk(full);
+      if (item.isSymbolicLink()) {
+        if (!allowInternalLinks) fail(`Linked package member: ${name}`);
+        const destination = await realpath(full); inside(await realpath(root), destination);
+        const target = relative(root, destination).split('\\').join('/');
+        entries.push({ path: name, bytes: 0, sha256: sha(Buffer.from(await readlink(full))), kind: 'symlink', target });
+      } else if (item.isDirectory()) await walk(full);
       else if (item.isFile()) {
         const data = await boundedFile(full, 512 * 1024 * 1024);
         if (/\.(wav|mp3|flac|ogg|m4a|aac|aiff?|wma|caf|sqlite(?:-wal|-shm)?|db)$/i.test(name) || /(^|\/)(catalog\.json|node_modules|\.devtools|\.git)(\/|$)/i.test(name) || data.subarray(0, 16).toString() === 'SQLite format 3\0' || data.subarray(0, 4).toString() === 'fLaC' || (data.subarray(0, 4).toString() === 'RIFF' && data.subarray(8, 12).toString() === 'WAVE')) fail(`Source media/development data in package: ${name}`);
@@ -113,14 +122,14 @@ export async function stageResources(media, bridge, target, stage) {
   return { resources, entries, bytes: entries.reduce((n, e) => n + e.bytes, 0) };
 }
 export async function inspectPackage(root, expectedResources, verifySignedBinary) {
-  const entries = await inventory(root);
+  const entries = await inventory(root, true);
   for (const expected of expectedResources) {
     const matches = entries.filter(e => e.path === expected.path || e.path.endsWith(`/${expected.path}`));
-    if (matches.length !== 1) fail(`Packaged resource missing or duplicated: ${expected.path}`);
+    if (matches.length !== 1 || matches[0].kind === 'symlink') fail(`Packaged resource missing, linked or duplicated: ${expected.path}`);
     if (matches[0].sha256 !== expected.sha256) {
       // Code signing changes executable bytes. Only an independently verified publisher
       // signature can authorize that difference; text/provenance must match exactly.
-      if (!/^(media\/(ffmpeg|ffprobe)|mcp\/soundshelf-mcp)$/.test(expected.path) || !verifySignedBinary) fail(`Packaged resource changed: ${expected.path}`);
+      if (!/^(media\/(ffmpeg|ffprobe)(\.exe)?|mcp\/soundshelf-mcp(\.exe)?)$/.test(expected.path) || !verifySignedBinary) fail(`Packaged resource changed: ${expected.path}`);
       await verifySignedBinary(resolve(root, matches[0].path));
       matches[0].preSigningSha256 = expected.sha256;
     }

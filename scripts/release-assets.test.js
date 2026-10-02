@@ -75,5 +75,5 @@ it('does not follow package symlinks or approve linked input files', async () =>
   await expect(inventory(root)).rejects.toThrow('Linked package member');
 });
 it('rejects foreign target even with otherwise approved bytes', async () => {
-  await expect(approvedMedia(await fixture(), 'x86_64-unknown-linux-gnu', root)).rejects.toThrow('Unsupported');
+  await expect(approvedMedia(await fixture(), 'aarch64-unknown-linux-gnu', root)).rejects.toThrow('Unsupported');
 });

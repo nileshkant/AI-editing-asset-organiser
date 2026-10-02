@@ -13,6 +13,7 @@ playwright-report/
 src-tauri/gen/
 src-tauri/binaries/
 src-tauri/release-assets/
+src-tauri/release-assets-local/
 src-tauri/tauri.staged.conf.json
 .release-input/
 release-reports/

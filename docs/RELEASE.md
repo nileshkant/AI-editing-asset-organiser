@@ -1,79 +1,96 @@
 # CreativeShelf release preparation
 
-There is **no qualified tester installer yet**. Automated CI compile/test platforms
-are not the supported release matrix. The candidate tooling currently supports
-native macOS arm64/x86_64 preflight; neither architecture is qualified. Windows
-packaging remains blocked until static dependency closure and certificate checks
-exist. Linux release qualification also depends on SS-034's GTK audit remediation.
+There is **no qualified tester installer yet**. The requested tester platforms are
+macOS, Windows and Linux. Native candidate tooling supports macOS arm64/x86_64,
+Windows x64 and Linux x64; each architecture needs its own signed artifact and
+installed qualification. Linux also depends on SS-034 GTK remediation. CI passing
+is implementation evidence, not clean-machine release qualification.
 
-`npm run desktop:binary` is a development/native compilation check. It does not
-produce a tester package. `npm run desktop:bundle` is the guarded candidate path.
-Release builds require bundled media and never discover tools through developer
-Homebrew locations or SOUNDSHELF environment overrides.
+## Verified minimal media
 
-## Media approval
+Run `npm ci` and `npm run media:build` in an isolated clean checkout. This verifies
+the pinned official FFmpeg 9.0.2 archive size, SHA-256 and detached signature
+against the published signing fingerprint before extracting or compiling it.
+The recipe enables audio container decoders, lossless encoders, required filters
+and file/pipe protocols. It disables network, shared libraries and external library
+autodetection; GPL/nonfree components are not enabled. OpenPGP is a build dependency
+and is not shipped in the native application.
 
-`release/media-lock.json` intentionally has no approved entries. A release owner
-must obtain/build target-specific static LGPL media tools, review their origin,
-configuration, redistribution license, source availability, and runtime dependencies,
-then commit a reviewed lock entry. Do not copy Homebrew/Chocolatey tools wholesale:
-these may depend on machine libraries or enable GPL/nonfree components.
+The generated ignored `.release-input/media-lock.json` records exact target binary
+hashes, configuration, source hash and the full LGPL notice. `release/media-lock.json`
+is the alternative third-party approval file and intentionally has no approvals.
+Review compiler/runtime provenance and the complete redistribution notice before
+release. Publish the exact corresponding source archive and build recipe alongside
+downloads; those do not belong inside the installed application. Do not substitute
+Homebrew/Chocolatey binaries, which can depend on developer libraries.
 
-Each target entry records `version`, exact `configuration`, `license` (currently
-LGPL-2.1-or-later), HTTPS `sourceUrl`, reproducible `buildInstructions`, and
-`ffmpeg`, `ffprobe`, `notices` entries containing relative `path`, `bytes`, and
-SHA-256 `sha256`. The notice must contain the actual license and source/build
-instructions needed for redistribution. A field alone is not legal/license evidence.
-Review the complete notice in SS-024 before approving a lock. Place approved files
-under ignored `.release-input/`. `npm run release:check` verifies bounded regular
-files, hashes, native architecture, exact version/configuration, and macOS system-only
-dynamic dependencies. It rejects GPL/nonfree/shared configurations. It neither
-fetches remote binaries nor executes build instructions from metadata.
+`npm run release:check` verifies bounded regular inputs, checksums, native
+architecture, version, configuration and required output muxers. macOS permits
+only system dynamic dependencies. Windows PE inspection rejects non-system DLL
+imports and delayed imports. Linux media executables must have neither an ELF
+interpreter nor shared-library dependencies. These media checks do not make the
+GUI static: Linux WebKitGTK/audio dependencies require clean offline qualification.
+The minimal-media CI workflow builds and exercises the exact tools on all three
+native hosts, preserving binaries, notices, locks and corresponding source.
 
-## Candidate steps
+## Signed candidates
 
-1. Use a clean checkout of the candidate commit with the checked-in dependency locks.
-   Provision audited `.release-input` and the Apple signing identity in a private
-   keychain. No signing certificate/password belongs in this repo or reports.
-2. Set private Apple signing/notarization environment settings (APPLE_SIGNING_IDENTITY,
-   APPLE_TEAM_ID, APPLE_ID, APPLE_PASSWORD), then run `npm run desktop:bundle`.
-   The target is the native host architecture. The compiled bridge is built with
-   `--locked --target`; five explicit resources are staged in a new directory:
-   two media executables, the MCP bridge, license notice and build provenance.
-   Executables are signed before Tauri signs/notarizes the app. A preexisting
-   `src-tauri/release-assets` stops the build; prepare a fresh isolated checkout.
-3. Inspect the extracted signed `.app` and its DMG:
-   `npm run release:inspect -- /absolute/CreativeShelf.app /absolute/CreativeShelf.dmg`.
-   APPLE_TEAM_ID must match the expected publisher. This verifies app/resource
-   signatures, Gatekeeper assessment, exact resource membership/checksums, and
-   rejects linked members, source recordings and SQLite/development data.
-   Code signing may alter executable hashes; a changed executable requires the
-   independently verified expected publisher signature. Notices cannot change.
-4. Preserve `release-reports/stage.json` and `package.json`. Reports identify
-   commit, lock hashes, installer SHA-256/compressed bytes, extracted inventory
-   and uncompressed bytes, media runtime overhead separately, and zero model packs.
-   Source originals stay in user folders; caches/exports are runtime user data.
-5. Complete SS-031 against this **exact signed artifact**, including offline clean
-   install, listening, MCP, recovery, upgrade and uninstall. No automatic publication
-   occurs. The manual candidate workflow stops on missing approval inputs.
+1. Use a clean checkout of the candidate commit with checked-in dependency locks.
+   Build and review media as above. Provision signing identities privately in the
+   native keychain/certificate store/GPG setup. Never commit keys or passwords.
+2. Configure signing settings and run `npm run desktop:bundle`. macOS requires
+   APPLE_SIGNING_IDENTITY, APPLE_TEAM_ID, APPLE_ID and APPLE_PASSWORD. Windows
+   requires WINDOWS_CERT_THUMBPRINT and HTTPS WINDOWS_TIMESTAMP_URL plus signtool.
+   Linux requires LINUX_SIGNING_FINGERPRINT and its privately provisioned key.
+   The manual candidate workflow fails closed if provisioning is absent; it does
+   not create or import signing identities automatically.
+3. The command builds the MCP bridge with `--locked --target`, stages exactly five
+   explicit resources (two media tools, bridge, license and provenance), and signs
+   resource executables on macOS/Windows before native packaging. A preexisting
+   staging directory stops the build: use a fresh isolated checkout. macOS creates
+   app/DMG, Windows NSIS/MSI with offline WebView2 and downgrades disabled, and
+   Linux AppImage/deb with detached GPG signatures. No automatic upload/publication.
+4. Extract the actual installer and run
+   `npm run release:inspect -- /absolute/extracted-app-directory /absolute/installer`.
+   Keep Linux's detached `.asc` beside its original artifact. Inspection verifies
+   expected publisher signatures (including Gatekeeper/stapling on macOS), exact
+   resource membership/checksums, architecture and absence of source recordings,
+   SQLite/development data. Internal links are recorded only when their canonical
+   targets stay inside the extracted tree; media/bridge resources must be regular.
+   Modified executable bytes require independent expected-publisher verification;
+   notices cannot change. Windows main executable is also verified.
+5. Preserve `release-reports/stage.json` and `package.json`: commit and dependency
+   lock hashes, exact installer hash/compressed size, extracted size, media/resource
+   overhead, zero model packs and signature results. Complete SS-031 against this
+   exact artifact before human release approval, including offline clean install,
+   physical listening, installed MCP, recovery, upgrade, uninstall and minimum OS.
 
-Tauri resource maps explicitly place resources at `media/` and `mcp/` independent
-of input directory names. Settings → Agent access → Show installed bridge returns
-its absolute installed path and the local discovery argument. It never searches
-PATH or relies on a workspace. Pair a client separately; keep its credential private.
-The bridge uses the stable compatibility name `soundshelf-mcp`.
+Release startup requires bundled media and does not use developer Homebrew tools
+or environment overrides. Settings → Agent access → Show installed bridge exposes
+its absolute installed path and discovery argument independently of PATH/workspace.
+Pair clients separately and keep credentials private. The stable compatibility
+executable name remains `soundshelf-mcp`.
+
+## Isolated local checks
+
+`npm run desktop:local` creates a macOS-only diagnostic bundle named CreativeShelf
+Local with the distinct identifier `app.creativeshelf.qualification.local`. Its
+catalog is separate from the existing installed application. This permits local
+workspace testing without signing credentials; it does **not** authorize distribution.
+Zip that local bundle, then use `npm run release:inspect-local -- /absolute/app /absolute/zip`.
+The report explicitly records an unsigned local purpose, signature=false and dirty
+workspace provenance where applicable. Signed and local inspection modes cannot
+be interchanged. Do not rebuild or replace a bundle during an active import.
 
 ## Updates and rollback
 
-Automatic updates are disabled for this first version: there is no update endpoint,
-updater plugin or signing key. Use a newly signed/notarized full installer, after
-backing up the catalog in Settings. Uninstall/reinstall must retain user library data
-and source files; verify that behavior on a clean test machine. Never replace an
-installed app from an unsigned download. Schema rollback uses the pre-migration
-backup with the matching app version; do not downgrade a live migrated database.
-The ticket's signed updater acceptance criterion remains deferred, rather than
-claiming a nonexistent update mechanism.
+Automatic updates are disabled: there is no update endpoint, updater plugin or
+update signing key. Use a newly signed full installer after backing up the catalog.
+Verify offline upgrade/uninstall retention of user data and originals on every
+qualified platform. Schema rollback uses a pre-migration backup with its matching
+application version; do not downgrade a migrated live database. The signed updater
+acceptance criterion remains deferred, not implemented by the full-installer policy.
 
-Resource mapping and platform signing follow [Tauri resource documentation](https://v2.tauri.app/develop/resources/),
+Packaging follows [Tauri resources](https://v2.tauri.app/develop/resources/),
 [macOS signing](https://v2.tauri.app/distribute/sign/macos/) and
 [Windows signing](https://v2.tauri.app/distribute/sign/windows/).
