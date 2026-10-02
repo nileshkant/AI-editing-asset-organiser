@@ -433,3 +433,8 @@
 .loading-wave span:nth-child(5) { animation-delay: 600ms; }
 @keyframes loading-wave { from { transform: scaleY(.3); opacity: .4; } to { transform: scaleY(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .loading-wave span { animation: none; } }
+.catalog-data { display: grid; gap: 16px; }
+.catalog-data p { line-height: 1.6; font-size: 12px; overflow-wrap: anywhere; }
+.catalog-data .header-actions { flex-wrap: wrap; justify-content: flex-start; }
+.catalog-preview { padding: 16px; border: 1px solid var(--border-default); border-radius: 8px; }
+.catalog-data article { padding: 12px; border-bottom: 1px solid var(--border-default); }

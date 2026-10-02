@@ -1,6 +1,7 @@
 import React, { memo, useState, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { call } from '../../api';
+import { CatalogData } from './CatalogData';
 import type { AppInfo, Source } from '../../types';
 
 interface SettingsViewProps {
@@ -90,6 +91,7 @@ export const SettingsView = memo(function SettingsView({
         <button disabled={busy} onClick={() => void act()}>Confirm</button>
         <button autoFocus disabled={busy} onClick={closeConfirmation}>Cancel</button>
       </section></div>}
+      <CatalogData onError={onError} />
       <h2>Intelligence</h2>
       <div className="setting-row">
         <span>AI features</span>

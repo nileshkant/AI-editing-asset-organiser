@@ -27,6 +27,8 @@ struct Work {
 
 pub struct AppState {
     pub data_directory: PathBuf,
+    pub catalog_imports: Arc<Mutex<std::collections::HashMap<String, (String, bool)>>>,
+    pub catalog_roots: Arc<Mutex<std::collections::HashMap<(String, String), String>>>,
     pub catalog: Arc<Mutex<Catalog>>,
     pub tools: Option<MediaTools>,
     pub player: Arc<Player>,
@@ -187,6 +189,8 @@ impl AppState {
         let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
         let state = Self {
             data_directory,
+            catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            catalog_roots: Arc::new(Mutex::new(std::collections::HashMap::new())),
             catalog,
             tools,
             player,

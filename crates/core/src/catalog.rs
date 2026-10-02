@@ -93,7 +93,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
@@ -103,8 +103,8 @@ impl Catalog {
         db.pragma_update(None, "journal_mode", "WAL")?;
         let version: u32 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
         if version > SCHEMA_VERSION { return Err(invalid("Database belongs to a newer SoundShelf version")); }
-        if version > 0 && version < 5 && path.is_file() {
-            let backup = path.with_file_name(format!("{}.pre-v5-{}.sqlite", path.file_name().unwrap_or_default().to_string_lossy(), Uuid::new_v4()));
+        if version > 0 && version < SCHEMA_VERSION && path.is_file() {
+            let backup = path.with_file_name(format!("{}.pre-v{}-{}.sqlite", path.file_name().unwrap_or_default().to_string_lossy(), if version < 5 { 5 } else { SCHEMA_VERSION }, Uuid::new_v4()));
             db.execute("VACUUM INTO ?1", [path_text(&backup)?])?;
         }
         if version == 0 {
@@ -182,6 +182,7 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
 CREATE TABLE source_files(source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE, relative_path TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(source_id,relative_path));
 ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             }
+            if version < 6 { tx.execute_batch(include_str!("legacy_schema.sql"))?; }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }
