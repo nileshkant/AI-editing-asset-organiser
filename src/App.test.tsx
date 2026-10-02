@@ -142,9 +142,9 @@ describe('App', () => {
     });
   });
 
-  it('renders the SoundShelf brand', async () => {
+  it('renders the CreativeShelf brand', async () => {
     render(<App />);
-    await waitFor(() => expect(screen.getByText('SoundShelf')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('CreativeShelf')).toBeInTheDocument());
   });
 
   // ─── Duration Formatting ───
@@ -217,7 +217,7 @@ describe('App', () => {
 
   it('toggles mute on "m" key press', async () => {
     render(<App />);
-    await waitFor(() => screen.getByText('SoundShelf'));
+    await waitFor(() => screen.getByText('CreativeShelf'));
     fireEvent.keyDown(window, { key: 'm' });
     await waitFor(() =>
       expect(mockInvoke).toHaveBeenCalledWith('playback_set_volume', expect.any(Object)),
@@ -392,7 +392,7 @@ describe('App', () => {
   // ─── Page Navigation ───
   it('navigates to imports page', async () => {
     render(<App />);
-    await waitFor(() => screen.getByText('SoundShelf'));
+    await waitFor(() => screen.getByText('CreativeShelf'));
     const importsBtn = screen.getByText('Imports');
     fireEvent.click(importsBtn);
     await waitFor(() =>
@@ -402,7 +402,7 @@ describe('App', () => {
 
   it('navigates to settings page', async () => {
     render(<App />);
-    await waitFor(() => screen.getByText('SoundShelf'));
+    await waitFor(() => screen.getByText('CreativeShelf'));
     const settingsBtn = screen.getByText('Settings');
     fireEvent.click(settingsBtn);
     await waitFor(() =>
