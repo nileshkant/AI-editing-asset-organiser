@@ -41,7 +41,7 @@ export const Sidebar = memo(function Sidebar({
     <aside className="sidebar">
       <div className="brand">
         <AudioLines size={25} aria-hidden="true" />
-        <strong>SoundShelf</strong>
+        <strong>CreativeShelf</strong>
       </div>
 
       <nav aria-label="Main navigation">

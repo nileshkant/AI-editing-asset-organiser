@@ -103,7 +103,7 @@ impl Catalog {
         db.pragma_update(None, "foreign_keys", true)?;
         db.pragma_update(None, "journal_mode", "WAL")?;
         let version: u32 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
-        if version > SCHEMA_VERSION { return Err(invalid("Database belongs to a newer SoundShelf version")); }
+        if version > SCHEMA_VERSION { return Err(invalid("Database belongs to a newer CreativeShelf version")); }
         if version > 0 && version < SCHEMA_VERSION && path.is_file() {
             let backup = path.with_file_name(format!("{}.pre-v{}-{}.sqlite", path.file_name().unwrap_or_default().to_string_lossy(), if version < 5 { 5 } else { SCHEMA_VERSION }, Uuid::new_v4()));
             db.execute("VACUUM INTO ?1", [path_text(&backup)?])?;

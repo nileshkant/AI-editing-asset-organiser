@@ -191,7 +191,7 @@ impl Agent {
         }
         let library = self.library.clone();
         let worker = std::thread::Builder::new()
-            .name("soundshelf-mcp".into())
+            .name("CreativeShelf".into())
             .spawn(move || {
                 runtime.block_on(async move {
                     let mut config = StreamableHttpServerConfig::default();

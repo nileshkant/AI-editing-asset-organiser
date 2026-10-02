@@ -69,7 +69,7 @@ export function ClipExport({ clip, onExported }: { clip: Clip; onExported?: () =
       <p className="path-text">{result.path}</p>
       {result.warning && <p role="alert">{result.warning}</p>}
       <button type="button" onClick={() => void copyPath()}>{copied ? 'Path copied' : 'Copy exported path'}</button>
-      <p className="muted">Import this audio file in your editor. The adjacent .soundshelf.json manifest records timing and provenance; both files work after SoundShelf closes.</p>
+      <p className="muted">Import this audio file in your editor. The adjacent .soundshelf.json manifest records timing and provenance; both files work after CreativeShelf closes.</p>
     </div>}
   </div>;
 }

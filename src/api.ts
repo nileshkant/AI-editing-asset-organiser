@@ -12,7 +12,7 @@ export * from './types';
  */
 export function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauri()) {
-    return Promise.reject(new Error('Open SoundShelf as a desktop application.'));
+    return Promise.reject(new Error('Open CreativeShelf as a desktop application.'));
   }
   return Promise.resolve(invoke<T>(command, args));
 }

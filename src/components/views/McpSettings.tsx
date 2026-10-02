@@ -29,7 +29,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
       else { setDestination(null); setPairing(null); setStatus(await call<Status>(command, args)); }
     } catch (e) { onError(String(e)); } finally { setBusy(false); }
   };
-  const configuration = pairing ? JSON.stringify({ mcpServers: { soundshelf: { url: status.endpoint, headers: { Authorization: `Bearer ${pairing.token}` } } } }, null, 2) : '';
+  const configuration = pairing ? JSON.stringify({ mcpServers: { creativeshelf: { url: status.endpoint, headers: { Authorization: `Bearer ${pairing.token}` } } } }, null, 2) : '';
   const copyConfiguration = async () => {
     try { if (!navigator.clipboard) throw new Error(); await navigator.clipboard.writeText(configuration); }
     catch { onError('Could not copy configuration. Select and copy the displayed text.'); }
@@ -37,7 +37,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
   const validPort = /^\d{1,5}$/.test(port) && Number(port) <= 65535;
   return <section aria-label="MCP access">
     <h2>Agent access · MCP</h2>
-    <p className="muted">Off by default. SoundShelf must stay open. Quitting stops access. Tray mode is unavailable. Give each client access to specific sources. Editing, exporting and machine paths require separate permission.</p>
+    <p className="muted">Off by default. CreativeShelf must stay open. Quitting stops access. Tray mode is unavailable. Give each client access to specific sources. Editing, exporting and machine paths require separate permission.</p>
     <div className="setting-row">
       <span role="status">{status.endpoint ? 'Running' : 'Stopped'}</span>
       {status.endpoint ? <><code>{status.endpoint}</code><button disabled={busy} onClick={() => void act('mcp_stop')}>Stop MCP</button></> : <>

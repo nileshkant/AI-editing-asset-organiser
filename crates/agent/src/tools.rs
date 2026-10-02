@@ -51,7 +51,7 @@ impl ServerHandler for StatusService {
             .enable_tools()
             .build();
         info.server_info =
-            rmcp::model::Implementation::new("SoundShelf", env!("CARGO_PKG_VERSION"));
+            rmcp::model::Implementation::new("CreativeShelf", env!("CARGO_PKG_VERSION"));
         info
     }
     async fn list_tools(

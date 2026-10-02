@@ -419,6 +419,6 @@ fn main() {
             rebind_clip,
             delete_clip
         ])
-        .build(tauri::generate_context!()).expect("SoundShelf could not start")
+        .build(tauri::generate_context!()).expect("CreativeShelf could not start")
         .run(|app,event|if matches!(event,tauri::RunEvent::Exit){app.state::<AppState>().shutdown();});
 }
