@@ -83,22 +83,6 @@ export function App() {
     [guard],
   );
 
-  const handlePause = useCallback(
-    () => {
-      void call('playback_pause');
-      setAnnouncement('Paused');
-    },
-    [],
-  );
-
-  const handleResume = useCallback(
-    () => {
-      void call('playback_resume');
-      setAnnouncement('Resumed');
-    },
-    [],
-  );
-
   // Keyboard shortcuts
   useKeyboardShortcuts({
     playback: playback.playback,
@@ -146,7 +130,14 @@ export function App() {
 
       <Sidebar
         page={page}
-        setPage={setPage}
+        setPage={(next) => {
+          if (next !== page) {
+            ++selectionId.current;
+            setSelected(null);
+            setFocusedIndex(-1);
+          }
+          setPage(next);
+        }}
         roots={search.roots}
         source={search.source}
         setSource={search.setSource}
@@ -273,8 +264,16 @@ export function App() {
                 className="sound-list"
                 role="listbox"
                 aria-label="Sounds"
+                aria-busy={search.busy}
               >
-                <SoundList
+                {search.busy ? (
+                  <div className="catalog-loading" role="status" aria-label="Loading sounds">
+                    <div className="loading-wave" aria-hidden="true">
+                      {Array.from({ length: 5 }, (_, i) => <span key={i} />)}
+                    </div>
+                    <span>Loading {page === 'favorites' ? 'favorites' : 'library'}…</span>
+                  </div>
+                ) : <SoundList
                   items={search.results.items}
                   playback={playback.playback}
                   selectedId={selected?.id || null}
@@ -282,14 +281,14 @@ export function App() {
                   isPlayPending={playback.isPlayPending}
                   onSelect={select}
                   onPlay={playback.playSound}
-                  onPause={handlePause}
-                  onResume={handleResume}
+                  onPause={playback.togglePlay}
+                  onResume={playback.togglePlay}
                   onFavorite={favorite}
                   onFocusIndex={setFocusedIndex}
                   onAddFolder={search.addFolder}
                   hasSearchOrFilter={!!(search.text || search.source)}
                   isFavoritesPage={page === 'favorites'}
-                />
+                />}
               </section>
 
               {selected && (
@@ -335,7 +334,7 @@ export function App() {
                 className="icon-button"
                 title="Previous page"
                 aria-label="Previous page"
-                disabled={search.offset === 0}
+                disabled={search.busy || search.offset === 0}
                 onClick={() =>
                   search.setOffset(Math.max(0, search.offset - 75))
                 }
@@ -346,7 +345,7 @@ export function App() {
                 className="icon-button"
                 title="Next page"
                 aria-label="Next page"
-                disabled={search.offset + 75 >= search.results.total}
+                disabled={search.busy || search.offset + 75 >= search.results.total}
                 onClick={() => search.setOffset(search.offset + 75)}
               >
                 <ChevronRight size={16} aria-hidden="true" />
