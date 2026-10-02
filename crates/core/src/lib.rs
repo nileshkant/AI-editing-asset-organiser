@@ -26,3 +26,5 @@ pub mod sources;
 pub mod portable;
 
 pub mod agent;
+
+pub mod source_catalog;

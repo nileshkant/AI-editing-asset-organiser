@@ -80,6 +80,7 @@ pub fn run_stream<T>(mut command: Command, cancel: Arc<AtomicBool>, timeout: Dur
 }
 
 pub fn analyze(tools:&MediaTools,path:&Path,cancel:Arc<AtomicBool>) -> Result<Profile> {
+    crate::source_catalog::count_decode();
     tools.validate()?;
     let mut probe=Command::new(&tools.ffprobe);
     probe.args(["-v","error","-select_streams","a:0","-show_entries","stream=sample_rate,channels,duration,channel_layout","-of","json"]).arg(path);

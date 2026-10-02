@@ -309,7 +309,7 @@ fn v5_upgrade_preserves_metadata_and_backup_failure_is_transactional() {
     let backup = fs::read_dir(root.path())
         .unwrap()
         .map(|e| e.unwrap().path())
-        .find(|p| p.to_string_lossy().contains("pre-v6"))
+        .find(|p| p.to_string_lossy().contains("pre-v7"))
         .unwrap();
     let db = rusqlite::Connection::open(backup).unwrap();
     assert_eq!(

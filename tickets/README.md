@@ -40,6 +40,11 @@ blocker and move to the next unblocked ticket without changing the queue.
 - [SS-027: macOS 26 native startup compatibility](SS-027.md) | complete
 - [SS-028: Windows application icon resource](SS-028.md) | complete
 
+- [SS-013: Clip export and handoff](SS-013.md) | complete
+- [SS-026: Individual-file import](SS-026.md) | complete
+- [SS-021: Portable catalog and migration](SS-021.md) | complete
+- [SS-018: MCP lifecycle authentication](SS-018.md) | complete
+
 ## Audio v1 execution queue
 
 This is the canonical implementation order. The 2026-10-02 scope review is in
@@ -47,7 +52,7 @@ This is the canonical implementation order. The 2026-10-02 scope review is in
 new source-catalog requirement before advancing to editor integrations.
 
 1. [SS-019: MCP catalog and clip tools](SS-019.md) | complete
-2. [SS-029: Source-folder metadata catalog](SS-029.md) | not-started
+2. [SS-029: Source-folder metadata catalog](SS-029.md) | in-review
 3. [SS-030: CreativeShelf branding and compatibility](SS-030.md) | not-started
 4. [SS-020: Editor integrations and agent skill](SS-020.md) | not-started
 5. [SS-022: Settings diagnostics and backup](SS-022.md) | not-started
@@ -81,11 +86,11 @@ SS-016/017 acceptance evidence becomes a release gate for that build.
 ## Progress snapshot
 
 - Complete: 19 of 33 tickets.
-- In review: 0 of 33 tickets.
+- In review: 1 of 33 tickets.
 - Partial: 0 of 33 tickets.
 - Not started: 13 of 33 tickets.
 - Current implementation: SS-029.
-- Next unstarted implementation: SS-029.
+- Next unstarted implementation: SS-030.
 - New tickets from this review: 5 (3 audio v1, 2 upcoming).
 
 ## Release definition

@@ -22,11 +22,36 @@ Descriptions are retained separately as `legacy_filename_inference`, not as user
 
 ## Database recovery
 
-Database schema v6 adds only `legacy_evidence`, with an indexed sound identity and foreign-key deletion cleanup. Upgrades run in a transaction and create a consistent `VACUUM INTO` pre-upgrade backup first. A v5 upgrade creates `*.pre-v6-<uuid>.sqlite`; older databases preserve the existing `pre-v5` naming convention. Before running an older binary, close CreativeShelf and restore the pre-upgrade backup to the data directory. Never downgrade by editing `user_version`. Schema initialization and failed upgrades are covered by disposable fixtures; tests never open the user's live database.
+Database schema v6 adds `legacy_evidence`, with an indexed sound identity and foreign-key deletion cleanup. Upgrades run in a transaction and create a consistent `VACUUM INTO` pre-upgrade backup first. A v5 upgrade creates `*.pre-v7-<uuid>.sqlite`; older databases preserve the existing `pre-v5` naming convention. Before running an older binary, close CreativeShelf and restore the pre-upgrade backup to the data directory. Never downgrade by editing `user_version`. Schema initialization and failed upgrades are covered by disposable fixtures; tests never open the user's live database.
 
-## Planned source-folder catalogs
+## Source-folder catalogs (SS-029)
 
-SS-029 is a separate automatic `.creativeshelf/catalog.json` fast path. This
-manual portable import/export implementation does not yet create that file,
-check it on folder import, prune confirmed missing members or resolve reimport
-collisions. See SS-029 for the versioned membership/freshness/atomic-write contract.
+Folder import now checks `.creativeshelf/catalog.json` first. A compatible
+metadata catalog supplies paths, measured profiles, user annotations and clip
+revision history. Unchanged listed files use only existence/stat checks: no
+directory traversal, content hashing or decoding. Rescan discovers unlisted
+files and hashes content; ordinary reimport checks listed members only.
+
+A size/timestamp change analyzes only affected members. A same-size/same-timestamp
+replacement requires explicit Rescan; cheap stat checks do not prove byte equality.
+The waveform profile is portable; detailed waveform tiles remain an app cache
+and rebuild on demand when needed for audition. Original audio is never copied.
+
+Confirmed missing members are pruned from the snapshot, while database identity,
+annotations and stale recipes remain for recovery. Offline drives, access errors,
+partial scans and failed/cancelled work preserve the prior snapshot.
+
+Existing library annotations/recipes win on explicit reimport. Concurrent
+snapshots use an OS file lock and revision comparison. Failed writes preserve the
+previous JSON and persist a retry warning. Settings > Folder metadata catalogs
+can save again or explicitly rebuild; rebuild keeps the previous catalog as a
+backup before scanning again. Recover a folder catalog handles a malformed
+sidecar before the folder has been imported. Read-only sources remain usable;
+their metadata-save warning is visible and they cannot carry an updated snapshot.
+
+Schema v7 adds persistent snapshot revision/dirty/error state and mutation
+triggers. A pre-v7 SQLite backup is made before migration. Sidecars include one
+folder only and omit credentials, absolute roots, jobs and global saved searches.
+Changed local annotations/recipes save in the background when no incomplete or
+failed source jobs remain; failures stay visible until retried. AI event labels
+will require a future versioned extension under SS-016/017.

@@ -2,7 +2,7 @@ use soundshelf_core::{
     catalog::{Catalog, Source},
     export::ExportService,
     jobs::{now_secs, Job},
-    library::{scan_paths, Progress},
+    library::{import_scan, scan_paths, Progress},
     media::MediaTools,
     playback::Player,
     waveform::WaveformService,
@@ -86,13 +86,26 @@ impl AppState {
         let worker_owner = owner.clone();
         let scheduled = Arc::new(Mutex::new(HashSet::new()));
         let scheduled_worker = scheduled.clone();
-        let worker = thread::spawn(move || loop {
+        let worker = thread::spawn(move || { let mut last_snapshot=std::time::Instant::now(); loop {
             if quit.load(Ordering::Relaxed) {
                 break;
             }
             let work = match rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(s) => s,
-                Err(RecvTimeoutError::Timeout) => continue,
+                Err(RecvTimeoutError::Timeout) => {
+                    if last_snapshot.elapsed()>Duration::from_secs(5) {
+                        last_snapshot=std::time::Instant::now();
+                        let sources=db.lock().ok().and_then(|c|{
+                            let states=c.snapshot_states().ok()?;
+                            Some(states.into_iter().filter(|s|s.dirty).filter_map(|s|{
+                                let blocked:i64=c.db_connection().query_row("SELECT COUNT(*) FROM jobs WHERE source_id=?1 AND (state!='complete' OR failed>0)",[&s.source_id],|r|r.get(0)).ok()?;
+                                if blocked==0 {c.source(&s.source_id).ok().filter(|s|s.available&&s.scope=="folder")}else{None}
+                            }).collect::<Vec<_>>())
+                        }).unwrap_or_default();
+                        for source in sources {if let Err(e)=soundshelf_core::source_catalog::save(&db,&source){if let Ok(c)=db.lock(){let _=c.snapshot_error(&source.id,&e.to_string());}}}
+                    }
+                    continue
+                },
                 Err(_) => break,
             };
             let id = work.source_id.clone();
@@ -120,10 +133,15 @@ impl AppState {
                 Some(s) => s,
                 None => continue,
             };
-            if let Some(tools) = &media {
+            {
+                let unavailable=MediaTools{ffmpeg:PathBuf::new(),ffprobe:PathBuf::new()};
+                let tools=media.as_ref().unwrap_or(&unavailable);
                 let persist = db.clone();
                 let persist_owner = worker_owner.clone();
-                let result = scan_paths(
+                let result = if job.kind=="import" { import_scan(db.clone(),source.clone(),tools,flag.clone(),job_id.clone(),|p| {
+                        if let Ok(c)=persist.lock(){let _=c.persist_progress(&persist_owner,&p);}
+                        if let Ok(mut list)=updates.lock(){if let Some(old)=list.iter_mut().find(|s|s.job_id==p.job_id){*old=p;}else{list.push(p);}}
+                    }) } else { scan_paths(
                     db.clone(),
                     source,
                     tools,
@@ -142,7 +160,7 @@ impl AppState {
                             }
                         }
                     },
-                );
+                ) };
                 match result {
                     Ok(p) => {
                         if let Ok(catalog) = db.lock() {
@@ -186,7 +204,7 @@ impl AppState {
                     }
                 }
             }
-        });
+        }});
         let player = Arc::new(Player::new(tools.clone()));
         let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
         let agent_library=Arc::new(soundshelf_core::agent::AgentLibrary::new(catalog.clone(),exports.clone(),tools.clone()));
@@ -245,6 +263,10 @@ impl AppState {
             }
         }
         Ok(())
+    }
+    pub fn enqueue_import(&self,source:Source)->Result<(),String> {
+        let job=self.catalog.lock().map_err(|e|e.to_string())?.enqueue_import(&source.id).map_err(|e|e.to_string())?;
+        self.remember(&job)?;if job.state!="running" {self.schedule(source,&job)?;}Ok(())
     }
     pub fn enqueue(&self, source: Source) -> Result<(), String> {
         self.enqueue_paths(source, None)

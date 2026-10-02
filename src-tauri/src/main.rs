@@ -58,20 +58,20 @@ fn cancel_export(state: tauri::State<AppState>, destination_id: String) -> Resul
 #[tauri::command]
 async fn sources(state:tauri::State<'_,AppState>)->Result<Vec<Source>,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.sources().map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
-async fn import_root(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{let c=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||{let path=PathBuf::from(path);if !path.is_dir(){return Err("Choose an existing folder.".to_string());}c.lock().map_err(|e|e.to_string())?.add_source(&path).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())??;state.enqueue(source.clone())?;Ok(source)}
+async fn import_root(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{let c=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||{let path=PathBuf::from(path);if !path.is_dir(){return Err("Choose an existing folder.".to_string());}soundshelf_core::source_catalog::import_folder(&c,&path).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())??;state.enqueue_import(source.clone())?;Ok(source)}
 #[tauri::command]
 async fn import_path(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{
     if path.len()>32768 {return Err("Path is too long".into());}
     let c=state.catalog.clone();
     let (source,paths)=tauri::async_runtime::spawn_blocking(move||{
         let path=PathBuf::from(path);
-        let catalog=c.lock().map_err(|e|e.to_string())?;
-        if path.is_dir(){catalog.add_source(&path).map(|s|(s,None)).map_err(|e|e.to_string())}
+        if path.is_dir(){soundshelf_core::source_catalog::import_folder(&c,&path).map(|s|(s,None)).map_err(|e|e.to_string())}
         else {
+            let catalog=c.lock().map_err(|e|e.to_string())?;
             catalog.select_file(&path).map(|(s,p)|(s,Some(vec![p]))).map_err(|e|e.to_string())
         }
     }).await.map_err(|e|e.to_string())??;
-    state.enqueue_paths(source.clone(),paths)?;Ok(source)
+    if paths.is_none(){state.enqueue_import(source.clone())?;}else{state.enqueue_paths(source.clone(),paths)?;}Ok(source)
 }
 #[tauri::command]
 fn convert_source(state:tauri::State<AppState>,id:String,confirmed:bool)->Result<Source,String>{
@@ -91,6 +91,17 @@ async fn relink_file(state:tauri::State<'_,AppState>,id:String,path:String)->Res
         c.lock().map_err(|e|e.to_string())?.commit_file_relink(verified).map_err(|e|e.to_string())
     }).await.map_err(|e|e.to_string())?
 }
+#[tauri::command]
+async fn rebuild_import_folder(state:tauri::State<'_,AppState>,path:String,confirmed:bool)->Result<(),String>{
+ if !confirmed{return Err("Confirm rebuilding folder metadata".into())}
+ let db=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||{let source=db.lock().map_err(|e|e.to_string())?.add_source(&PathBuf::from(path)).map_err(|e|e.to_string())?;soundshelf_core::source_catalog::rebuild(&db,&source).map_err(|e|e.to_string())?;Ok::<_,String>(source)}).await.map_err(|e|e.to_string())??;state.enqueue(source)
+}
+#[tauri::command]
+async fn folder_catalog_states(state:tauri::State<'_,AppState>)->Result<Vec<soundshelf_core::source_catalog::SnapshotState>,String>{state.catalog.lock().map_err(|e|e.to_string())?.snapshot_states().map_err(|e|e.to_string())}
+#[tauri::command]
+async fn retry_folder_catalog(state:tauri::State<'_,AppState>,id:String)->Result<(),String>{let db=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||{let source=db.lock().map_err(|e|e.to_string())?.source(&id).map_err(|e|e.to_string())?;soundshelf_core::source_catalog::save(&db,&source).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())?}
+#[tauri::command]
+async fn rebuild_folder_catalog(state:tauri::State<'_,AppState>,id:String,confirmed:bool)->Result<(),String>{if !confirmed{return Err("Confirm rebuilding folder metadata".into())}let db=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||{let source=db.lock().map_err(|e|e.to_string())?.source(&id).map_err(|e|e.to_string())?;soundshelf_core::source_catalog::rebuild(&db,&source).map_err(|e|e.to_string())?;Ok::<_,String>(source)}).await.map_err(|e|e.to_string())??;state.enqueue(source)}
 #[tauri::command]
 fn scan_source(state:tauri::State<AppState>,id:String)->Result<(),String>{let source=state.catalog.lock().map_err(|e|e.to_string())?.source(&id).map_err(|e|e.to_string())?;state.enqueue(source)}
 #[tauri::command]
@@ -382,7 +393,7 @@ fn main() {
             cancel_export,
             sources,
             import_root,
-            scan_source,
+            scan_source,rebuild_import_folder,folder_catalog_states,retry_folder_catalog,rebuild_folder_catalog,
             relink_source,
             search_sounds,
             save_search,

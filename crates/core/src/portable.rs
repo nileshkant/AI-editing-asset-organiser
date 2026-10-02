@@ -252,6 +252,9 @@ impl Catalog {
         roots: &BTreeMap<String, String>,
         offline_base: &Path,
     ) -> Result<ImportReport> {
+        self.import_source_portable(data,roots,offline_base,&[])
+    }
+    pub(crate) fn import_source_portable(&mut self,data:&PortableCatalog,roots:&BTreeMap<String,String>,offline_base:&Path,history:&[crate::source_catalog::ClipRevision])->Result<ImportReport> {
         data.validate()?;
         if roots
             .keys()
@@ -338,6 +341,10 @@ impl Catalog {
             let r = &c.recipe;
             tx.execute("INSERT INTO clips(id,sound_id,name,asset_version_id,source_sample_rate_hz,start_frame,end_frame,channel_policy,gain_db,fade_in_ms,fade_out_ms,revision,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",params![c.id,c.sound_id,c.name,r.asset_version_id,r.source_sample_rate_hz,r.start_frame,r.end_frame,r.channel_policy,r.gain_db,r.fade_in_ms,r.fade_out_ms,c.revision,c.created_at,c.updated_at])?;
             tx.execute("INSERT INTO clip_revisions(id,clip_id,revision,asset_version_id,source_sample_rate_hz,start_frame,end_frame,channel_policy,gain_db,fade_in_ms,fade_out_ms,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",params![Uuid::new_v4().to_string(),c.id,c.revision,r.asset_version_id,r.source_sample_rate_hz,r.start_frame,r.end_frame,r.channel_policy,r.gain_db,r.fade_in_ms,r.fade_out_ms,c.updated_at])?;
+        }
+        for h in history {
+            let r=&h.recipe;
+            tx.execute("INSERT INTO clip_revisions(id,clip_id,revision,asset_version_id,source_sample_rate_hz,start_frame,end_frame,channel_policy,gain_db,fade_in_ms,fade_out_ms,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12) ON CONFLICT(clip_id,revision) DO NOTHING",params![Uuid::new_v4().to_string(),h.clip_id,h.revision,r.asset_version_id,r.source_sample_rate_hz,r.start_frame,r.end_frame,r.channel_policy,r.gain_db,r.fade_in_ms,r.fade_out_ms,h.created_at])?;
         }
         for s in &data.saved_searches {
             tx.execute(
