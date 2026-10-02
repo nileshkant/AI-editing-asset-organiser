@@ -1,6 +1,6 @@
-# SoundShelf
+# CreativeShelf
 
-A local-first desktop audio library. Tauri 2 hosts a React interface and a Rust service layer. User recordings are never part of this repository.
+A local-first creative asset library. Version 1 supports audio; image assets and Remotion presets are future work. Tauri 2 hosts a React interface and a Rust service layer. User recordings are never part of this repository.
 
 ## Delivery status
 
@@ -12,7 +12,7 @@ Under active development. No production release has been qualified yet. See `tic
 - Local indexing, typo-tolerant search, playback, tags, comments and clipping need no AI key.
 - Optional AI is disabled initially. Provider credentials and model capabilities are checked separately.
 - Sound IDs and analysis are independent of a folder's current root path.
-- Original files remain untouched. Deleted media is hidden; offline sources retain their metadata.
+- Original audio bytes remain untouched. Source-folder metadata catalogs are planned in SS-029. Deleted media is hidden; offline sources retain their metadata.
 - UI and MCP use the same services and validation.
 
 ## Contribution workflow
