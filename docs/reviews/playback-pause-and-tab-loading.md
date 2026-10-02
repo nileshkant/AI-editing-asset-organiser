@@ -7,9 +7,11 @@ The transport read state via a React state updater and immediately branched on a
 Search results are bound to the query/page that produced them. A changed query immediately hides the previous list, including during the 180ms debounce, and displays a custom waveform animation with an accessible loading label and reduced-motion support. Returning to a tab issues a fresh query; late responses cannot overwrite it. Navigation clears selection/focus; pagination is disabled during loading. Search failure ends loading with an error and empty results.
 
 Validation:
-- npm test: 113 passed, including four added regression cases (transport pause/resume preserving position, row pause/resume, immediate loader during a deferred favorites request, and rejecting a late tab response).
+- npm test: 117 passed, including eight added regression cases (transport pause/resume preserving position, row pause/resume, immediate loader during a deferred favorites request, rejecting a late tab response, preventing stale inspector reopening, and command serialization/status reconciliation/failure recovery).
 - npm run build: passed.
-- node scripts/cargo.mjs test --workspace --locked: passed; media-tool fixtures remain ignored under this command.
+- SOUNDSHELF_FFMPEG=/opt/homebrew/bin/ffmpeg SOUNDSHELF_FFPROBE=/opt/homebrew/bin/ffprobe node scripts/cargo.mjs test --workspace --locked -- --include-ignored: passed, including real FFmpeg fixtures and two new stereo-frame alignment unit tests.
 - git diff --check: passed.
 
-Review found that clearing shared search error on every refresh erased selected-file import failures; removed that reset and verified the import regression suite. Actual audible device behavior and installed Windows/Linux UI were not exercised by these mocked UI checks. No native playback/media changes.
+Review found that clearing shared search error on every refresh erased selected-file import failures; removed that reset and verified the import regression suite. Actual audible device behavior and installed Windows/Linux UI were not exercised by these mocked UI checks. Native audio callbacks now defer consuming an incomplete stereo frame until all channel samples are available. This preserves channel alignment and exact frame counts across underruns. Deterministic callback/loopback tests reproduce the partial-frame condition; real-media end detection also passes.
+
+CI follow-up: the first PR revision exposed stale passive-effect refs in keyboard playback and a row test whose mock kept reporting playing after pause. Refs now update with the render and the mock follows actual pause/resume state. Full-media qualification also exposed a race where callbacks consumed half a frame while the decoder published channels individually; the added alignment tests cover that fix. Search selection lookups now cancel on navigation, preventing stale details reopening. CI is rechecked after this revision is pushed.

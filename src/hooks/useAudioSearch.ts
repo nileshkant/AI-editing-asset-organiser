@@ -161,11 +161,13 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
   // Previously this fired on results changes (every 1.5s poll), causing two IPC calls to
   // race and momentarily highlight two sounds at once.
   useEffect(() => {
+    let active = true;
     if (selectedId && isTauri()) {
       call<Sound>("get_sound", { id: selectedId })
-        .then((s) => setSelected(s))
-        .catch(() => setSelected(null));
+        .then((s) => { if (active) setSelected(s); })
+        .catch(() => { if (active) setSelected(null); });
     }
+    return () => { active = false; };
   }, [selectedId, setSelected]);
 
   return {

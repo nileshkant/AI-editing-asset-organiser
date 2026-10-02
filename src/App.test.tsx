@@ -503,9 +503,13 @@ describe('Playback and tab regression tests', () => {
 
   it('uses the same pause/resume behavior from a sound row', async () => {
     const base = mockInvoke.getMockImplementation()!;
-    mockInvoke.mockImplementation((cmd: string, args?: unknown) => cmd === 'playback_status'
-      ? Promise.resolve({ ...STOPPED_PLAYBACK, sound_id: SOUND_A.id, state: 'playing', position_seconds: 0.6 })
-      : base(cmd, args));
+    let state = 'playing';
+    mockInvoke.mockImplementation((cmd: string, args?: unknown) => {
+      if (cmd === 'playback_status') return Promise.resolve({ ...STOPPED_PLAYBACK, sound_id: SOUND_A.id, state, position_seconds: 0.6 });
+      if (cmd === 'playback_pause') { state = 'paused'; return Promise.resolve(); }
+      if (cmd === 'playback_resume') { state = 'playing'; return Promise.resolve(); }
+      return base(cmd, args);
+    });
     render(<App />);
     const pause = await screen.findByLabelText(`Pause ${SOUND_A.title}`);
     fireEvent.click(pause);
@@ -549,4 +553,18 @@ describe('Playback and tab regression tests', () => {
     await act(async () => resolveFavorites({ ...MOCK_RESULTS, items: [], total: 0 }));
     expect(screen.getByText(SOUND_A.title)).toBeInTheDocument();
   });
+});
+
+it('does not reopen the previous inspector when selection fetch finishes after navigation', async () => {
+  const base = mockInvoke.getMockImplementation()!;
+  let finish!: (s: Sound) => void;
+  const pending = new Promise<Sound>(resolve => { finish = resolve; });
+  mockInvoke.mockImplementation((cmd: string, args?: unknown) => cmd === 'get_sound' ? pending : base(cmd, args));
+  render(<App />);
+  await screen.findByText(SOUND_A.title);
+  fireEvent.click(screen.getByLabelText(/Cinematic Whoosh Stereo, duration/));
+  expect(screen.getByText('DETAILS')).toBeInTheDocument();
+  fireEvent.click(screen.getByText('Favorites'));
+  await act(async () => finish(SOUND_A));
+  expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
 });

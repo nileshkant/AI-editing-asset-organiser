@@ -17,9 +17,7 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
   const pendingRef = useRef(false);
   const commandRevision = useRef(0);
   const stateRef = useRef({ playingSound, selected, resultsItems });
-  useEffect(() => {
-    stateRef.current = { playingSound, selected, resultsItems };
-  }, [playingSound, selected, resultsItems]);
+  stateRef.current = { playingSound, selected, resultsItems };
 
   // Tracks the active play request token to guard against re-entry.
   const playToken = useRef(0);

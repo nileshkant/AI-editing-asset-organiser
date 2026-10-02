@@ -28,9 +28,7 @@ export interface KeyboardShortcutsConfig {
 export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
   const stateRef = useRef(config);
   
-  useEffect(() => {
-    stateRef.current = config;
-  });
+  stateRef.current = config;
   
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {

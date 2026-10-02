@@ -91,6 +91,13 @@ impl LoopbackSink {
 
         if let Ok(mut cons) = self.consumer.lock() {
             for _ in 0..frames {
+                // The producer publishes one sample at a time. Preserve channel alignment
+                // if a callback runs between samples of the same frame.
+                if is_playing && cons.slots() < channels {
+                    out.extend(std::iter::repeat_n(0.0, channels));
+                    self.shared.underrun_count.fetch_add(1, Ordering::Relaxed);
+                    continue;
+                }
                 let mut underrun = false;
                 for _ in 0..channels {
                     if is_playing {
@@ -590,6 +597,13 @@ fn render_audio(
     if is_playing {
         let mut idx = 0;
         while idx < data.len() {
+            if data.len() - idx < channels || consumer.slots() < channels {
+                let end = (idx + channels).min(data.len());
+                data[idx..end].fill(0.0);
+                shared.underrun_count.fetch_add(1, Ordering::Relaxed);
+                idx = end;
+                continue;
+            }
             let mut underrun = false;
             for ch in 0..channels {
                 if idx + ch < data.len() {
@@ -773,4 +787,38 @@ fn spawn_decoder(
             shared.decoder_eof.store(true, Ordering::Relaxed);
         }
     })
+}
+
+#[cfg(test)]
+mod frame_alignment_tests {
+    use super::*;
+    #[test]
+    fn callbacks_preserve_partial_stereo_frames_and_exact_consumed_count() {
+        let (mut producer, mut consumer) = rtrb::RingBuffer::new(8);
+        let shared = SharedAudioState::new(48000, 2, 1.0);
+        shared.is_playing.store(true, Ordering::Relaxed);
+        producer.push(0.25).unwrap();
+        let mut data = [9.0; 2];
+        render_audio(&mut data, &mut consumer, &shared);
+        assert_eq!(data, [0.0, 0.0]);
+        assert_eq!(consumer.slots(), 1);
+        assert_eq!(shared.played_frames.load(Ordering::Relaxed), 0);
+        producer.push(-0.25).unwrap();
+        render_audio(&mut data, &mut consumer, &shared);
+        assert_eq!(data, [0.25, -0.25]);
+        assert_eq!(shared.played_frames.load(Ordering::Relaxed), 1);
+    }
+    #[test]
+    fn loopback_preserves_partial_stereo_frames() {
+        let (mut producer, consumer) = rtrb::RingBuffer::new(8);
+        let shared = Arc::new(SharedAudioState::new(48000, 2, 1.0));
+        shared.is_playing.store(true, Ordering::Relaxed);
+        let sink = LoopbackSink { shared: shared.clone(), consumer: Mutex::new(consumer), captured: Mutex::new(vec![]) };
+        producer.push(0.25).unwrap();
+        assert_eq!(sink.step(1), vec![0.0, 0.0]);
+        assert_eq!(sink.available_samples(), 1);
+        producer.push(-0.25).unwrap();
+        assert_eq!(sink.step(1), vec![0.25, -0.25]);
+        assert_eq!(shared.played_frames.load(Ordering::Relaxed), 1);
+    }
 }
