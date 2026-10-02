@@ -35,7 +35,7 @@ export function windowsImports(data) {
 }
 export function verifyRuntimeClosure(data, target) {
   if (target.endsWith('windows-msvc')) {
-    const allowed = new Set(['kernel32.dll', 'advapi32.dll', 'user32.dll', 'ws2_32.dll', 'ole32.dll', 'shell32.dll', 'bcrypt.dll', 'secur32.dll', 'crypt32.dll', 'ntdll.dll', 'gdi32.dll', 'winmm.dll', 'msvcrt.dll', 'ucrtbase.dll', 'oleaut32.dll', 'comdlg32.dll']);
+    const allowed = new Set(['kernel32.dll', 'advapi32.dll', 'user32.dll', 'ws2_32.dll', 'ole32.dll', 'shell32.dll', 'bcrypt.dll', 'secur32.dll', 'crypt32.dll', 'ntdll.dll', 'gdi32.dll', 'winmm.dll', 'msvcrt.dll', 'ucrtbase.dll', 'oleaut32.dll', 'comdlg32.dll', 'psapi.dll']);
     for (const dll of windowsImports(data)) demand(allowed.has(dll) || /^api-ms-win-(core|crt|security)-[a-z0-9-]+\.dll$/.test(dll), `Non-system Windows runtime dependency: ${dll}`);
   } else if (target.endsWith('linux-gnu')) {
     demand(data.length >= 64 && data.subarray(0, 4).toString('hex') === '7f454c46' && data[4] === 2 && data[5] === 1, 'Invalid ELF input');
