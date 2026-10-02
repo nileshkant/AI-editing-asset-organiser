@@ -7,6 +7,8 @@ export type Source = {
   root: string;
   generation: number;
   available: boolean;
+  scope?: 'folder' | 'files';
+  files?: { relative_path: string; sound_id: string | null; status: string }[];
 };
 
 /**

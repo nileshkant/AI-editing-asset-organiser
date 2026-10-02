@@ -584,20 +584,8 @@ impl Catalog {
         profile: &Profile,
     ) -> Result<String> {
         let path = path.canonicalize()?;
-        let source = self
-            .sources()?
-            .into_iter()
-            .find(|s| path.starts_with(&s.root));
-        let source = match source {
-            Some(s) => s,
-            None => self.add_source(path.parent().unwrap())?,
-        };
-        let relative = path_text(
-            path.strip_prefix(&source.root)
-                .map_err(|_| invalid("Export outside destination"))?,
-        )?
-        .replace('\\', "/");
         crate::catalog::validate_profile(profile)?;
+        let (source, relative) = self.select_file(&path)?;
         let id = Uuid::new_v4().to_string();
         let tx = self.db.transaction()?;
         tx.execute("INSERT INTO analyses(content_hash,analyzer,profile) VALUES(?1,?2,?3) ON CONFLICT(content_hash,analyzer) DO NOTHING",

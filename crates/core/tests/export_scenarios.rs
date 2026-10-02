@@ -713,3 +713,41 @@ fn interrupted_export_keeps_journal_until_destination_returns() {
     assert!(!stage.exists());
     assert_eq!(fs::read_dir(journal).unwrap().count(), 0);
 }
+
+#[test]
+#[ignore = "requires explicit FFmpeg fixture tools"]
+fn export_enrolls_only_generated_file_and_preserves_selected_source_scope() {
+    let f = fixture(48000);
+    let output = f.root.join("exports");
+    fs::create_dir(&output).unwrap();
+    fs::copy(&f.source, output.join("unselected.wav")).unwrap();
+    let path = output.join("variant.wav");
+    let (manifest, profile) = render(
+        &f.tools,
+        &f.source,
+        &f.clip,
+        &f.profile,
+        &path,
+        ExportOptions::default(),
+        flag(),
+        &f.root.join("journal"),
+    )
+    .unwrap();
+    let mut c = f.catalog.lock().unwrap();
+    let id = c.index_export(&path, &manifest, &profile).unwrap();
+    let sound = c.sound(&id).unwrap();
+    let scope = c.source(&sound.source_id).unwrap();
+    assert_eq!(scope.scope, "files");
+    assert_eq!(scope.files.len(), 1);
+    assert_eq!(scope.files[0].relative_path, "variant.wav");
+    assert!(c.resolve(&id).is_ok());
+    assert!(c.register(&scope, "unselected.wav", "hash").is_err());
+    let second = output.join("second.wav");
+    fs::copy(&path, &second).unwrap();
+    let second_id = c.index_export(&second, &manifest, &profile).unwrap();
+    assert_ne!(second_id, id);
+    let scope = c.source(&scope.id).unwrap();
+    assert_eq!(scope.scope, "files");
+    assert_eq!(scope.files.len(), 2);
+    assert!(c.resolve(&second_id).is_ok());
+}

@@ -301,49 +301,16 @@ fn saved_searches_lifecycle_and_migration() {
     let v2_db_path = dir.path().join("v2.db");
     {
         let conn = rusqlite::Connection::open(&v2_db_path).unwrap();
-        conn.execute_batch(
-            r#"
-            PRAGMA user_version = 2;
-            CREATE TABLE sources (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                root TEXT NOT NULL UNIQUE,
-                generation INTEGER NOT NULL,
-                available INTEGER NOT NULL DEFAULT 1
-            );
-            CREATE TABLE sounds (
-                id TEXT PRIMARY KEY,
-                source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
-                relative_path TEXT NOT NULL,
-                title TEXT NOT NULL,
-                content_hash TEXT NOT NULL,
-                status TEXT NOT NULL,
-                favorite INTEGER NOT NULL DEFAULT 0,
-                comment TEXT NOT NULL DEFAULT '',
-                tags TEXT NOT NULL DEFAULT '[]',
-                UNIQUE(source_id, relative_path)
-            );
-            CREATE TABLE profiles (
-                sound_id TEXT PRIMARY KEY REFERENCES sounds(id) ON DELETE CASCADE,
-                content_hash TEXT NOT NULL,
-                duration REAL NOT NULL,
-                sample_rate INTEGER NOT NULL,
-                channels INTEGER NOT NULL,
-                frames INTEGER NOT NULL,
-                peak REAL NOT NULL,
-                rms REAL NOT NULL,
-                channel_peaks TEXT NOT NULL DEFAULT '[]',
-                channel_rms TEXT NOT NULL DEFAULT '[]',
-                channel_layout TEXT NOT NULL DEFAULT '',
-                description TEXT NOT NULL,
-                tags TEXT NOT NULL,
-                waveform BLOB NOT NULL
-            );
-            "#
-        ).unwrap();
+        // Version 2 includes the durable jobs table and content-addressed analyses.
+        let v2=include_str!("../src/schema.sql")
+            .split("CREATE TABLE saved_searches").next().unwrap()
+            .replace(",\n scope TEXT NOT NULL DEFAULT 'folder' CHECK(scope IN('folder','files'))", "")
+            .replace(" paths TEXT,\n", "");
+        conn.execute_batch(&v2).unwrap();
+        conn.pragma_update(None,"user_version",2).unwrap();
     }
 
-    // Now open with Catalog::open, which should detect v2, migrate to v3, and create saved_searches
+    // Now open with Catalog::open, which should detect v2, migrate to the current schema, and create saved_searches
     let migrated_catalog = Catalog::open(&v2_db_path).unwrap();
     let saved = migrated_catalog.save_search("Migrated Query", &SearchQuery { text: "impact".into(), ..Default::default() }).unwrap();
     assert_eq!(saved.name, "Migrated Query");

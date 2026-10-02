@@ -90,14 +90,14 @@ CREATE TABLE saved_searches (
         tx.commit().unwrap();
     }
 
-    // Open with Catalog — should migrate to v4
+    // Open with Catalog — should migrate to the current schema
     let catalog = Catalog::open(&db_path).unwrap();
     let version: u32 = catalog
         .db_connection()
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
     assert_eq!(version, SCHEMA_VERSION);
-    assert_eq!(version, 4);
+    assert_eq!(version, 5);
 
     // Verify clips table is queryable
     let count: i64 = catalog

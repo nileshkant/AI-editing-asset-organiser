@@ -1,6 +1,7 @@
 CREATE TABLE sources (
  id TEXT PRIMARY KEY, name TEXT NOT NULL, root TEXT NOT NULL UNIQUE,
- generation INTEGER NOT NULL DEFAULT 0, available INTEGER NOT NULL DEFAULT 1 CHECK(available IN(0,1))
+ generation INTEGER NOT NULL DEFAULT 0, available INTEGER NOT NULL DEFAULT 1 CHECK(available IN(0,1)),
+ scope TEXT NOT NULL DEFAULT 'folder' CHECK(scope IN('folder','files'))
 );
 CREATE TABLE sounds (
  id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES sources(id),
@@ -34,6 +35,7 @@ CREATE TABLE jobs (
  errors TEXT NOT NULL DEFAULT '[]',
  created_at INTEGER NOT NULL,
  updated_at INTEGER NOT NULL,
+ paths TEXT,
  UNIQUE(source_id, kind)
 );
 CREATE TABLE saved_searches (
@@ -75,3 +77,5 @@ CREATE TABLE clip_revisions (
   UNIQUE(clip_id, revision)
 );
 CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);
+
+CREATE TABLE source_files(source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE, relative_path TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(source_id,relative_path));
