@@ -86,8 +86,12 @@ const GROUPS: &[&[&str]] = &[
     &["metal", "metallic"],
 ];
 
+static CANONICAL: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+    GROUPS.iter().flat_map(|group| group.iter().map(move |word| (*word,group[0]))).collect()
+});
+
 pub fn canonical(word: &str) -> String {
-    GROUPS.iter().find(|g| g.contains(&word)).map(|g| g[0]).unwrap_or(word).to_owned()
+    CANONICAL.get(word).copied().unwrap_or(word).to_owned()
 }
 
 pub fn deaccent(text: &str) -> String {
@@ -547,6 +551,14 @@ mod tests {
 
     fn find(text: &str, items: Vec<Sound>) -> SearchResults {
         search(items, &SearchQuery { text: text.into(), ..Default::default() }, &["s".into()]).unwrap()
+    }
+
+    #[test]
+    fn indexed_canonicalization_preserves_every_alias_and_unknown_word() {
+        for group in GROUPS {
+            for alias in *group {assert_eq!(canonical(alias),group[0]);}
+        }
+        for word in ["", "unknown", "trainstation", "écho", "声音"] {assert_eq!(canonical(word),word);}
     }
 
     #[test]
