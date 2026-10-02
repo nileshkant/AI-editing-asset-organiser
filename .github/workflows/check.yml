@@ -39,6 +39,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:SOUNDSHELF_FFMPEG = (Get-Command ffmpeg.exe -ErrorAction Stop).Source
-          $env:SOUNDSHELF_FFPROBE = (Get-Command ffprobe.exe -ErrorAction Stop).Source
+          # Use the actual binaries: killing a Chocolatey shim leaves its child alive.
+          $mediaTools = Join-Path $env:ChocolateyInstall 'lib\ffmpeg\tools'
+          $ffmpegBinary = Get-ChildItem -LiteralPath $mediaTools -Filter ffmpeg.exe -Recurse -File -ErrorAction Stop | Select-Object -First 1
+          if (-not $ffmpegBinary) { throw 'FFmpeg binary not found in the installed package' }
+          $env:SOUNDSHELF_FFMPEG = $ffmpegBinary.FullName
+          $env:SOUNDSHELF_FFPROBE = Join-Path $ffmpegBinary.DirectoryName 'ffprobe.exe'
+          if (-not (Test-Path -LiteralPath $env:SOUNDSHELF_FFPROBE -PathType Leaf)) { throw 'FFprobe binary not found beside FFmpeg' }
           cargo test --workspace --locked -- --include-ignored
