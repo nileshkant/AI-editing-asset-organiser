@@ -40,36 +40,63 @@ blocker and move to the next unblocked ticket without changing the queue.
 - [SS-027: macOS 26 native startup compatibility](SS-027.md) | complete
 - [SS-028: Windows application icon resource](SS-028.md) | complete
 
-## Execution queue
+## Audio v1 execution queue
 
-This is the canonical implementation order. It prioritizes a reliable local
-editing workflow before integrations and keeps optional AI off the critical
-path.
+This is the canonical implementation order. The 2026-10-02 scope review is in
+`docs/reviews/V1-SCOPE-REVIEW.md`. Resolve the current MCP review first, then the
+new source-catalog requirement before advancing to editor integrations.
 
-1. [SS-013: Clip export and handoff](SS-013.md) | complete | produce verified editor-ready media
-2. [SS-026: Individual-file import](SS-026.md) | complete | extend stable source scopes
-3. [SS-021: Portable catalog and migration](SS-021.md) | complete | add portable export/import after identity work stabilizes
-4. [SS-018: MCP lifecycle authentication](SS-018.md) | complete | establish the secured local service
-5. [SS-019: MCP catalog and clip tools](SS-019.md) | in-review | expose the completed common services
-6. [SS-020: Editor integrations and agent skill](SS-020.md) | not-started | build on working exports and MCP
-7. [SS-014: Provider configuration and credentials](SS-014.md) | not-started | add optional provider infrastructure
-8. [SS-022: Settings diagnostics and backup](SS-022.md) | not-started | consolidate service, provider, backup, and diagnostics controls
-9. [SS-023: Security and performance qualification](SS-023.md) | not-started | qualify the completed local and MCP workflows
-10. [SS-024: Cross platform installers and releases](SS-024.md) | not-started | package only after qualification passes
-11. [SS-025: Subscription-backed MCP access](SS-025.md) | not-started | add client-specific setup to the released MCP service
-12. [SS-015: AI query interpretation](SS-015.md) | not-started | optional enhancement after offline search is complete
-13. [SS-016: AI sound description and suggestions](SS-016.md) | not-started | optional, consented enrichment
-14. [SS-017: Optional offline model packs](SS-017.md) | not-started | optional model distribution after baseline qualification
+1. [SS-019: MCP catalog and clip tools](SS-019.md) | complete
+2. [SS-029: Source-folder metadata catalog](SS-029.md) | not-started
+3. [SS-030: CreativeShelf branding and compatibility](SS-030.md) | not-started
+4. [SS-020: Editor integrations and agent skill](SS-020.md) | not-started
+5. [SS-022: Settings diagnostics and backup](SS-022.md) | not-started
+6. [SS-023: Security and performance qualification](SS-023.md) | not-started
+7. [SS-024: Cross platform installers and releases](SS-024.md) | not-started
+8. [SS-031: Audio v1 tester release qualification](SS-031.md) | not-started
+
+Seven unfinished implementation/qualification tickets remain on the audio v1 path. This is a work count, not a time estimate;
+new defects discovered during qualification may require follow-ups. No ticket
+completion alone proves release readiness.
+
+## Optional enhancements after the baseline tester release
+
+- [SS-014: Provider configuration and credentials](SS-014.md) | not-started
+- [SS-015: AI query interpretation](SS-015.md) | not-started
+- [SS-016: AI sound-event tags and descriptions](SS-016.md) | not-started
+- [SS-017: Optional offline model packs](SS-017.md) | not-started
+- [SS-025: Subscription-backed MCP access](SS-025.md) | not-started
+
+SS-016/017 must deliver specific event labels such as rain, thunder, hiss,
+footsteps and engine, searchable by people and MCP clients. These are explicitly
+planned, not current recognition capabilities. MCP access itself is not AI
+recognition. If the tester build includes automatic sound recognition, its
+SS-016/017 acceptance evidence becomes a release gate for that build.
+
+## Upcoming asset types — outside audio v1
+
+- [SS-032: Image assets and reusable elements](SS-032.md) | not-started | upcoming
+- [SS-033: Remotion Studio presets](SS-033.md) | not-started | upcoming
 
 ## Progress snapshot
 
-- Complete: 18 of 28 tickets.
-- In review: 1 of 28 tickets.
-- Partial: 0 of 28 tickets.
-- Not started: 9 of 28 tickets.
-- Current ticket: SS-019 (MCP catalog and clip tools in review).
-- Next unstarted ticket: SS-020.
+- Complete: 19 of 33 tickets.
+- In review: 0 of 33 tickets.
+- Partial: 0 of 33 tickets.
+- Not started: 13 of 33 tickets.
+- Current implementation: SS-029.
+- Next unstarted implementation: SS-029.
+- New tickets from this review: 5 (3 audio v1, 2 upcoming).
 
 ## Release definition
 
-All required acceptance criteria, a real audio-output test, installed desktop tests on each advertised platform, security/privacy review, signed installers, dependency/license review and backup/upgrade recovery must pass before calling the app production-ready. AI adapters are fixture-tested without spending the user's API credits; provider live tests need explicit setup.
+An audio v1 tester release needs recorded end-to-end native audio and MCP
+checks, source-catalog reuse/pruning, backup and upgrade recovery, security and
+performance qualification, and a signed installable build on each advertised
+platform. SS-031 records the exact artifact, versions, qualified platform
+matrix, known limitations and feedback workflow. A deliberately smaller tested
+platform matrix is acceptable; untested platforms are not advertised. Optional
+AI, client subscription setup, direct Resolve automation, images and presets do
+not block the baseline release. Full production readiness requires all
+applicable release gates in the product plan; passing unit tests does not
+certify a production package.

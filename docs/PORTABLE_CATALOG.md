@@ -22,4 +22,11 @@ Descriptions are retained separately as `legacy_filename_inference`, not as user
 
 ## Database recovery
 
-Database schema v6 adds only `legacy_evidence`, with an indexed sound identity and foreign-key deletion cleanup. Upgrades run in a transaction and create a consistent `VACUUM INTO` pre-upgrade backup first. A v5 upgrade creates `*.pre-v6-<uuid>.sqlite`; older databases preserve the existing `pre-v5` naming convention. Before running an older binary, close SoundShelf and restore the pre-upgrade backup to the data directory. Never downgrade by editing `user_version`. Schema initialization and failed upgrades are covered by disposable fixtures; tests never open the user's live database.
+Database schema v6 adds only `legacy_evidence`, with an indexed sound identity and foreign-key deletion cleanup. Upgrades run in a transaction and create a consistent `VACUUM INTO` pre-upgrade backup first. A v5 upgrade creates `*.pre-v6-<uuid>.sqlite`; older databases preserve the existing `pre-v5` naming convention. Before running an older binary, close CreativeShelf and restore the pre-upgrade backup to the data directory. Never downgrade by editing `user_version`. Schema initialization and failed upgrades are covered by disposable fixtures; tests never open the user's live database.
+
+## Planned source-folder catalogs
+
+SS-029 is a separate automatic `.creativeshelf/catalog.json` fast path. This
+manual portable import/export implementation does not yet create that file,
+check it on folder import, prune confirmed missing members or resolve reimport
+collisions. See SS-029 for the versioned membership/freshness/atomic-write contract.

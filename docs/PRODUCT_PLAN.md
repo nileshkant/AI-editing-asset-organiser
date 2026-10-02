@@ -1,8 +1,62 @@
-# SoundShelf: Product and Engineering Plan
+# CreativeShelf: Product and Engineering Plan
 
-Status: proposed implementation specification, not an implemented application.
-Prepared: 2026-09-20. SoundShelf is a working name, subject to naming review.
-Scope: an installable, local desktop audio library for macOS, Windows, and Linux, with background analysis, reliable playback, precise clip export, and an MCP server that runs with the app.
+Status: evolving implementation specification; audio v1 is not release-qualified.
+Prepared: 2026-09-20. Updated: 2026-10-02. CreativeShelf is the generic working product name.
+Scope: an installable, local desktop creative asset library, initially audio only for macOS, Windows, and Linux, with background analysis, reliable playback, precise clip export, and an MCP server that runs with the app.
+
+## 2026-10-02 audio v1 scope contract
+
+Product name: **CreativeShelf**. Audio is the first asset type; images/elements
+(SS-032) and Remotion Studio presets (SS-033) are upcoming work only. Preserve
+stable audio identities and versioned contracts so new types can be introduced
+without replacing the user's library. Do not prematurely implement those types.
+
+Current delivery is implemented in part, not a production-qualified release.
+`tickets/README.md` is the canonical status/order, and
+`docs/reviews/V1-SCOPE-REVIEW.md` distinguishes code evidence from release gates.
+
+- Audio stays in its source location. SQLite stores references and metadata;
+  virtual clips copy no audio. Only an explicit export produces new media.
+  Installers ship application/runtime/media-tool binaries, never this sound pack.
+- SS-029 adds `.creativeshelf/catalog.json` inside each writable folder source.
+  Import checks it first; a valid catalog directly supplies metadata/members.
+  Stat/existence checks of listed files are allowed; unchanged listed files are
+  not rediscovered, hashed or decoded. Explicit Refresh discovers new files.
+  Changed listed fingerprints enqueue affected work; exact byte verification is
+  available when stat fingerprints cannot prove freshness.
+- The catalog carries per-folder relative identities, content versions, profiles,
+  tags/provenance, comments, favorites and source-local recipes. SQLite remains
+  the live database. Invalid schemas/paths fail visibly with rebuild recovery.
+- Confirmed missing members are pruned atomically from the folder catalog and
+  excluded from ready UI/MCP results. Offline roots, inaccessible files, decoder
+  errors and partial jobs must not erase metadata. Preserve DB recovery/history.
+- Atomic snapshot revision checks, dirty/retry state, read-only warnings, conflict
+  policy and crash/disk-full tests are mandatory. Original audio bytes stay intact;
+  the app-owned metadata sidecar is the authorized source-folder write exception.
+- CreativeShelf replaces visible SoundShelf branding now. Existing app ID/data
+  paths, bridge names/keys and schema strings remain compatibility identifiers
+  until SS-030 verifies an upgrade/migration; bulk renaming must not lose data.
+- SS-016 and SS-017 explicitly deliver AI event tags such as rain, thunder, hiss,
+  footsteps and engine, with aliases searchable by people and MCP. Keep measured
+  intensity/texture, filename hints, model suggestions and user corrections
+  distinct. Publish multi-label corpus evaluation, confidence/coverage and unknown
+  handling. Enrich enabled imports separately; preserve core use with no model/key.
+  MCP is an access protocol, not a recognition model. AI remains optional for the
+  baseline tester release; if shipped, its acceptance checks are required.
+- Audio v1 queue: finish SS-019 review, then SS-029, SS-030, SS-020, SS-022,
+  SS-023, SS-024 and SS-031. SS-014/015/016/017/025 are optional enhancements.
+  Generic export, Remotion audio handoff and agent instructions are v1; direct
+  Resolve automation is deferred. Provider setup must not block baseline backup.
+- SS-031 certifies a concrete signed candidate on a stated tested OS/CPU matrix:
+  clean/offline install, physical audio, precise exports in an independent editor,
+  source catalog fast path/pruning, real scoped MCP clients, backup/upgrade recovery,
+  security/accessibility/performance and tester feedback instructions. All 60
+  scenarios below apply where their capability is shipped; optional AI/client/image/
+  preset features are excluded when absent. No unresolved critical/high severity
+  required-workflow bug may be waived as a successful release.
+- Small package size is measured, not assumed. The existing approximately 100 MB
+  compressed target excludes model packs/embedded Windows runtime and is a goal,
+  not a measured or promised installer size. Report cache/export storage separately.
 
 ## 1. Product Decisions
 
@@ -216,7 +270,7 @@ Motion is functional: 120-160 ms hover/selection changes, 180-220 ms inspector t
 Primary desktop arrangement:
 
 ```text
-Window/titlebar: SoundShelf                         Imports  |  Agent status
+Window/titlebar: CreativeShelf                         Imports  |  Agent status
 Navigation       Search + filter chips + view/sort controls
                  Library results / waveforms       Detail inspector
                  ...                                / clip controls
@@ -823,4 +877,4 @@ Not launch guarantees: a tiny installer including every runtime and every AI mod
 
 Release prerequisites that will be concrete later: final app name/identifier, signing identities, distribution location, tested dependency lock, and qualified optional model licenses. Development and reversible local testing can proceed before distribution credentials exist.
 
-The next implementation step, after this planning review, is Phase 0. No new application or installer is claimed to exist as part of this document.
+Current implementation order and completion evidence are maintained in tickets/README.md. The historical phase structure above does not override that queue or imply that an installer is qualified.
