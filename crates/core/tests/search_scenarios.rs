@@ -302,10 +302,8 @@ fn saved_searches_lifecycle_and_migration() {
     {
         let conn = rusqlite::Connection::open(&v2_db_path).unwrap();
         // Version 2 includes the durable jobs table and content-addressed analyses.
-        let v2=include_str!("../src/schema.sql")
-            .split("CREATE TABLE saved_searches").next().unwrap()
-            .replace(",\n scope TEXT NOT NULL DEFAULT 'folder' CHECK(scope IN('folder','files'))", "")
-            .replace(" paths TEXT,\n", "");
+        let v2=include_str!("fixtures/schema_v4.sql")
+            .split("CREATE TABLE saved_searches").next().unwrap();
         conn.execute_batch(&v2).unwrap();
         conn.pragma_update(None,"user_version",2).unwrap();
     }

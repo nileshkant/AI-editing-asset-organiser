@@ -194,74 +194,67 @@ fn jobs_recover_exact_targets_deduplicate_and_bound_queue() {
 }
 #[test]
 fn v4_upgrade_preserves_catalog_and_creates_recoverable_backup() {
-    let d = tempdir().unwrap();
-    let db = d.path().join("db.sqlite");
-    let v4 = include_str!("../src/schema.sql")
-        .replace(
-            ",\n scope TEXT NOT NULL DEFAULT 'folder' CHECK(scope IN('folder','files'))",
-            "",
+    let historical = include_str!("fixtures/schema_v4.sql").replace("\r\n", "\n");
+    for v4 in [historical.clone(), historical.replace('\n', "\r\n")] {
+        let d = tempdir().unwrap();
+        let db = d.path().join("db.sqlite");
+        let conn = rusqlite::Connection::open(&db).unwrap();
+        conn.execute_batch(&v4).unwrap();
+        conn.pragma_update(None, "user_version", 4).unwrap();
+        conn.execute(
+            "INSERT INTO sources(id,name,root) VALUES('old','Original','/original')",
+            [],
         )
-        .replace(" paths TEXT,\n", "")
-        .split("CREATE TABLE source_files")
-        .next()
-        .unwrap()
-        .to_string();
-    let conn = rusqlite::Connection::open(&db).unwrap();
-    conn.execute_batch(&v4).unwrap();
-    conn.pragma_update(None, "user_version", 4).unwrap();
-    conn.execute(
-        "INSERT INTO sources(id,name,root) VALUES('old','Original','/original')",
-        [],
-    )
-    .unwrap();
-    conn.execute_batch("INSERT INTO sounds(id,source_id,relative_path,title,content_hash,status) VALUES('asset','old','a.wav','Original','hash','ready');
+        .unwrap();
+        conn.execute_batch("INSERT INTO sounds(id,source_id,relative_path,title,content_hash,status) VALUES('asset','old','a.wav','Original','hash','ready');
         INSERT INTO annotations(sound_id,tags,comment,favorite) VALUES('asset','[\"custom\"]','preserved',1);
         INSERT INTO jobs(id,source_id,kind,state,status,created_at,updated_at) VALUES('job','old','scan','queued','queued',0,0);
         INSERT INTO clips(id,sound_id,name,asset_version_id,source_sample_rate_hz,start_frame,end_frame,created_at,updated_at) VALUES('clip','asset','Keep','hash',48000,'0','100',0,0);").unwrap();
-    conn.execute(
-        "INSERT INTO analyses(content_hash,analyzer,profile) VALUES('hash',?1,?2)",
-        rusqlite::params![
-            soundshelf_core::catalog::ANALYZER,
-            serde_json::to_string(&profile()).unwrap()
-        ],
-    )
-    .unwrap();
-    drop(conn);
-    let c = Catalog::open(&db).unwrap();
-    assert_eq!(c.source("old").unwrap().scope, "folder");
-    let sound = c.sound("asset").unwrap();
-    assert_eq!(sound.profile, Some(profile()));
-    assert_eq!(sound.comment, "preserved");
-    assert!(sound.favorite);
-    assert_eq!(sound.user_tags, vec!["custom"]);
-    assert_eq!(c.get_clip("clip").unwrap().recipe.end_frame, "100");
-    assert_eq!(c.job("job").unwrap().paths, None);
-    let backups = fs::read_dir(d.path())
-        .unwrap()
-        .filter_map(|e| {
-            let p = e.unwrap().path();
-            p.file_name()
-                .unwrap()
-                .to_string_lossy()
-                .contains("pre-v5")
-                .then_some(p)
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(backups.len(), 1);
-    let backup = rusqlite::Connection::open(&backups[0]).unwrap();
-    assert_eq!(
-        backup
-            .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
-            .unwrap(),
-        4
-    );
-    assert_eq!(
-        backup
-            .query_row("SELECT name FROM sources WHERE id='old'", [], |r| r
-                .get::<_, String>(0))
-            .unwrap(),
-        "Original"
-    );
+        conn.execute(
+            "INSERT INTO analyses(content_hash,analyzer,profile) VALUES('hash',?1,?2)",
+            rusqlite::params![
+                soundshelf_core::catalog::ANALYZER,
+                serde_json::to_string(&profile()).unwrap()
+            ],
+        )
+        .unwrap();
+        drop(conn);
+        let c = Catalog::open(&db).unwrap();
+        assert_eq!(c.source("old").unwrap().scope, "folder");
+        let sound = c.sound("asset").unwrap();
+        assert_eq!(sound.profile, Some(profile()));
+        assert_eq!(sound.comment, "preserved");
+        assert!(sound.favorite);
+        assert_eq!(sound.user_tags, vec!["custom"]);
+        assert_eq!(c.get_clip("clip").unwrap().recipe.end_frame, "100");
+        assert_eq!(c.job("job").unwrap().paths, None);
+        let backups = fs::read_dir(d.path())
+            .unwrap()
+            .filter_map(|e| {
+                let p = e.unwrap().path();
+                p.file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .contains("pre-v5")
+                    .then_some(p)
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(backups.len(), 1);
+        let backup = rusqlite::Connection::open(&backups[0]).unwrap();
+        assert_eq!(
+            backup
+                .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            backup
+                .query_row("SELECT name FROM sources WHERE id='old'", [], |r| r
+                    .get::<_, String>(0))
+                .unwrap(),
+            "Original"
+        );
+    }
 }
 #[cfg(unix)]
 #[test]
