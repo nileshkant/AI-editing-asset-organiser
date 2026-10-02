@@ -1,0 +1,294 @@
+{
+  "schema": "creativeshelf-qualification/v1",
+  "commit": null,
+  "targets": [
+    {
+      "target": "aarch64-apple-darwin",
+      "os": "pending",
+      "minimumOs": "macOS 14.2",
+      "tester": null,
+      "testDate": null,
+      "packageReport": null,
+      "stageReport": null,
+      "checks": [
+        {
+          "id": "clean-offline-install",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "source-reference-reuse-prune-relink",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "annotations-search",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "physical-playback-devices",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "independent-editor-export",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "installed-mcp-scopes-reconnect-revoke",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "backup-restore-upgrade",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "interrupt-disk-full-recovery",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "uninstall-source-retention",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "security-advisories",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "accessibility",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "long-session-resource-performance",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "package-content-size-signature",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "tester-instructions-feedback",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        }
+      ],
+      "defects": []
+    },
+    {
+      "target": "x86_64-pc-windows-msvc",
+      "os": "pending",
+      "minimumOs": "Windows 11 x64; offline WebView2 availability unverified",
+      "tester": null,
+      "testDate": null,
+      "packageReport": null,
+      "stageReport": null,
+      "checks": [
+        {
+          "id": "clean-offline-install",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "source-reference-reuse-prune-relink",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "annotations-search",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "physical-playback-devices",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "independent-editor-export",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "installed-mcp-scopes-reconnect-revoke",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "backup-restore-upgrade",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "interrupt-disk-full-recovery",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "uninstall-source-retention",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "security-advisories",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "accessibility",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "long-session-resource-performance",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "package-content-size-signature",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "tester-instructions-feedback",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        }
+      ],
+      "defects": []
+    },
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "os": "pending",
+      "minimumOs": "Ubuntu 24.04 x64; desktop runtime closure unverified",
+      "tester": null,
+      "testDate": null,
+      "packageReport": null,
+      "stageReport": null,
+      "checks": [
+        {
+          "id": "clean-offline-install",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "source-reference-reuse-prune-relink",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "annotations-search",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "physical-playback-devices",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "independent-editor-export",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "installed-mcp-scopes-reconnect-revoke",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "backup-restore-upgrade",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "interrupt-disk-full-recovery",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "uninstall-source-retention",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "security-advisories",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "accessibility",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "long-session-resource-performance",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "package-content-size-signature",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        },
+        {
+          "id": "tester-instructions-feedback",
+          "result": "pending",
+          "observed": "",
+          "evidence": null
+        }
+      ],
+      "defects": []
+    }
+  ]
+}

@@ -14,7 +14,8 @@
     "check": "npm test && npm run build && npm run check:rust",
     "mcp:bridge": "node scripts/cargo.mjs build -p soundshelf-agent --bin soundshelf-mcp --release --locked",
     "release:check": "node scripts/release.mjs check",
-    "release:inspect": "node scripts/release.mjs inspect"
+    "release:inspect": "node scripts/release.mjs inspect",
+    "release:qualify": "node scripts/qualification.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",

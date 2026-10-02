@@ -40,6 +40,7 @@ try {
     report.mediaToolBytes = stage.entries.filter(e => e.path.startsWith('media/')).reduce((n, e) => n + e.bytes, 0);
     report.modelPackBytes = 0;
     report.signatureQualification = 'codesign publisher and Gatekeeper checks passed; installed SS-031 qualification still required';
+    report.signature = { verified: true, publisher: process.env.APPLE_TEAM_ID, method: 'codesign and Gatekeeper' };
     await writeFile('release-reports/package.json', JSON.stringify(report, null, 2));
     console.log('Package inventory and size report saved; signature and installed qualification remain required.');
   } else {
