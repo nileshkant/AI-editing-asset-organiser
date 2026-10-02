@@ -9,7 +9,6 @@ use std::{
     io::Write,
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc, Mutex},
-    time::Duration,
 };
 use tempfile::{tempdir, TempDir};
 
@@ -456,7 +455,10 @@ fn interrupted_export_cleanup_preserves_unrelated_files() {
 #[cfg(unix)]
 mod unix_faults {
     use super::*;
-    use std::os::unix::fs::{symlink, PermissionsExt};
+    use std::{
+        os::unix::fs::{symlink, PermissionsExt},
+        time::Duration,
+    };
     fn fake(f: &Fixture, script: &str) -> MediaTools {
         let executable = f.root.join("fake ffmpeg");
         fs::write(&executable, script).unwrap();

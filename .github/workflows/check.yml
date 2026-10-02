@@ -28,9 +28,17 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - name: Rust and real media fixtures
+      - name: Rust and real media fixtures (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           export SOUNDSHELF_FFMPEG="$(command -v ffmpeg)"
           export SOUNDSHELF_FFPROBE="$(command -v ffprobe)"
+          cargo test --workspace --locked -- --include-ignored
+      - name: Rust and real media fixtures (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:SOUNDSHELF_FFMPEG = (Get-Command ffmpeg.exe -ErrorAction Stop).Source
+          $env:SOUNDSHELF_FFPROBE = (Get-Command ffprobe.exe -ErrorAction Stop).Source
           cargo test --workspace --locked -- --include-ignored

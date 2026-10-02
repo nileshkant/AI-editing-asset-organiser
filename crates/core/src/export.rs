@@ -561,7 +561,8 @@ pub fn render(
         .open(&manifest_file)?;
     f.write_all(&serde_json::to_vec_pretty(&manifest)?)?;
     f.sync_all()?;
-    File::open(&media)?.sync_all()?;
+    // Windows FlushFileBuffers requires a handle opened with write access.
+    OpenOptions::new().write(true).open(&media)?.sync_all()?;
     check_cancel(&cancel)?;
     // hard_link is an atomic create-if-absent, unlike rename on Unix. A race
     // with an existing destination can never replace that file (or a symlink).
