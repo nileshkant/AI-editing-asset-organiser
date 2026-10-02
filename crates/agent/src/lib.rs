@@ -10,12 +10,10 @@ use axum::{
 use rmcp::transport::streamable_http_server::{
     session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
 };
-use rmcp::{
-    handler::server::router::tool::ToolRouter,
-    model::{Implementation, ServerCapabilities, ServerConfig},
-    tool, tool_handler, tool_router, ServerHandler,
-};
+mod tools;
 use serde::Serialize;
+use soundshelf_core::agent::{Access, AgentLibrary};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::HashMap,
     net::TcpListener,
@@ -24,41 +22,14 @@ use std::{
 };
 use subtle::ConstantTimeEq;
 use tokio_util::sync::CancellationToken;
+use tools::{Authorization, StatusService};
 use uuid::Uuid;
 
-#[derive(Clone)]
-struct StatusService {
-    tool_router: ToolRouter<Self>,
-}
-#[tool_router]
-impl StatusService {
-    fn new() -> Self {
-        Self {
-            tool_router: Self::tool_router(),
-        }
-    }
-    #[tool(
-        description = "SoundShelf MCP connection status. Contains no catalog data or local paths."
-    )]
-    fn service_status(&self) -> String {
-        "SoundShelf is running. Catalog tools are not enabled.".into()
-    }
-}
-#[tool_handler(router = self.tool_router)]
-impl ServerHandler for StatusService {
-    fn get_info(&self) -> ServerConfig {
-        {
-            let mut info = ServerConfig::default();
-            info.capabilities = ServerCapabilities::builder().enable_tools().build();
-            info.server_info = Implementation::new("SoundShelf", env!("CARGO_PKG_VERSION"));
-            info
-        }
-    }
-}
 #[derive(Clone, Serialize)]
 pub struct Client {
     pub id: String,
     pub name: String,
+    pub access: Access,
 }
 #[derive(Serialize)]
 pub struct Pairing {
@@ -73,6 +44,7 @@ pub struct Status {
 struct Grant {
     client: Client,
     hash: [u8; 32],
+    live: Arc<AtomicBool>,
 }
 #[derive(Clone)]
 struct Gate {
@@ -101,21 +73,26 @@ async fn guard(State(gate): State<Gate>, request: Request, next: Next) -> Respon
         .get("authorization")
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "));
-    let authorized = token.filter(|t| t.len() == 64).is_some_and(|t| {
+    let authorized = token.filter(|t| t.len() == 64).and_then(|t| {
         let hash = *blake3::hash(t.as_bytes()).as_bytes();
-        gate.grants
-            .read()
-            .map(|g| g.values().any(|v| bool::from(v.hash.ct_eq(&hash))))
-            .unwrap_or(false)
+        gate.grants.read().ok().and_then(|g| {
+            g.values()
+                .find(|v| bool::from(v.hash.ct_eq(&hash)) && v.live.load(Ordering::Acquire))
+                .map(|v| Authorization {
+                    id: v.client.id.clone(),
+                    access: v.client.access.clone(),
+                    live: v.live.clone(),
+                })
+        })
     });
-    if !authorized {
+    let Some(authorized) = authorized else {
         return StatusCode::UNAUTHORIZED.into_response();
-    }
+    };
     let Ok(_permit) = gate.slots.clone().try_acquire_owned() else {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     };
     // Limit body before it reaches the protocol parser, including chunked requests.
-    let (parts, body) = request.into_parts();
+    let (mut parts, body) = request.into_parts();
     let Ok(Ok(bytes)) = tokio::time::timeout(
         std::time::Duration::from_secs(5),
         axum::body::to_bytes(body, 64 * 1024),
@@ -124,6 +101,7 @@ async fn guard(State(gate): State<Gate>, request: Request, next: Next) -> Respon
     else {
         return StatusCode::PAYLOAD_TOO_LARGE.into_response();
     };
+    parts.extensions.insert(authorized);
     next.run(Request::from_parts(parts, Body::from(bytes)))
         .await
 }
@@ -137,6 +115,7 @@ pub struct Agent {
     running: Mutex<Option<Running>>,
     grants: Arc<RwLock<HashMap<String, Grant>>>,
     discovery: Option<std::path::PathBuf>,
+    library: Option<Arc<AgentLibrary>>,
 }
 impl Agent {
     pub fn with_discovery(path: std::path::PathBuf) -> Self {
@@ -145,6 +124,19 @@ impl Agent {
             agent.discovery = Some(path);
             agent
         }
+    }
+    pub fn with_library(path: std::path::PathBuf, library: Arc<AgentLibrary>) -> Self {
+        let mut agent = Self::with_discovery(path);
+        agent.library = Some(library);
+        agent
+    }
+    pub fn client(&self, id: &str) -> Result<Client, String> {
+        self.grants
+            .read()
+            .map_err(|_| "MCP clients unavailable")?
+            .get(id)
+            .map(|g| g.client.clone())
+            .ok_or_else(|| "Client pairing unavailable".into())
     }
     pub fn status(&self) -> Result<Status, String> {
         let running = self.running.lock().map_err(|_| "MCP state unavailable")?;
@@ -195,6 +187,7 @@ impl Agent {
             std::fs::write(path, serde_json::json!({"endpoint":endpoint}).to_string())
                 .map_err(|_| "MCP discovery could not be written")?;
         }
+        let library = self.library.clone();
         let worker = std::thread::Builder::new()
             .name("soundshelf-mcp".into())
             .spawn(move || {
@@ -204,7 +197,11 @@ impl Agent {
                     config.json_response = true;
                     config.cancellation_token = shutdown.clone();
                     let service = StreamableHttpService::new(
-                        || Ok(StatusService::new()),
+                        move || {
+                            Ok(StatusService {
+                                library: library.clone(),
+                            })
+                        },
                         Arc::new(LocalSessionManager::default()),
                         config,
                     );
@@ -233,6 +230,19 @@ impl Agent {
         self.status()
     }
     pub fn pair(&self, name: String) -> Result<Pairing, String> {
+        self.pair_with_access(name, Access::default())
+    }
+    pub fn pair_with_access(&self, name: String, access: Access) -> Result<Pairing, String> {
+        if let Some(library) = &self.library {
+            library.validate_access(&access)?;
+        } else if access.read
+            || access.edit
+            || access.export
+            || access.paths
+            || !access.source_ids.is_empty()
+        {
+            return Err("Catalog service unavailable".into());
+        }
         let state = self.running.lock().map_err(|_| "MCP state unavailable")?;
         if state.is_none() {
             return Err("Start MCP before pairing a client".into());
@@ -248,6 +258,7 @@ impl Agent {
         let client = Client {
             id: Uuid::new_v4().to_string(),
             name: name.into(),
+            access,
         };
         // 244 random bits; only the hash remains in application memory.
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
@@ -256,25 +267,41 @@ impl Agent {
             Grant {
                 client: client.clone(),
                 hash: *blake3::hash(token.as_bytes()).as_bytes(),
+                live: Arc::new(AtomicBool::new(true)),
             },
         );
         Ok(Pairing { client, token })
     }
     pub fn revoke(&self, id: &str) -> Result<(), String> {
-        self.grants
+        let grant = self
+            .grants
             .write()
             .map_err(|_| "MCP clients unavailable")?
             .remove(id);
+        if let Some(grant) = grant {
+            grant.live.store(false, Ordering::Release);
+            if let Some(library) = &self.library {
+                library.revoke(id);
+            }
+        }
         Ok(())
     }
     pub fn stop(&self) {
         if let Ok(mut state) = self.running.lock() {
             if let Some(running) = state.take() {
+                if let Ok(grants) = self.grants.read() {
+                    for grant in grants.values() {
+                        grant.live.store(false, Ordering::Release);
+                    }
+                }
                 running.cancel.cancel();
                 let _ = running.worker.join();
                 if let Some(path) = &self.discovery {
                     let _ = std::fs::remove_file(path);
                 }
+            }
+            if let Some(library) = &self.library {
+                library.shutdown();
             }
             if let Ok(mut grants) = self.grants.write() {
                 grants.clear();

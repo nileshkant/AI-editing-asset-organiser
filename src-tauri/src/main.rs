@@ -363,7 +363,7 @@ fn main() {
         .setup(|app|{let path=if cfg!(debug_assertions){std::env::var_os("SOUNDSHELF_DATA_DIR").map(PathBuf::from).or_else(||app.path().app_data_dir().ok()).unwrap_or_else(fallback_data_directory)}else{app.path().app_data_dir().unwrap_or_else(|_|fallback_data_directory())};let resources=app.path().resource_dir().unwrap_or_else(|_|fallback_resource_directory());app.manage(AppState::new(path,resources)?);Ok(())})
         .invoke_handler(tauri::generate_handler![
             app_info,
-            agent::mcp_status, agent::mcp_start, agent::mcp_stop, agent::mcp_pair, agent::mcp_revoke,
+            agent::mcp_status, agent::mcp_start, agent::mcp_stop, agent::mcp_pair, agent::mcp_revoke, agent::mcp_approve_destination,
             catalog_transfer::catalog_export,
             catalog_transfer::catalog_preview,
             catalog_transfer::catalog_map_root,
