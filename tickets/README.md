@@ -57,7 +57,7 @@ new source-catalog requirement before advancing to editor integrations.
 4. [SS-020: Editor integrations and agent skill](SS-020.md) | in-review
 5. [SS-022: Settings diagnostics and backup](SS-022.md) | in-review
 6. [SS-023: Security and performance qualification](SS-023.md) | partial
-7. [SS-024: Cross platform installers and releases](SS-024.md) | not-started
+7. [SS-024: Cross platform installers and releases](SS-024.md) | partial
 8. [SS-031: Audio v1 tester release qualification](SS-031.md) | not-started
 
 Seven unfinished implementation/qualification tickets remain on the audio v1 path. This is a work count, not a time estimate;

@@ -184,14 +184,20 @@ describe('App', () => {
 
   // ─── Keyboard Shortcuts ───
   it('toggles play on spacebar press', async () => {
-    render(<App />);
-    // Wait for results to load so togglePlay has items
-    await waitFor(() => screen.getByText('Cinematic Whoosh Stereo'));
-    fireEvent.keyDown(window, { code: 'Space', key: ' ' });
-    // Should attempt to play (since nothing is playing, it will try the first result)
-    await waitFor(() =>
-      expect(mockInvoke).toHaveBeenCalledWith('playback_play', expect.any(Object)),
-    );
+    vi.useFakeTimers();
+    const view = render(<App />);
+    try {
+      // Settle initial IPC state before advancing the search debounce.
+      await act(async () => {});
+      // Complete the debounce without relying on a loaded runner's wall clock.
+      await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+      expect(screen.getByText('Cinematic Whoosh Stereo')).toBeInTheDocument();
+      await act(async () => { fireEvent.keyDown(window, { code: 'Space', key: ' ' }); });
+      expect(mockInvoke).toHaveBeenCalledWith('playback_play', { id: SOUND_A.id });
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
   });
 
   it('focuses search on "/" key', async () => {

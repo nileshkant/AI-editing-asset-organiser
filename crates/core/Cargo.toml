@@ -19,3 +19,7 @@ rtrb = "0.4"
 
 [dev-dependencies]
 tempfile = "3"
+
+[features]
+# Compiles an explicit narrow-binary integration fixture only in the media build job.
+packaged-media-qualification = []

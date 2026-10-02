@@ -67,10 +67,13 @@ impl AppState {
                 "ffprobe"
             }),
         };
-        if tools.validate().is_err() {
+        if cfg!(debug_assertions) && tools.validate().is_err() {
             if let Some(discovered) = MediaTools::discover() {
                 tools = discovered;
             }
+        }
+        if !cfg!(debug_assertions) && tools.validate().is_err() {
+            return Err("Bundled media tools are missing. Reinstall a qualified CreativeShelf package.".into());
         }
         let tools = tools.validate().ok().map(|_| tools);
         let progress = Arc::new(Mutex::new(Vec::<Progress>::new()));

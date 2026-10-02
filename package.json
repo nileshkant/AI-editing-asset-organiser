@@ -9,10 +9,15 @@
     "test": "vitest run",
     "desktop": "node scripts/desktop.mjs",
     "desktop:binary": "node scripts/desktop.mjs build --no-bundle",
-    "desktop:bundle": "node scripts/desktop.mjs build --config src-tauri/tauri.release.conf.json",
+    "desktop:bundle": "node scripts/release.mjs build",
     "check:rust": "node scripts/cargo.mjs test --workspace",
     "check": "npm test && npm run build && npm run check:rust",
-    "mcp:bridge": "node scripts/cargo.mjs build -p soundshelf-agent --bin soundshelf-mcp --release --locked"
+    "mcp:bridge": "node scripts/cargo.mjs build -p soundshelf-agent --bin soundshelf-mcp --release --locked",
+    "release:check": "node scripts/release.mjs check",
+    "release:inspect": "node scripts/release.mjs inspect",
+    "media:build": "node scripts/media-build.mjs",
+    "desktop:local": "node scripts/release.mjs local",
+    "release:inspect-local": "node scripts/release.mjs inspect-local"
   },
   "dependencies": {
     "@tauri-apps/api": "2.11.1",
@@ -28,6 +33,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "jsdom": "29.1.1",
+    "openpgp": "6.3.2",
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vitest": "5.0.1"
