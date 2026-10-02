@@ -5,6 +5,20 @@ use soundshelf_core::{
     export::{DestinationGrant, ExportOptions},
 };
 use tauri_plugin_dialog::DialogExt;
+#[derive(serde::Serialize)]
+pub struct BridgeLocation {
+    command: String,
+    discovery: String,
+}
+#[tauri::command]
+pub fn mcp_bridge_location(app: tauri::AppHandle, state: tauri::State<AppState>) -> Result<BridgeLocation, String> {
+    use tauri::Manager;
+    let executable = if cfg!(windows) { "soundshelf-mcp.exe" } else { "soundshelf-mcp" };
+    let path = app.path().resource_dir().map_err(|_| "Installed resources unavailable")?.join("mcp").join(executable);
+    let metadata = std::fs::symlink_metadata(&path).map_err(|_| "Installed MCP bridge unavailable. Install a qualified package; development builds do not bundle the bridge.")?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() { return Err("Installed MCP bridge is not a regular executable".into()); }
+    Ok(BridgeLocation { command: path.to_string_lossy().into_owned(), discovery: state.data_directory.join("runtime").join("mcp.json").to_string_lossy().into_owned() })
+}
 #[tauri::command]
 pub fn mcp_status(state: tauri::State<AppState>) -> Result<Status, String> {
     state.agent.status()

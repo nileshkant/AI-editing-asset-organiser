@@ -13,6 +13,11 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
   const [name, setName] = useState('');
   const [pairing, setPairing] = useState<Pairing | null>(null);
   const [busy, setBusy] = useState(false);
+  const [bridge, setBridge] = useState<{ command: string; discovery: string } | null>(null);
+  const showBridge = async () => {
+    if (busy) return; setBusy(true);
+    try { setBridge(await call('mcp_bridge_location')); } catch (e) { onError(String(e)); } finally { setBusy(false); }
+  };
   const [access, setAccess] = useState<Access>(defaultAccess);
   const [destination, setDestination] = useState<{ clientId: string; id: string; path: string } | null>(null);
   const approveDestination = async (clientId: string, format: 'wav' | 'flac') => {
@@ -38,6 +43,8 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
   return <section aria-label="MCP access">
     <h2>Agent access · MCP</h2>
     <p className="muted">Off by default. CreativeShelf must stay open. Quitting stops access. Tray mode is unavailable. Give each client access to specific sources. Editing, exporting and machine paths require separate permission.</p>
+    <button disabled={busy} onClick={() => void showBridge()}>Show installed bridge</button>
+    {bridge && <div><p>For a command-based client, use this absolute executable path and discovery arguments. Set SOUNDSHELF_MCP_TOKEN privately to the paired credential below.</p><pre aria-label="Installed MCP bridge configuration">{JSON.stringify({ command: bridge.command, args: ['--discovery', bridge.discovery] }, null, 2)}</pre></div>}
     <div className="setting-row">
       <span role="status">{status.endpoint ? 'Running' : 'Stopped'}</span>
       {status.endpoint ? <><code>{status.endpoint}</code><button disabled={busy} onClick={() => void act('mcp_stop')}>Stop MCP</button></> : <>

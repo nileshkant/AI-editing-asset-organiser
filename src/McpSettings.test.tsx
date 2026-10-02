@@ -61,3 +61,12 @@ it('pairs only selected sources with separate write/path/export grants and nativ
   expect(mock).toHaveBeenCalledWith('mcp_approve_destination', { clientId: 'editor', format: 'wav' });
   expect(screen.getByText('grant')).toBeInTheDocument();
 });
+it('shows the installed absolute bridge location without workspace or PATH discovery', async () => {
+  mock.mockResolvedValueOnce({ endpoint: null, clients: [] }).mockResolvedValueOnce({ command: '/Applications/CreativeShelf.app/Contents/Resources/mcp/soundshelf-mcp', discovery: '/private-library/runtime/mcp.json' });
+  render(<McpSettings onError={vi.fn()} />);
+  await waitFor(() => expect(mock).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByText('Show installed bridge'));
+  expect(await screen.findByLabelText('Installed MCP bridge configuration')).toHaveTextContent('/Applications/CreativeShelf.app/Contents/Resources/mcp/soundshelf-mcp');
+  expect(mock).toHaveBeenCalledWith('mcp_bridge_location');
+  expect(screen.getByText('Stopped')).toBeInTheDocument();
+});
