@@ -7,7 +7,8 @@ function pe(dll = 'kernel32.dll') {
 }
 function elf(type = 1) { const b = Buffer.alloc(256); b.set([0x7f,69,76,70,2,1]); b.writeBigUInt64LE(64n, 32); b.writeUInt16LE(56, 54); b.writeUInt16LE(1, 56); b.writeUInt32LE(type, 64); return b; }
 it('accepts Windows system imports and rejects redistributable or custom DLL dependencies', () => {
-  expect(windowsImports(pe())).toEqual(['kernel32.dll']); expect(() => verifyRuntimeClosure(pe(), 'x86_64-pc-windows-msvc')).not.toThrow();
+  expect(windowsImports(pe())).toEqual(['kernel32.dll']);
+  expect(() => verifyRuntimeClosure(pe('psapi.dll'), 'x86_64-pc-windows-msvc')).not.toThrow(); expect(() => verifyRuntimeClosure(pe(), 'x86_64-pc-windows-msvc')).not.toThrow();
   expect(() => verifyRuntimeClosure(pe('avcodec-63.dll'), 'x86_64-pc-windows-msvc')).toThrow('Non-system');
   expect(() => verifyRuntimeClosure(pe('vcruntime140.dll'), 'x86_64-pc-windows-msvc')).toThrow('Non-system');
 });
