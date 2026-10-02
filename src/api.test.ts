@@ -11,6 +11,9 @@ import {
   rebindClip,
   deleteClip,
   playClip,
+  chooseExportDestination,
+  exportClip,
+  cancelExport,
 } from './api';
 
 const mockInvoke = vi.fn();
@@ -209,3 +212,23 @@ describe('Clip API Tauri commands', () => {
 });
 
 
+
+describe('export IPC contracts', () => {
+  beforeEach(() => { vi.clearAllMocks(); mockIsTauri = true; });
+  it('chooses a native destination using only the selected format', async () => {
+    mockInvoke.mockResolvedValueOnce(null);
+    expect(await chooseExportDestination('wav')).toBeNull();
+    expect(mockInvoke).toHaveBeenCalledWith('choose_export_destination', { format: 'wav' });
+  });
+  it('renders with grant ID and expected recipe revision, without accepting an arbitrary path', async () => {
+    const options = { format: 'flac' as const, sample_rate: 44100, fade_in_ms: 10, fade_out_ms: 20 };
+    mockInvoke.mockResolvedValueOnce({ frames: '9007199254740993' });
+    const result = await exportClip('destination-grant', 'clip-id', 2, options);
+    expect(result.frames).toBe('9007199254740993');
+    expect(mockInvoke).toHaveBeenCalledWith('export_clip', { destinationId: 'destination-grant', clipId: 'clip-id', expectedRevision: 2, options });
+  });
+  it('cancels only the named destination job', async () => {
+    mockInvoke.mockResolvedValueOnce(undefined); await cancelExport('destination-grant');
+    expect(mockInvoke).toHaveBeenCalledWith('cancel_export', { destinationId: 'destination-grant' });
+  });
+});

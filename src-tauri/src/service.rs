@@ -5,6 +5,7 @@ use soundshelf_core::{
     media::MediaTools,
     playback::Player,
     waveform::WaveformService,
+    export::ExportService,
 };
 use std::{path::PathBuf,sync::{Arc,Mutex,mpsc::{sync_channel,SyncSender,RecvTimeoutError},atomic::{AtomicBool,Ordering}},thread,time::Duration};
 use uuid::Uuid;
@@ -18,6 +19,7 @@ pub struct AppState {
     pub player:Arc<Player>,
     pub progress:Arc<Mutex<Vec<Progress>>>,
     pub waveforms:Arc<WaveformService>,
+    pub exports:Arc<ExportService>,
     pub cancel:Arc<AtomicBool>,
     stop:Arc<AtomicBool>,
     sender:SyncSender<Work>,
@@ -70,7 +72,8 @@ impl AppState {
             }
         });
         let player=Arc::new(Player::new(tools.clone()));
-        let state=Self{data_directory,catalog,tools,player,progress,waveforms,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))};
+        let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
+        let state=Self{data_directory,catalog,tools,player,progress,waveforms,exports,cancel,stop,sender:tx,worker:Mutex::new(Some(worker))};
         state.resume_persisted()?;
         Ok(state)
     }
@@ -119,6 +122,7 @@ impl AppState {
         Ok(())
     }
     pub fn shutdown(&self){
+        self.exports.shutdown();
         self.player.stop();
         self.stop.store(true,Ordering::Relaxed);
         self.cancel.store(true,Ordering::Relaxed);

@@ -18,8 +18,32 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Linux desktop dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libayatana-appindicator3-dev libasound2-dev patchelf
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libayatana-appindicator3-dev libasound2-dev patchelf ffmpeg
+      - name: macOS media fixture tools
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Windows media fixture tools
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - run: cargo test --workspace --locked
+      - name: Rust and real media fixtures (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          export SOUNDSHELF_FFMPEG="$(command -v ffmpeg)"
+          export SOUNDSHELF_FFPROBE="$(command -v ffprobe)"
+          cargo test --workspace --locked -- --include-ignored
+      - name: Rust and real media fixtures (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Use the actual binaries: killing a Chocolatey shim leaves its child alive.
+          $mediaTools = Join-Path $env:ChocolateyInstall 'lib\ffmpeg\tools'
+          $ffmpegBinary = Get-ChildItem -LiteralPath $mediaTools -Filter ffmpeg.exe -Recurse -File -ErrorAction Stop | Select-Object -First 1
+          if (-not $ffmpegBinary) { throw 'FFmpeg binary not found in the installed package' }
+          $env:SOUNDSHELF_FFMPEG = $ffmpegBinary.FullName
+          $env:SOUNDSHELF_FFPROBE = Join-Path $ffmpegBinary.DirectoryName 'ffprobe.exe'
+          if (-not (Test-Path -LiteralPath $env:SOUNDSHELF_FFPROBE -PathType Leaf)) { throw 'FFprobe binary not found beside FFmpeg' }
+          cargo test --workspace --locked -- --include-ignored

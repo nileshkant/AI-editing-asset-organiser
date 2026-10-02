@@ -4,6 +4,7 @@ use service::AppState;
 use soundshelf_core::{
     catalog::{Clip, ClipRecipe, SavedSearch, Source, Sound},
     library::Progress,
+    export::{DestinationGrant, ExportFormat, ExportOptions, ExportResult},
     playback::PlaybackStatus,
     search::{SearchQuery, SearchResults},
 };
@@ -19,6 +20,31 @@ struct AppInfo { version: &'static str, data_directory: String, desktop: bool, m
 fn app_info(state:tauri::State<AppState>) -> AppInfo {AppInfo{version:env!("CARGO_PKG_VERSION"),data_directory:state.data_directory.to_string_lossy().into_owned(),desktop:true,media_tools:state.tools.is_some()}}
 #[tauri::command]
 async fn choose_folder(app:tauri::AppHandle)->Result<Option<String>,String>{tauri::async_runtime::spawn_blocking(move ||app.dialog().file().blocking_pick_folder().map(|p|p.into_path().map(|p|p.to_string_lossy().into_owned()).map_err(|e|e.to_string())).transpose()).await.map_err(|e|e.to_string())?}
+#[tauri::command]
+async fn choose_export_destination(app: tauri::AppHandle, state: tauri::State<'_, AppState>, format: ExportFormat) -> Result<Option<DestinationGrant>, String> {
+    let exports = state.exports.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = app.dialog().file().add_filter("Lossless audio", &[format.extension()])
+            .set_file_name(format!("clip.{}", format.extension())).blocking_save_file();
+        file.map(|p| {
+            let path = p.into_path().map_err(|e| e.to_string())?;
+            exports.grant(&path, format).map_err(|e| e.to_string())
+        }).transpose()
+    }).await.map_err(|e| e.to_string())?
+}
+#[tauri::command]
+async fn export_clip(state: tauri::State<'_, AppState>, destination_id: String, clip_id: String, expected_revision: u32, options: ExportOptions) -> Result<ExportResult, String> {
+    let exports = state.exports.clone();
+    let catalog = state.catalog.clone();
+    let tools = state.tools.clone().ok_or("FFmpeg media tools are unavailable")?;
+    tauri::async_runtime::spawn_blocking(move || exports.export(&catalog, &tools, &destination_id, &clip_id, expected_revision, options).map_err(|e| e.to_string()))
+        .await.map_err(|e| e.to_string())?
+}
+#[tauri::command]
+fn cancel_export(state: tauri::State<AppState>, destination_id: String) -> Result<(), String> {
+    state.exports.cancel(&destination_id).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn sources(state:tauri::State<'_,AppState>)->Result<Vec<Source>,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.sources().map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
@@ -296,6 +322,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             app_info,
             choose_folder,
+            choose_export_destination,
+            export_clip,
+            cancel_export,
             sources,
             import_root,
             scan_source,

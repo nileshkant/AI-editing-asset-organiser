@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   BookmarkCheck,
 } from 'lucide-react';
+import { ClipExport } from './ClipExport';
 import { Waveform } from '../waveform/Waveform';
 import {
   call,
@@ -29,6 +30,7 @@ interface SoundInspectorProps {
   onClose: () => void;
   onSave: (tags: string[], comment: string) => Promise<void>;
   onError: (e: string) => void;
+  onExported?: () => void;
 }
 
 /** Extract pitch/key info from profile tags if available. */
@@ -50,6 +52,7 @@ export const SoundInspector = memo(function SoundInspector({
   onClose,
   onSave,
   onError,
+  onExported,
 }: SoundInspectorProps) {
   const [tags, setTags] = useState(sound.user_tags);
   const [tag, setTag] = useState('');
@@ -308,6 +311,7 @@ export const SoundInspector = memo(function SoundInspector({
                         </div>
                       )}
 
+                      <ClipExport key={`${clip.id}:${clip.revision}`} clip={clip} onExported={onExported} />
                       <div className="clip-card-actions">
                         <button
                           type="button"
