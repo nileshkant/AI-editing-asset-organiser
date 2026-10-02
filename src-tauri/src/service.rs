@@ -90,6 +90,9 @@ impl AppState {
             if quit.load(Ordering::Relaxed) {
                 break;
             }
+            if db.lock().ok().and_then(|c| c.preferences().ok()).is_some_and(|p| p.imports_paused) {
+                thread::sleep(Duration::from_millis(100)); continue;
+            }
             let work = match rx.recv_timeout(Duration::from_millis(100)) {
                 Ok(s) => s,
                 Err(RecvTimeoutError::Timeout) => {
@@ -108,6 +111,10 @@ impl AppState {
                 },
                 Err(_) => break,
             };
+            while db.lock().ok().and_then(|c| c.preferences().ok()).is_some_and(|p| p.imports_paused) {
+                if quit.load(Ordering::Relaxed) { return; }
+                thread::sleep(Duration::from_millis(100));
+            }
             let id = work.source_id.clone();
             let job_id = work.job_id.clone();
             let claimed = {
@@ -206,6 +213,7 @@ impl AppState {
             }
         }});
         let player = Arc::new(Player::new(tools.clone()));
+        player.set_output_device(catalog.lock().map_err(|_| "Catalog lock unavailable")?.preferences()?.output_device)?;
         let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
         let agent_library=Arc::new(soundshelf_core::agent::AgentLibrary::new(catalog.clone(),exports.clone(),tools.clone()));
         let state = Self {
@@ -441,4 +449,17 @@ mod tests {
         assert_eq!(sounds[0].relative_path, "a.wav");
         assert_eq!(c.source(&source.id).unwrap().files.len(), 2);
     }
+    #[test]
+    #[ignore = "requires explicit FFmpeg fixture tools"]
+    fn paused_imports_wait_until_preferences_resume() {
+        let f = fixture(); media(&f); let state=f.state.as_ref().unwrap();
+        let mut preferences=soundshelf_core::maintenance::Preferences::default();preferences.imports_paused=true;
+        state.catalog.lock().unwrap().set_preferences(&preferences).unwrap();
+        let (source,path)=state.catalog.lock().unwrap().select_file(&f.root.join("media/a.wav")).unwrap();
+        state.enqueue_paths(source,Some(vec![path])).unwrap();thread::sleep(Duration::from_millis(250));
+        assert!(state.catalog.lock().unwrap().all_sounds().unwrap().is_empty());
+        preferences.imports_paused=false;state.catalog.lock().unwrap().set_preferences(&preferences).unwrap();wait(state);
+        assert_eq!(state.catalog.lock().unwrap().all_sounds().unwrap().len(),1);
+    }
+
 }

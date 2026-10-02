@@ -97,7 +97,7 @@ CREATE TABLE saved_searches (
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
     assert_eq!(version, SCHEMA_VERSION);
-    assert_eq!(version, 7);
+    assert_eq!(version, 8);
 
     // Verify clips table is queryable
     let count: i64 = catalog

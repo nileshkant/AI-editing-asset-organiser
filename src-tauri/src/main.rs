@@ -2,6 +2,7 @@
 mod service;
 mod agent;
 mod catalog_transfer;
+mod maintenance;
 use service::AppState;
 use soundshelf_core::{
     catalog::{Clip, ClipRecipe, SavedSearch, Source, Sound},
@@ -375,6 +376,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             app_info,
             agent::mcp_status, agent::mcp_start, agent::mcp_stop, agent::mcp_pair, agent::mcp_revoke, agent::mcp_approve_destination,
+            maintenance::resource_settings,maintenance::save_resource_settings,maintenance::database_backup,maintenance::database_restore,maintenance::purge_waveform_cache,maintenance::support_report,
             catalog_transfer::catalog_export,
             catalog_transfer::catalog_preview,
             catalog_transfer::catalog_map_root,

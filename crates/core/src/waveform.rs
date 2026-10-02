@@ -378,12 +378,25 @@ impl WaveformPyramid {
 }
 
 pub struct WaveformService {
+    maintenance: std::sync::Mutex<()>,
     cache_dir: PathBuf,
 }
 
 impl WaveformService {
     pub fn new(cache_dir: PathBuf) -> Self {
-        Self { cache_dir }
+        Self { cache_dir, maintenance: std::sync::Mutex::new(()) }
+    }
+
+    pub fn purge_cache(&self) -> Result<u64> {
+        let _guard = self.maintenance.lock().map_err(|_| invalid("Cache maintenance lock unavailable"))?;
+        let mut removed = 0;
+        for entry in std::fs::read_dir(&self.cache_dir)? {
+            let entry = entry?; let name = entry.file_name(); let name = name.to_string_lossy();
+            if name.strip_suffix(".sswf").is_some_and(|h| h.len()==64 && h.bytes().all(|b| b.is_ascii_hexdigit())) && entry.file_type()?.is_file() {
+                std::fs::remove_file(entry.path())?; removed += 1;
+            }
+        }
+        Ok(removed)
     }
 
     pub fn cache_path(&self, hash: &str) -> PathBuf {
@@ -399,6 +412,7 @@ impl WaveformService {
         tools: &MediaTools,
         cancel: Arc<AtomicBool>,
     ) -> Result<WaveformPyramid> {
+        let _guard = self.maintenance.lock().map_err(|_| invalid("Cache maintenance lock unavailable"))?;
         let path = self.cache_path(hash);
         if path.is_file() {
             if let Ok(pyramid) = WaveformPyramid::read_from_file(&path) {
