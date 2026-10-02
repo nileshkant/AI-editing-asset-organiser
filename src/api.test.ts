@@ -67,7 +67,7 @@ describe('duration()', () => {
 describe('call()', () => {
   it('rejects when not running in Tauri context', async () => {
     await expect(call('some_command')).rejects.toThrow(
-      'Open SoundShelf as a desktop application.',
+      'Open CreativeShelf as a desktop application.',
     );
   });
 

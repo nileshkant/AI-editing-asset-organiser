@@ -9,7 +9,7 @@ use rmcp::{
 #[tokio::main]
 async fn main() {
     if run().await.is_err() {
-        eprintln!("SoundShelf MCP bridge unavailable. Open SoundShelf, start MCP, and check your endpoint and client credential.");
+        eprintln!("CreativeShelf MCP bridge unavailable. Open CreativeShelf, start MCP, and check your endpoint and client credential.");
         std::process::exit(1);
     }
 }

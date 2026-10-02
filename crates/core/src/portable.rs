@@ -193,7 +193,7 @@ impl PortableCatalog {
                 .replace('[', "\\[")
                 .replace(']', "\\]")
         }
-        let mut out = String::from("# SoundShelf catalog\n\nSchema: soundshelf-catalog/v1. Media locations are relative to source IDs; map each source to a local root. This Markdown is a readable companion; use JSON for restore.\n");
+        let mut out = String::from("# CreativeShelf catalog\n\nSchema: soundshelf-catalog/v1. Media locations are relative to source IDs; map each source to a local root. This Markdown is a readable companion; use JSON for restore.\n");
         for s in &self.sounds {
             out.push_str(&format!("\n## {}\n\nSource: {}\n\nRelative path: {}\n\nStatus: {} · Favorite: {}\n\nTags: {}\n\nComment: {}\n",escape(&s.title),escape(&s.source_id),escape(&s.relative_path),s.status,s.favorite,escape(&s.user_tags.join(", ")),escape(&s.comment)));
             if let Some(p) = &s.profile {
