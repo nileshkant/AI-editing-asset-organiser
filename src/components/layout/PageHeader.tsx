@@ -5,11 +5,13 @@ import type { Page } from '../../types';
 interface PageHeaderProps {
   page: Page;
   onAddFolder: () => void;
+  onAddFiles?: () => void;
 }
 
 export const PageHeader = memo(function PageHeader({
   page,
   onAddFolder,
+  onAddFiles,
 }: PageHeaderProps) {
   const title =
     page === 'library' ? 'Library' : page[0].toUpperCase() + page.slice(1);
@@ -22,6 +24,7 @@ export const PageHeader = memo(function PageHeader({
       </div>
       <div className="header-actions">
         <span className="build-label">Development build</span>
+        {onAddFiles && <button onClick={onAddFiles}>Add files</button>}
         <button className="primary" onClick={onAddFolder}>
           <FolderPlus size={17} aria-hidden="true" />
           Add folder

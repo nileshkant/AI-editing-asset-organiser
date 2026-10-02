@@ -62,7 +62,7 @@ export const Sidebar = memo(function Sidebar({
       </nav>
 
       <div className="source-heading">
-        FOLDERS
+        SOURCES
         <button
           className="icon-button"
           title="Add folder"

@@ -48,15 +48,25 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
   };
 
   const importPath = useCallback(async (path: string) => {
-    await call("import_root", { path });
+    await call("import_path", { path });
     refresh();
   }, [refresh]);
 
   const addFolder = useCallback(() =>
     guard(async () => {
       const path = await call<string | null>("choose_folder");
-      if (path) await importPath(path);
+      if (path) {await call("import_root", { path });refresh();}
     }), [importPath]);
+
+  const addFiles = useCallback(() => guard(async () => {
+    const paths = await call<string[]>("choose_files");
+    const errors: string[] = [];
+    if (paths.length > 256) throw new Error("Select up to 256 files at a time");
+    for (const path of [...new Set(paths)]) {
+      try { await importPath(path); } catch (e) { errors.push(`${path}: ${String(e)}`); }
+    }
+    if (errors.length) throw new Error(errors.join("\n"));
+  }), [importPath]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -172,6 +182,7 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
     announcement,
     setAnnouncement,
     addFolder,
+    addFiles,
     importPath,
     refresh
   };

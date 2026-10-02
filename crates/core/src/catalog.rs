@@ -13,6 +13,8 @@ pub struct Source {
     pub root: String,
     pub generation: i64,
     pub available: bool,
+    pub scope: String,
+    pub files: Vec<crate::sources::SourceFile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -91,7 +93,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 4;
+pub const SCHEMA_VERSION: u32 = 5;
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
@@ -101,6 +103,10 @@ impl Catalog {
         db.pragma_update(None, "journal_mode", "WAL")?;
         let version: u32 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
         if version > SCHEMA_VERSION { return Err(invalid("Database belongs to a newer SoundShelf version")); }
+        if version > 0 && version < 5 && path.is_file() {
+            let backup = path.with_file_name(format!("{}.pre-v5-{}.sqlite", path.file_name().unwrap_or_default().to_string_lossy(), Uuid::new_v4()));
+            db.execute("VACUUM INTO ?1", [path_text(&backup)?])?;
+        }
         if version == 0 {
             let tx = db.transaction()?;
             tx.execute_batch(include_str!("schema.sql"))?;
@@ -171,6 +177,11 @@ CREATE TABLE clip_revisions (
 );
 CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
             }
+            if version < 5 {
+                tx.execute_batch("ALTER TABLE sources ADD COLUMN scope TEXT NOT NULL DEFAULT 'folder' CHECK(scope IN ('folder','files'));
+CREATE TABLE source_files(source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE, relative_path TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', PRIMARY KEY(source_id,relative_path));
+ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
+            }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }
@@ -186,25 +197,40 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
     }
 
     pub fn sources(&self) -> Result<Vec<Source>> {
-        let mut query = self.db.prepare("SELECT id,name,root,generation,available FROM sources ORDER BY name,id")?;
-        let sources = query.query_map([], |r| Ok(Source { id:r.get(0)?, name:r.get(1)?, root:r.get(2)?, generation:r.get(3)?, available:r.get(4)? }))?.collect::<std::result::Result<_,_>>()?;
+        let mut sources=self.source_headers()?;
+        for source in &mut sources {source.files=self.source_files(&source.id,source.available)?;}
+        Ok(sources)
+    }
+    pub(crate) fn source_headers(&self)->Result<Vec<Source>> {
+        let mut query=self.db.prepare("SELECT id,name,root,generation,available,scope FROM sources ORDER BY name,id")?;
+        let sources=query.query_map([], |r|Ok(Source{id:r.get(0)?,name:r.get(1)?,root:r.get(2)?,generation:r.get(3)?,available:r.get(4)?,scope:r.get(5)?,files:vec![]}))?.collect::<std::result::Result<Vec<_>,_>>()?;
         Ok(sources)
     }
 
+    pub fn source_generation(&self,id:&str)->Result<i64> {
+        self.db.query_row("SELECT generation FROM sources WHERE id=?1",[id],|r|r.get(0)).optional()?.ok_or_else(||invalid("Source not found"))
+    }
+    pub fn has_cached_profile(&self,hash:&str)->Result<bool> {
+        Ok(self.db.query_row("SELECT EXISTS(SELECT 1 FROM analyses WHERE content_hash=?1 AND analyzer=?2)",params![hash,ANALYZER],|r|r.get(0))?)
+    }
     pub fn source(&self, id: &str) -> Result<Source> {
-        self.sources()?.into_iter().find(|s| s.id == id).ok_or_else(|| invalid("Source not found"))
+        let mut source = self.db.query_row("SELECT id,name,root,generation,available,scope FROM sources WHERE id=?1", [id], |r| Ok(Source {
+            id:r.get(0)?,name:r.get(1)?,root:r.get(2)?,generation:r.get(3)?,available:r.get(4)?,scope:r.get(5)?,files:vec![]
+        })).optional()?.ok_or_else(|| invalid("Source not found"))?;
+        source.files = self.source_files(&source.id, source.available)?;
+        Ok(source)
     }
 
     pub fn add_source(&self, root: &Path) -> Result<Source> {
         let root = root.canonicalize()?;
         if !root.is_dir() { return Err(invalid("Choose a folder")); }
-        for existing in self.sources()? {
+        for existing in self.source_headers()? {
             let other = Path::new(&existing.root);
-            if other == root { return Ok(existing); }
+            if other == root { if existing.scope == "files" { return Err(invalid("This is a selected-files scope. Confirm conversion in Settings before importing its siblings.")); } return Ok(existing); }
             if root.starts_with(other) || other.starts_with(&root) { return Err(invalid("This folder overlaps an existing source")); }
         }
         let root_text = path_text(&root)?;
-        let source = Source { id:Uuid::new_v4().to_string(), name:root.file_name().unwrap_or_default().to_string_lossy().into_owned(), root:root_text, generation:0, available:true };
+        let source = Source { id:Uuid::new_v4().to_string(), name:root.file_name().unwrap_or_default().to_string_lossy().into_owned(), root:root_text, generation:0, available:true, scope:"folder".into(), files:vec![] };
         self.db.execute("INSERT INTO sources(id,name,root) VALUES(?1,?2,?3)", params![source.id,source.name,source.root])?;
         Ok(source)
     }
@@ -218,7 +244,7 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
         let source = self.source(id)?;
         let new_root = new_root.canonicalize()?;
         if !new_root.is_dir() { return Err(invalid("Replacement must be a folder")); }
-        for other in self.sources()?.into_iter().filter(|s| s.id != id) {
+        for other in self.source_headers()?.into_iter().filter(|s| s.id != id) {
             if new_root.starts_with(&other.root) || Path::new(&other.root).starts_with(&new_root) { return Err(invalid("Replacement overlaps another source")); }
         }
         // Verify content, not timestamps: copies may rewrite mtimes but retain analysis.
@@ -232,10 +258,11 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
 
     pub fn register(&self, source: &Source, relative: &str, hash: &str) -> Result<String> {
         valid_relative(relative)?;
-        if self.source(&source.id)?.generation != source.generation { return Err(invalid("Source moved; discard stale scan")); }
+        if self.source_generation(&source.id)? != source.generation { return Err(invalid("Source moved; discard stale scan")); }
+        self.validate_source_entry(&source.id, relative)?;
         let title = Path::new(relative).file_stem().unwrap_or_default().to_string_lossy().replace('_', " ");
         let id = Uuid::new_v4().to_string();
-        let cached = self.cached_profile(hash)?.is_some();
+        let cached = self.has_cached_profile(hash)?;
         let status = if cached { "ready" } else { "pending" };
         self.db.execute("INSERT INTO sounds(id,source_id,relative_path,title,content_hash,status) VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(source_id,relative_path) DO UPDATE SET content_hash=excluded.content_hash,status=excluded.status,title=excluded.title", params![id,source.id,relative,title,hash,status])?;
         Ok(self.db.query_row("SELECT id FROM sounds WHERE source_id=?1 AND relative_path=?2", params![source.id,relative], |r| r.get(0))?)
@@ -299,6 +326,7 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
     pub fn resolve(&self, id: &str) -> Result<PathBuf> {
         let sound = self.ready_sound(id)?;
         let source = self.source(&sound.source_id)?;
+        self.validate_source_entry(&source.id, &sound.relative_path)?;
         contained(Path::new(&source.root), &sound.relative_path)
     }
 
@@ -325,32 +353,11 @@ CREATE INDEX clip_revisions_clip ON clip_revisions(clip_id);")?;
     }
 
     pub fn reconcile(&mut self, source: &Source, seen: &[String], complete: bool) -> Result<()> {
-        if !complete { return Ok(()); }
-        if self.source(&source.id)?.generation != source.generation { return Err(invalid("Source moved; discard stale scan")); }
-        // Targeted query: only fetch id+path for this source; no full profile deserialization.
-        // Collect all rows first so the Statement borrow ends before the mutable transaction borrow.
-        let existing: Vec<(String, String)> = {
-            let mut stmt = self.db.prepare(
-                "SELECT id, relative_path FROM sounds WHERE source_id=?1 AND status != 'missing'"
-            )?;
-            let x = stmt.query_map([&source.id], |r| {
-                Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?))
-            })?.collect::<std::result::Result<Vec<_>,_>>()?;
-            x
-        };
-        let to_mark_missing: Vec<String> = existing
-            .into_iter()
-            .filter(|(_, relative_path)| !seen.contains(relative_path))
-            .map(|(id, _)| id)
-            .collect();
-        let tx = self.db.transaction()?;
-        for id in to_mark_missing { tx.execute("UPDATE sounds SET status='missing' WHERE id=?1",[id])?; }
-        tx.commit()?;
-        Ok(())
+        self.reconcile_paths(source,seen,None,complete)
     }
 
     pub fn search(&self, query: &crate::search::SearchQuery) -> Result<crate::search::SearchResults> {
-        let online: Vec<String> = self.sources()?.into_iter().filter(|s| s.available).map(|s| s.id).collect();
+        let online: Vec<String> = self.source_headers()?.into_iter().filter(|s| s.available).map(|s| s.id).collect();
         crate::search::search(self.all_sounds()?, query, &online)
     }
 

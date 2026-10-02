@@ -27,7 +27,7 @@ export const ImportsView = memo(function ImportsView({
   return (
     <section className="settings-body">
       {jobs.map((job) => (
-        <div className="job-row" key={job.source_id}>
+        <div className="job-row" key={job.job_id}>
           <div className="job-heading">
             <strong>
               {roots.find((r) => r.id === job.source_id)?.name || 'Folder'}

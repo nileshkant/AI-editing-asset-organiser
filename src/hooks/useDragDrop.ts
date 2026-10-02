@@ -17,11 +17,13 @@ export function useDragDrop(importPath: (path: string) => Promise<void>, setErro
         if (payload.type === "drop") {
           const paths = payload.paths;
           void (async () => {
-             try {
-                for (const path of paths) await importPath(path);
-             } catch (e) {
-                setError(String(e));
+             if (paths.length > 256) {setError("Drop up to 256 paths at a time");return;}
+             const errors: string[] = [];
+             for (const path of [...new Set(paths)]) {
+                if (disposed) break;
+                try {await importPath(path);} catch (e) {errors.push(`${path}: ${String(e)}`);}
              }
+             if (!disposed) setError(errors.join("\n"));
           })();
         }
       })

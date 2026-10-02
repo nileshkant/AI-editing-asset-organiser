@@ -155,7 +155,7 @@ export function App() {
       />
 
       <main>
-        <PageHeader page={page} onAddFolder={search.addFolder} />
+        <PageHeader page={page} onAddFolder={search.addFolder} onAddFiles={search.addFiles} />
 
         {(error || search.error || playback.error) && (
           <div className="error" role="alert">
@@ -221,7 +221,7 @@ export function App() {
                     value={search.source}
                     onChange={(e) => search.setSource(e.target.value)}
                   >
-                    <option value="">All folders</option>
+                    <option value="">All sources</option>
                     {search.roots.map((r) => (
                       <option key={r.id} value={r.id}>
                         {r.name}
@@ -393,7 +393,7 @@ export function App() {
       {dropping && (
         <div className="drop-overlay">
           <FolderPlus size={48} aria-hidden="true" />
-          <strong>Add audio folders</strong>
+          <strong>Add audio files or folders</strong>
         </div>
       )}
 

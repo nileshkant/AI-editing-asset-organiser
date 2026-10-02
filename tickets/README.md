@@ -46,8 +46,8 @@ This is the canonical implementation order. It prioritizes a reliable local
 editing workflow before integrations and keeps optional AI off the critical
 path.
 
-1. [SS-013: Clip export and handoff](SS-013.md) | in-review | produce verified editor-ready media
-2. [SS-026: Individual-file import](SS-026.md) | not-started | extend stable source scopes
+1. [SS-013: Clip export and handoff](SS-013.md) | complete | produce verified editor-ready media
+2. [SS-026: Individual-file import](SS-026.md) | in-review | extend stable source scopes
 3. [SS-021: Portable catalog and migration](SS-021.md) | not-started | add portable export/import after identity work stabilizes
 4. [SS-018: MCP lifecycle authentication](SS-018.md) | not-started | establish the secured local service
 5. [SS-019: MCP catalog and clip tools](SS-019.md) | not-started | expose the completed common services
@@ -63,11 +63,12 @@ path.
 
 ## Progress snapshot
 
-- Complete: 14 of 28 tickets.
+- Complete: 15 of 28 tickets.
 - In review: 1 of 28 tickets.
 - Partial: 0 of 28 tickets.
-- Not started: 13 of 28 tickets.
-- Next ticket: SS-013 (implementation verified locally; PR #11 awaiting review/CI).
+- Not started: 12 of 28 tickets.
+- Current ticket: SS-026 (native implementation in review; live MCP acceptance deferred to SS-018/SS-019).
+- Next unstarted ticket: SS-021.
 
 ## Release definition
 

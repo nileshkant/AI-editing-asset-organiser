@@ -22,6 +22,7 @@ pub struct Job {
     pub failed: usize,
     pub current: String,
     pub errors: Vec<String>,
+    pub paths: Option<Vec<String>>,
 }
 
 impl Job {
@@ -41,32 +42,79 @@ impl Job {
 }
 
 pub fn now_secs() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
 }
 
 impl Catalog {
     pub fn enqueue_scan(&self, source_id: &str) -> Result<Job> {
+        self.enqueue_paths(source_id, None)
+    }
+
+    pub fn enqueue_paths(&self, source_id: &str, mut paths: Option<Vec<String>>) -> Result<Job> {
+        if let Some(paths) = &mut paths {
+            paths.sort();
+            paths.dedup();
+        }
         let _ = self.source(source_id)?;
+        if let Some(paths) = &paths {
+            if paths.is_empty() || paths.len() > 256 {
+                return Err(invalid("Select between 1 and 256 files"));
+            }
+            for path in paths {
+                self.validate_source_entry(source_id, path)?;
+            }
+        }
+        let encoded = paths.as_ref().map(serde_json::to_string).transpose()?;
+        let kind = match &encoded {
+            Some(value) => format!("files:{}", blake3::hash(value.as_bytes()).to_hex()),
+            None => SCAN.into(),
+        };
         let now = now_secs();
-        if let Some(existing) = self.job_for_source(source_id, SCAN)? {
+        if let Some(existing) = self.job_for_source(source_id, &kind)? {
             if existing.state == "running" && existing.lease_until.unwrap_or(0) > now {
                 return Ok(existing);
             }
             if existing.state == "queued" {
                 return Ok(existing);
             }
+            self.ensure_queue_capacity()?;
             self.db.execute(
                 "UPDATE jobs SET state='queued', status='queued', lease_owner=NULL, lease_until=NULL, completed=0, total=0, reused=0, failed=0, current='', errors='[]', updated_at=?2 WHERE id=?1",
                 params![existing.id, now],
             )?;
             return self.job(&existing.id);
         }
+        self.ensure_queue_capacity()?;
         let id = Uuid::new_v4().to_string();
         self.db.execute(
-            "INSERT INTO jobs(id,source_id,kind,state,status,created_at,updated_at) VALUES(?1,?2,?3,'queued','queued',?4,?4)",
-            params![id, source_id, SCAN, now],
+            "INSERT INTO jobs(id,source_id,kind,state,status,created_at,updated_at,paths) VALUES(?1,?2,?3,'queued','queued',?4,?4,?5)",
+            params![id, source_id, kind, now, encoded],
         )?;
         self.job(&id)
+    }
+
+    fn ensure_queue_capacity(&self) -> Result<()> {
+        let active: i64 = self.db.query_row(
+            "SELECT COUNT(*) FROM jobs WHERE state IN ('queued','running')",
+            [],
+            |r| r.get(0),
+        )?;
+        if active >= 32 {
+            return Err(invalid(
+                "Import queue is full; retry after current imports finish",
+            ));
+        }
+        Ok(())
+    }
+    pub fn cancel_queued(&self) -> Result<()> {
+        self.db.execute(
+            "UPDATE jobs SET state='cancelled',status='cancelled' WHERE state='queued'",
+            [],
+        )?;
+        Ok(())
     }
 
     pub fn recover_jobs(&self, now: i64) -> Result<Vec<Job>> {
@@ -90,12 +138,16 @@ impl Catalog {
             "UPDATE jobs SET state='running', status=CASE WHEN status IN ('queued','cancelled') THEN 'queued' ELSE status END, lease_owner=?2, lease_until=?4, updated_at=?3 WHERE id=?1 AND (state='queued' OR (state='running' AND (lease_until IS NULL OR lease_until<=?3)))",
             params![id, owner, now, now + LEASE_SECS],
         )?;
-        if changed == 0 { return Ok(None); }
+        if changed == 0 {
+            return Ok(None);
+        }
         Ok(Some(self.job(id)?))
     }
 
     pub fn persist_progress(&self, owner: &str, progress: &Progress) -> Result<()> {
-        if progress.job_id.is_empty() { return Err(invalid("Job id required")); }
+        if progress.job_id.is_empty() {
+            return Err(invalid("Job id required"));
+        }
         let now = now_secs();
         let changed = self.db.execute(
             "UPDATE jobs SET status=?3, completed=?4, total=?5, reused=?6, failed=?7, current=?8, errors=?9, lease_owner=?2, lease_until=?10, updated_at=?11 WHERE id=?1 AND lease_owner=?2 AND state='running'",
@@ -113,15 +165,27 @@ impl Catalog {
                 now
             ],
         )?;
-        if changed == 0 { return Err(invalid("Job lease is no longer valid")); }
+        if changed == 0 {
+            return Err(invalid("Job lease is no longer valid"));
+        }
         Ok(())
     }
 
-    pub fn finish_job(&self, id: &str, owner: &str, progress: &Progress, cancelled: bool) -> Result<Job> {
+    pub fn finish_job(
+        &self,
+        id: &str,
+        owner: &str,
+        progress: &Progress,
+        cancelled: bool,
+    ) -> Result<Job> {
         let now = now_secs();
         let (state, status) = if cancelled {
             ("cancelled", "cancelled")
-        } else if progress.status == "failed" || (progress.failed > 0 && progress.status != "complete" && !progress.status.starts_with("completed")) {
+        } else if progress.status == "failed"
+            || (progress.failed > 0
+                && progress.status != "complete"
+                && !progress.status.starts_with("completed"))
+        {
             ("failed", progress.status.as_str())
         } else {
             ("complete", progress.status.as_str())
@@ -142,7 +206,9 @@ impl Catalog {
                 now
             ],
         )?;
-        if changed == 0 { return Err(invalid("Job lease is no longer valid")); }
+        if changed == 0 {
+            return Err(invalid("Job lease is no longer valid"));
+        }
         self.job(id)
     }
 
@@ -151,29 +217,35 @@ impl Catalog {
     }
 
     pub fn job(&self, id: &str) -> Result<Job> {
-        self.read_job("SELECT id,source_id,kind,state,status,lease_owner,lease_until,completed,total,reused,failed,current,errors FROM jobs WHERE id=?1", params![id])?
+        self.read_job("SELECT id,source_id,kind,state,status,lease_owner,lease_until,completed,total,reused,failed,current,errors,paths FROM jobs WHERE id=?1", params![id])?
             .ok_or_else(|| invalid("Job not found"))
     }
 
     fn job_for_source(&self, source_id: &str, kind: &str) -> Result<Option<Job>> {
         self.read_job(
-            "SELECT id,source_id,kind,state,status,lease_owner,lease_until,completed,total,reused,failed,current,errors FROM jobs WHERE source_id=?1 AND kind=?2",
+            "SELECT id,source_id,kind,state,status,lease_owner,lease_until,completed,total,reused,failed,current,errors,paths FROM jobs WHERE source_id=?1 AND kind=?2",
             params![source_id, kind],
         )
     }
 
     fn jobs_in_states(&self, states: &[&str]) -> Result<Vec<Job>> {
         let placeholders = states.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-        let sql = format!("SELECT id,source_id,kind,state,status,lease_owner,lease_until,completed,total,reused,failed,current,errors FROM jobs WHERE state IN ({placeholders}) ORDER BY created_at,id");
+        let sql = format!("SELECT id,source_id,kind,state,status,lease_owner,lease_until,completed,total,reused,failed,current,errors,paths FROM jobs WHERE state IN ({placeholders}) ORDER BY created_at,id");
         let mut query = self.db.prepare(&sql)?;
         let rows = query.query_map(rusqlite::params_from_iter(states.iter()), map_job)?;
         let mut jobs = vec![];
-        for row in rows { jobs.push(row_job(row?)?); }
+        for row in rows {
+            jobs.push(row_job(row?)?);
+        }
         Ok(jobs)
     }
 
     fn read_job(&self, sql: &str, params: impl rusqlite::Params) -> Result<Option<Job>> {
-        self.db.query_row(sql, params, map_job).optional()?.map(row_job).transpose()
+        self.db
+            .query_row(sql, params, map_job)
+            .optional()?
+            .map(row_job)
+            .transpose()
     }
 }
 
@@ -192,6 +264,7 @@ fn map_job(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawJob> {
         failed: row.get(10)?,
         current: row.get(11)?,
         errors: row.get(12)?,
+        paths: row.get(13)?,
     })
 }
 
@@ -209,6 +282,7 @@ struct RawJob {
     failed: i64,
     current: String,
     errors: String,
+    paths: Option<String>,
 }
 
 fn row_job(raw: RawJob) -> Result<Job> {
@@ -226,5 +300,6 @@ fn row_job(raw: RawJob) -> Result<Job> {
         failed: raw.failed as usize,
         current: raw.current,
         errors: serde_json::from_str(&raw.errors)?,
+        paths: raw.paths.map(|s| serde_json::from_str(&s)).transpose()?,
     })
 }
