@@ -8,6 +8,9 @@ const target = hostTarget();
 function run(cmd,args,options={}) {
   const env = { ...rustEnv };
   for (const key of Object.keys(env)) if (/^(APPLE_|WINDOWS_CERT_|TAURI_SIGNING_)/.test(key)) delete env[key];
+  // AppImage tooling otherwise strips staged helper executables after their hashes are recorded.
+  // Keep exact audited bytes; package inspection still rejects any unexpected change.
+  if (process.platform === 'linux') env.NO_STRIP = '1';
   const r = spawnSync(cmd,args,{env,encoding:'utf8',...options});
   if (r.error || r.status !== 0) throw new Error(`${cmd} failed: ${r.stderr || r.error?.message}`);
   return r.stdout;
