@@ -462,19 +462,7 @@ fn read_only_snapshot_failure_is_retryable_and_member_access_denial_never_prunes
         fs::Permissions::from_mode(0o755),
     )
     .unwrap();
-    // A writer lease can still be transiently busy after permissions recover.
-    // Follow the API's explicit retry contract; never retry permission/data errors.
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
-    loop {
-        match source_catalog::save(&db, &source) {
-            Ok(()) => break,
-            Err(e) if e.to_string() == "Another application is updating the source catalog; retry later"
-                && std::time::Instant::now() < deadline => {
-                    std::thread::sleep(std::time::Duration::from_millis(10));
-                }
-            Err(e) => panic!("Snapshot did not recover after restoring permissions: {e}"),
-        }
-    }
+    source_catalog::save(&db, &source).unwrap();
     assert!(!db.lock().unwrap().snapshot_states().unwrap()[0].dirty);
     let before = fs::read(&path).unwrap();
     fs::set_permissions(
