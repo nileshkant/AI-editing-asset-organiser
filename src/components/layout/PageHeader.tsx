@@ -23,7 +23,6 @@ export const PageHeader = memo(function PageHeader({
         <h1>{title}</h1>
       </div>
       <div className="header-actions">
-        <span className="build-label">Development build</span>
         {onAddFiles && <button onClick={onAddFiles}>Add files</button>}
         <button className="primary" onClick={onAddFolder}>
           <FolderPlus size={17} aria-hidden="true" />

@@ -2,6 +2,7 @@ import React, { memo, useState, useRef, useId } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { call } from '../../api';
 import { McpSettings } from './McpSettings';
+import { McpGuide } from './McpGuide';
 import { FolderCatalogs } from './FolderCatalogs';
 import { RecoverySettings } from './RecoverySettings';
 import { CatalogData } from './CatalogData';
@@ -22,7 +23,7 @@ export const SettingsView = memo(function SettingsView({
   onRelink,
   onError,
 }: SettingsViewProps) {
-  const categories = ['Sources', 'Catalog data', 'Audio & recovery', 'Agent access', 'Application'];
+  const categories = ['Sources', 'Catalog data', 'Audio & recovery', 'Agent access', 'Application', 'MCP guide'];
   const [category, setCategory] = useState(0);
   const settingsId = useId();
   const panelProps = (index: number) => ({
@@ -145,6 +146,7 @@ export const SettingsView = memo(function SettingsView({
       <p className="muted">Unavailable · no recognition model enabled. Audio analysis measures the recording; automatic sound-event recognition is planned for a future version.</p>
       </div>
       </section>
+      <section {...panelProps(5)}>{category === 5 && <McpGuide />}</section>
     </section>
   );
 });

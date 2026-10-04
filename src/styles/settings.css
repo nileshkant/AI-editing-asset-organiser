@@ -89,3 +89,7 @@
   .settings-tabs button[aria-selected="true"] { border: 2px solid Highlight; }
   .settings-card, .settings-card fieldset { border-color: CanvasText; }
 }
+.mcp-reference { line-height: 1.65; overflow-wrap: anywhere; }
+.mcp-reference p, .mcp-reference li { white-space: pre-line; }
+.settings-card ol { padding-left: 24px; line-height: 1.65; }
+.settings-card ol li { margin: 12px 0; }
