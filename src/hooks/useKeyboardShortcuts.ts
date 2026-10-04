@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { PlaybackStatus, SearchResults, Sound, Source } from '../api';
+import { Page, PlaybackStatus, SearchResults, Sound, Source } from '../api';
 
 export interface KeyboardShortcutsConfig {
+  page: Page;
   playback: PlaybackStatus | null;
   selected: Sound | null;
   playingSound: Sound | null;
@@ -33,6 +34,9 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const s = stateRef.current;
+      // Settings owns its keyboard controls. Library shortcuts must not steal
+      // Space/Enter or scrolling keys and unexpectedly play/select audio there.
+      if (e.defaultPrevented || s.page === 'settings') return;
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       const isInput =
         tag === "input" ||

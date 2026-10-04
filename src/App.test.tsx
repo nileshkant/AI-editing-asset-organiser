@@ -416,6 +416,21 @@ describe('App', () => {
     );
   });
 
+  it('does not steal Settings activation or scrolling keys for library shortcuts', async () => {
+    render(<App />);
+    await screen.findByText('Cinematic Whoosh Stereo');
+    fireEvent.click(screen.getByText('Settings'));
+    const tab = screen.getByRole('tab', {name: 'Sources'});
+    mockInvoke.mockClear();
+    await act(async () => {
+      expect(fireEvent.keyDown(tab, {key: ' ', code: 'Space'})).toBe(true);
+      expect(fireEvent.keyDown(tab, {key: 'Enter'})).toBe(true);
+      expect(fireEvent.keyDown(screen.getByRole('tabpanel'), {key: 'ArrowDown'})).toBe(true);
+      expect(fireEvent.keyDown(screen.getByRole('tabpanel'), {key: 'PageDown'})).toBe(true);
+    });
+    expect(mockInvoke.mock.calls.filter(([cmd]) => ['playback_play', 'get_sound', 'playback_set_volume'].includes(cmd))).toEqual([]);
+  });
+
   // ─── Core UX Regression Verifications ───
   it('prevents multiple playback_play calls when play is in-flight (rapid click debounce)', async () => {
     let playResolve: () => void = () => {};

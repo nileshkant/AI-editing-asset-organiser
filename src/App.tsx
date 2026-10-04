@@ -85,6 +85,7 @@ export function App() {
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
+    page,
     playback: playback.playback,
     selected,
     playingSound: playback.playingSound,

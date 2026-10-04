@@ -17,10 +17,10 @@ use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
 #[derive(serde::Serialize)]
-struct AppInfo { version: &'static str, data_directory: String, desktop: bool, media_tools: bool }
+struct AppInfo { version: String, data_directory: String, desktop: bool, media_tools: bool }
 
 #[tauri::command]
-fn app_info(state:tauri::State<AppState>) -> AppInfo {AppInfo{version:env!("CARGO_PKG_VERSION"),data_directory:state.data_directory.to_string_lossy().into_owned(),desktop:true,media_tools:state.tools.is_some()}}
+fn app_info(app: tauri::AppHandle, state:tauri::State<AppState>) -> AppInfo {AppInfo{version:app.package_info().version.to_string(),data_directory:state.data_directory.to_string_lossy().into_owned(),desktop:true,media_tools:state.tools.is_some()}}
 #[tauri::command]
 async fn choose_folder(app:tauri::AppHandle)->Result<Option<String>,String>{tauri::async_runtime::spawn_blocking(move ||app.dialog().file().blocking_pick_folder().map(|p|p.into_path().map(|p|p.to_string_lossy().into_owned()).map_err(|e|e.to_string())).transpose()).await.map_err(|e|e.to_string())?}
 #[tauri::command]
