@@ -67,8 +67,23 @@ pub fn normalize_layout(channels: u16, raw_layout: Option<&str>) -> String {
     }
 }
 
+/// GUI-owned media workers must not allocate a console on Windows. Piped standard
+/// handles alone do not prevent console-subsystem FFmpeg/FFprobe from opening one.
+/// Leave Unix process behavior and the caller's arguments/handles unchanged.
+pub(crate) fn configure_background_process(command: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    let _ = command;
+}
+
 // Watchdog owns process cleanup even when pipe reads block on a broken decoder.
 pub fn run_stream<T>(mut command: Command, cancel: Arc<AtomicBool>, timeout: Duration, read: impl FnOnce(&mut dyn Read)->Result<T>) -> Result<T> {
+    configure_background_process(&mut command);
     let mut process=command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn()?;
     let mut stdout=BufReader::new(process.stdout.take().ok_or_else(||invalid("Decoder has no output"))?);
     let process=Arc::new(Mutex::new(process));let monitor=process.clone();
@@ -218,6 +233,42 @@ pub fn measure_pcm(reader:&mut dyn Read,rate:u32,channels:u16,initial_bucket:usi
 
 #[cfg(test)]mod tests{
  use super::*;
+ #[cfg(windows)]
+ #[test]
+ fn console_probe_child() {
+     if std::env::var_os("CREATIVESHELF_CONSOLE_PROBE").is_none() { return; }
+     #[link(name = "kernel32")]
+     extern "system" { fn GetConsoleWindow() -> *mut std::ffi::c_void; }
+     // Only observe the child's console; this fixture never changes OS settings.
+     assert!(unsafe { GetConsoleWindow() }.is_null(), "media child acquired a console");
+     println!("console-probe: stdout ✓");
+     eprintln!("console-probe: stderr ✓");
+ }
+ #[cfg(windows)]
+ fn console_probe_command() -> Command {
+     let mut cmd = Command::new(std::env::current_exe().unwrap());
+     cmd.args(["--exact", "media::tests::console_probe_child", "--nocapture"])
+         .env("CREATIVESHELF_CONSOLE_PROBE", "1");
+     cmd
+ }
+ #[cfg(windows)]
+ #[test]
+ fn playback_style_child_has_no_console_and_keeps_output_pipes() {
+     let mut cmd = console_probe_command();
+     configure_background_process(&mut cmd);
+     let output = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).output().unwrap();
+     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+     assert!(String::from_utf8_lossy(&output.stdout).contains("console-probe: stdout ✓"));
+     assert!(String::from_utf8_lossy(&output.stderr).contains("console-probe: stderr ✓"));
+ }
+ #[cfg(windows)]
+ #[test]
+ fn import_waveform_export_stream_child_has_no_console() {
+     let bytes = run_stream(console_probe_command(), Arc::new(AtomicBool::new(false)), Duration::from_secs(10), |r| {
+         let mut bytes = Vec::new(); r.read_to_end(&mut bytes)?; Ok(bytes)
+     }).unwrap();
+     assert!(String::from_utf8_lossy(&bytes).contains("console-probe: stdout ✓"));
+ }
  #[test]fn stereo_does_not_cancel(){
      let data:Vec<u8>=[0.5f32,-0.5,0.5,-0.5].into_iter().flat_map(f32::to_le_bytes).collect();
      let p=measure_pcm(&mut &data[..],48000,2,1).unwrap();

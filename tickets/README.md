@@ -70,6 +70,13 @@ Three unfinished baseline qualification tickets remain on the audio v1 path, plu
 new defects discovered during qualification may require follow-ups. No ticket
 completion alone proves release readiness.
 
+## Tester-reported fixes before the next preview
+
+- [SS-035: Windows media console flashes](SS-035.md) | partial
+
+The alpha.4 report takes priority over optional enhancements. These follow-up
+checks do not retroactively qualify the published alpha.4 installers.
+
 ## Optional enhancements after the baseline tester release
 
 - [SS-014: Provider configuration and credentials](SS-014.md) | not-started
