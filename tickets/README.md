@@ -115,3 +115,11 @@ AI, client subscription setup, direct Resolve automation, images and presets do
 not block the baseline release. Full production readiness requires all
 applicable release gates in the product plan; passing unit tests does not
 certify a production package.
+
+## Settings tester feedback follow-up
+
+- [SS-036: Desktop Settings layout](SS-036.md) | partial
+
+Address the alpha.4 layout report before optional feature work. Browser layout
+and interaction checks are recorded separately from installed OS accessibility
+and display-scaling acceptance.

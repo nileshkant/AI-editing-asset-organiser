@@ -48,19 +48,19 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
     <div className="setting-row">
       <span role="status">{status.endpoint ? 'Running' : 'Stopped'}</span>
       {status.endpoint ? <><code>{status.endpoint}</code><button disabled={busy} onClick={() => void act('mcp_stop')}>Stop MCP</button></> : <>
-        <label>Port <input aria-label="MCP port" inputMode="numeric" value={port} onChange={e => setPort(e.target.value)} /></label>
+        <label className="settings-control">Port <input aria-label="MCP port" inputMode="numeric" value={port} onChange={e => setPort(e.target.value)} /></label>
         <small>0 selects an available port.</small>
         <button disabled={busy || !validPort} onClick={() => void act('mcp_start', { port: Number(port) })}>Start MCP</button>
       </>}
     </div>
     {status.endpoint && <>
       <form onSubmit={e => { e.preventDefault(); void act('mcp_pair', { name, access }); }}>
-        <label>Client name <input maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
+        <label className="settings-control">Client name <input maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
         <fieldset disabled={busy}><legend>Client permissions</legend>
-          <label><input type="checkbox" checked={access.read} onChange={e => setAccess(e.target.checked ? defaultAccess : { ...defaultAccess, read: false })} />Read catalog</label>
-          {(['edit', 'export', 'paths'] as const).map(key => <label key={key}><input type="checkbox" disabled={!access.read} checked={access[key]} onChange={e => setAccess(a => ({ ...a, [key]: e.target.checked }))} />{key === 'edit' ? 'Edit annotations and clips' : key === 'export' ? 'Export clips to approved destinations' : 'Reveal local paths'}</label>)}
+          <label className="settings-check"><input type="checkbox" checked={access.read} onChange={e => setAccess(e.target.checked ? defaultAccess : { ...defaultAccess, read: false })} />Read catalog</label>
+          {(['edit', 'export', 'paths'] as const).map(key => <label className="settings-check" key={key}><input type="checkbox" disabled={!access.read} checked={access[key]} onChange={e => setAccess(a => ({ ...a, [key]: e.target.checked }))} />{key === 'edit' ? 'Edit annotations and clips' : key === 'export' ? 'Export clips to approved destinations' : 'Reveal local paths'}</label>)}
           <fieldset disabled={!access.read}><legend>Allowed sources</legend>
-            {roots.map(source => <label key={source.id}><input type="checkbox" checked={access.source_ids.includes(source.id)} onChange={e => setAccess(a => ({ ...a, source_ids: e.target.checked ? [...a.source_ids, source.id] : a.source_ids.filter(id => id !== source.id) }))} />{source.name}</label>)}
+            {roots.map(source => <label className="settings-check" key={source.id}><input type="checkbox" checked={access.source_ids.includes(source.id)} onChange={e => setAccess(a => ({ ...a, source_ids: e.target.checked ? [...a.source_ids, source.id] : a.source_ids.filter(id => id !== source.id) }))} />{source.name}</label>)}
             {!roots.length && <p className="muted">No sources available. Catalog results will be empty.</p>}
           </fieldset>
         </fieldset>

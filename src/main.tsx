@@ -8,6 +8,7 @@ import './styles/sound-list.css';
 import './styles/transport.css';
 import './styles/waveform.css';
 import './styles/responsive.css';
+import './styles/settings.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

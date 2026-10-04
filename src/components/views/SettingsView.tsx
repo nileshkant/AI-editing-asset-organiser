@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef } from 'react';
+import React, { memo, useState, useRef, useId } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { call } from '../../api';
 import { McpSettings } from './McpSettings';
@@ -22,6 +22,14 @@ export const SettingsView = memo(function SettingsView({
   onRelink,
   onError,
 }: SettingsViewProps) {
+  const categories = ['Sources', 'Catalog data', 'Audio & recovery', 'Agent access', 'Application'];
+  const [category, setCategory] = useState(0);
+  const settingsId = useId();
+  const panelProps = (index: number) => ({
+    role: 'tabpanel', id: `${settingsId}-panel-${index}`,
+    'aria-labelledby': `${settingsId}-tab-${index}`, hidden: category !== index,
+    className: 'settings-panel', tabIndex: 0,
+  });
   const [pending, setPending] = useState<{root: Source; action: 'convert_source' | 'remove_source'} | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const openConfirmation = (root: Source, action: 'convert_source' | 'remove_source') => {opener.current = document.activeElement as HTMLElement;setPending({root, action});};
@@ -39,8 +47,30 @@ export const SettingsView = memo(function SettingsView({
     catch (e) {onError(String(e));}
   };
   return (
-    <section className="settings-body">
+    <section className="settings-body settings-workspace" aria-label="Application settings">
+      <div className="settings-tabs" role="tablist" aria-label="Settings categories" onKeyDown={event => {
+        const target = event.target as HTMLElement;
+        if (target.getAttribute('role') !== 'tab') return;
+        const current = Number(target.dataset.index);
+        let next: number;
+        if (event.key === 'ArrowRight') next = (current + 1) % categories.length;
+        else if (event.key === 'ArrowLeft') next = (current + categories.length - 1) % categories.length;
+        else if (event.key === 'Home') next = 0;
+        else if (event.key === 'End') next = categories.length - 1;
+        else return;
+        event.preventDefault();
+        setCategory(next);
+        event.currentTarget.querySelector<HTMLButtonElement>(`[data-index="${next}"]`)?.focus();
+      }}>
+        {categories.map((label, index) => <button key={label} type="button" role="tab"
+          id={`${settingsId}-tab-${index}`} aria-controls={`${settingsId}-panel-${index}`}
+          aria-selected={category === index} tabIndex={category === index ? 0 : -1}
+          data-index={index} onClick={() => setCategory(index)}>{label}</button>)}
+      </div>
+      <section {...panelProps(0)}>
+      <div className="settings-card">
       <h2>Sources</h2>
+      <p className="muted">Manage where your audio lives. Removing a source only removes its catalog metadata; original audio stays on disk.</p>
       {roots.length ? (
         roots.map((root) => (
           <div className="setting-row" key={root.id}>
@@ -73,13 +103,17 @@ export const SettingsView = memo(function SettingsView({
               </button>
               <button onClick={() => onRelink(root)}>Relink folder</button>
               {root.scope === 'files' && <button onClick={() => openConfirmation(root, 'convert_source')}>Import entire folder</button>}
-              <button onClick={() => openConfirmation(root, 'remove_source')}>Remove source</button>
+              <button className="settings-danger" onClick={() => openConfirmation(root, 'remove_source')}>Remove source</button>
             </div>
           </div>
         ))
       ) : (
         <p className="muted">No sources added.</p>
       )}
+
+      </div>
+      <div className="settings-card"><FolderCatalogs roots={roots} onError={onError} /></div>
+      </section>
 
       {pending && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-label="Confirm source change" onKeyDown={e => {
         if (e.key === 'Escape' && !busy) {e.preventDefault();closeConfirmation();}
@@ -94,29 +128,23 @@ export const SettingsView = memo(function SettingsView({
         <button disabled={busy} onClick={() => void act()}>Confirm</button>
         <button autoFocus disabled={busy} onClick={closeConfirmation}>Cancel</button>
       </section></div>}
-      <FolderCatalogs roots={roots} onError={onError} />
-      <CatalogData onError={onError} />
-      <RecoverySettings onError={onError} />
-      <McpSettings roots={roots} onError={onError} />
-      <h2>Intelligence</h2>
-      <div className="setting-row">
-        <span>AI features</span>
-        <span className="muted">Unavailable · no recognition model enabled</span>
-      </div>
-
+      {/* Keep panes mounted: category changes must not discard import previews,
+          in-flight recovery state or credentials that are only shown once. */}
+      <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} /></div></section>
+      <section {...panelProps(2)}><div className="settings-card"><RecoverySettings onError={onError} /></div></section>
+      <section {...panelProps(3)}><div className="settings-card"><McpSettings roots={roots} onError={onError} /></div></section>
+      <section {...panelProps(4)}>
+      <div className="settings-card">
       <h2>Application</h2>
-      <div className="setting-row">
-        <span>Version</span>
-        <span>{info?.version || '0.1.0'} · Development</span>
+      <div className="setting-row"><span>Version</span><span>{info?.version || 'Unavailable'}</span></div>
+      <div className="setting-row"><span>Media engine</span><span>{info?.media_tools ? 'Available' : 'Unavailable'}</span></div>
+      <div className="setting-row"><span>Data directory</span><code>{info?.data_directory || 'Desktop application only'}</code></div>
       </div>
-      <div className="setting-row">
-        <span>Media engine</span>
-        <span>{info?.media_tools ? 'Available' : 'Unavailable'}</span>
+      <div className="settings-card">
+      <h2>Sound recognition</h2>
+      <p className="muted">Unavailable · no recognition model enabled. Audio analysis measures the recording; automatic sound-event recognition is planned for a future version.</p>
       </div>
-      <div className="setting-row">
-        <span>Data directory</span>
-        <code>{info?.data_directory || 'Desktop application only'}</code>
-      </div>
+      </section>
     </section>
   );
 });

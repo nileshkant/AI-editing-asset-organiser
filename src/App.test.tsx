@@ -412,7 +412,7 @@ describe('App', () => {
     const settingsBtn = screen.getByText('Settings');
     fireEvent.click(settingsBtn);
     await waitFor(() =>
-      expect(screen.getByText('Application')).toBeInTheDocument(),
+      expect(screen.getByRole('tab', {name: 'Sources'})).toHaveAttribute('aria-selected', 'true'),
     );
   });
 
