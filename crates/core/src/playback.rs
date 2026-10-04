@@ -658,6 +658,7 @@ fn spawn_decoder(
 ) -> JoinHandle<()> {
     thread::spawn(move || {
         let mut cmd = Command::new(&tools.ffmpeg);
+        crate::media::configure_background_process(&mut cmd);
         cmd.args(crate::media::LOCAL_INPUT_ARGS).args([
             "-v", "error",
             "-nostdin",
