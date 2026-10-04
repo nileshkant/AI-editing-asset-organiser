@@ -130,3 +130,7 @@ certify a production package.
 Address the alpha.4 layout report before optional feature work. Browser layout
 and interaction checks are recorded separately from installed OS accessibility
 and display-scaling acceptance.
+
+## MCP tester feedback follow-up
+
+- [SS-037: Persistent MCP credentials and startup](SS-037.md) | in-review

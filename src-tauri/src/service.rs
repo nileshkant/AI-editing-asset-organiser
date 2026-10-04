@@ -220,7 +220,7 @@ impl AppState {
         let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
         let agent_library=Arc::new(soundshelf_core::agent::AgentLibrary::new(catalog.clone(),exports.clone(),tools.clone()));
         let state = Self {
-            agent: Arc::new(soundshelf_agent::Agent::with_library(data_directory.join("runtime/mcp.json"),agent_library.clone())),
+            agent: Arc::new(soundshelf_agent::Agent::persistent(data_directory.join("runtime/mcp.json"), data_directory.join("mcp-access.sqlite"), Some(agent_library.clone()))),
             agent_library,
             data_directory,
             catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -360,7 +360,7 @@ mod tests {
         }
     }
     #[test]
-    fn desktop_shutdown_closes_mcp_and_clears_pairings() {
+    fn desktop_shutdown_closes_mcp_and_preserves_pairings() {
         let root=std::env::temp_dir().join(format!("soundshelf-mcp-shutdown-{}",Uuid::new_v4()));
         let state=AppState::new(root.join("app"),root.join("resources")).unwrap();
         assert!(state.agent.status().unwrap().endpoint.is_none());
@@ -368,11 +368,16 @@ mod tests {
         state.agent.pair("test".into()).unwrap();
         assert!(root.join("app/runtime/mcp.json").exists());
         state.shutdown();
-        assert!(state.agent.status().unwrap().clients.is_empty());
+        assert_eq!(state.agent.status().unwrap().clients.len(), 1);
         assert!(!root.join("app/runtime/mcp.json").exists());
         let address=endpoint.strip_prefix("http://").unwrap().strip_suffix("/mcp").unwrap();
         assert!(std::net::TcpStream::connect(address).is_err());
-        drop(state);fs::remove_dir_all(root).unwrap();
+        drop(state);
+        let reopened=AppState::new(root.join("app"),root.join("resources")).unwrap();
+        assert_eq!(reopened.agent.status().unwrap().endpoint.as_deref(), Some(endpoint.as_str()));
+        assert_eq!(reopened.agent.status().unwrap().clients.len(), 1);
+        reopened.agent.disable().unwrap();
+        reopened.shutdown(); drop(reopened); fs::remove_dir_all(root).unwrap();
     }
     fn media(f: &Fixture) {
         let t = f.state.as_ref().unwrap().tools.as_ref().unwrap();

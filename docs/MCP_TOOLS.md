@@ -1,6 +1,6 @@
 # Scoped catalog and clip MCP tools (SS-019)
 
-Open Settings → Agent access, start MCP, enter a client name and explicitly select allowed sources. Read is separate from edit, export and local-path permissions; write/path permissions are off by default. No selected sources means empty catalog results. Pairings remain temporary and expire on Stop/Quit/restart. Re-pair to change permissions.
+Open Settings → Agent access, start MCP, enter a client name and explicitly select allowed sources. Read is separate from edit, export and local-path permissions; write/path permissions are off by default. No selected sources means empty catalog results. Pairings persist across Stop/Quit/restart; Stop disables automatic startup. Rotate to replace a credential, or revoke and re-pair to change permissions.
 
 Discovery advertises only permitted tools, and direct calls also enforce permission checks. The authentication gate passes an internal client identity to the SDK handler; tool arguments cannot choose their owner or grant permissions. Pending requests recheck revocation before dispatch. Already accepted operations may finish; revocation requests cancellation of owned exports before the native publication boundary.
 

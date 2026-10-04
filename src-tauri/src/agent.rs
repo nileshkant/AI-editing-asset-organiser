@@ -34,7 +34,7 @@ pub async fn mcp_start(state: tauri::State<'_, AppState>, port: u16) -> Result<S
 pub async fn mcp_stop(state: tauri::State<'_, AppState>) -> Result<Status, String> {
     let agent = state.agent.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        agent.stop();
+        agent.disable()?;
         agent.status()
     })
     .await
@@ -50,6 +50,11 @@ pub fn mcp_pair(
         .agent
         .pair_with_access(name, access.unwrap_or_default())
 }
+#[tauri::command]
+pub fn mcp_rotate(state: tauri::State<AppState>, id: String) -> Result<Pairing, String> {
+    state.agent.rotate(&id)
+}
+
 #[tauri::command]
 pub fn mcp_revoke(state: tauri::State<AppState>, id: String) -> Result<Status, String> {
     state.agent.revoke(&id)?;

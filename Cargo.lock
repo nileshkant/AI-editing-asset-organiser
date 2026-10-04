@@ -3460,6 +3460,7 @@ dependencies = [
  "blake3",
  "reqwest",
  "rmcp",
+ "rusqlite",
  "serde",
  "serde_json",
  "soundshelf-core",
