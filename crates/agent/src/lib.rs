@@ -11,7 +11,7 @@ use rmcp::transport::streamable_http_server::{
     session::local::LocalSessionManager, StreamableHttpServerConfig, StreamableHttpService,
 };
 mod tools;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use soundshelf_core::agent::{Access, AgentLibrary};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
@@ -25,7 +25,7 @@ use tokio_util::sync::CancellationToken;
 use tools::{Authorization, StatusService};
 use uuid::Uuid;
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Client {
     pub id: String,
     pub name: String,
@@ -40,6 +40,7 @@ pub struct Pairing {
 pub struct Status {
     pub endpoint: Option<String>,
     pub clients: Vec<Client>,
+    pub startup_error: Option<String>,
 }
 struct Grant {
     client: Client,
@@ -118,6 +119,9 @@ pub struct Agent {
     grants: Arc<RwLock<HashMap<String, Grant>>>,
     discovery: Option<std::path::PathBuf>,
     library: Option<Arc<AgentLibrary>>,
+    store: Option<Mutex<rusqlite::Connection>>,
+    startup_error: Mutex<Option<String>>,
+    storage_error: Option<String>,
 }
 impl Agent {
     pub fn with_discovery(path: std::path::PathBuf) -> Self {
@@ -131,6 +135,155 @@ impl Agent {
         let mut agent = Self::with_discovery(path);
         agent.library = Some(library);
         agent
+    }
+    /// Pairing hashes are separate from the portable catalog and its backups.
+    pub fn persistent(
+        path: std::path::PathBuf,
+        store_path: std::path::PathBuf,
+        library: Option<Arc<AgentLibrary>>,
+    ) -> Self {
+        let mut agent = Self::with_discovery(path);
+        agent.library = library;
+        let load =
+            (|| -> Result<(rusqlite::Connection, bool, u16, HashMap<String, Grant>), String> {
+                std::fs::create_dir_all(
+                    store_path
+                        .parent()
+                        .ok_or("MCP settings directory unavailable")?,
+                )
+                .map_err(|_| "MCP settings directory unavailable")?;
+                let db = rusqlite::Connection::open(&store_path)
+                    .map_err(|_| "MCP settings unavailable")?;
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    std::fs::set_permissions(&store_path, std::fs::Permissions::from_mode(0o600))
+                        .map_err(|_| "MCP settings permissions unavailable")?;
+                }
+                db.execute_batch("CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), enabled INTEGER NOT NULL, port INTEGER NOT NULL); INSERT OR IGNORE INTO settings VALUES(1,0,0); CREATE TABLE IF NOT EXISTS clients (id TEXT PRIMARY KEY, client TEXT NOT NULL, hash BLOB NOT NULL);")
+                .map_err(|_| "MCP settings could not be loaded")?;
+                let (enabled, port): (bool, u16) = db
+                    .query_row("SELECT enabled,port FROM settings WHERE id=1", [], |r| {
+                        Ok((r.get(0)?, r.get(1)?))
+                    })
+                    .map_err(|_| "MCP settings are invalid")?;
+                let mut grants = HashMap::new();
+                {
+                    let mut query = db
+                        .prepare("SELECT id,client,hash FROM clients")
+                        .map_err(|_| "MCP clients unavailable")?;
+                    let rows = query
+                        .query_map([], |r| {
+                            Ok((
+                                r.get::<_, String>(0)?,
+                                r.get::<_, String>(1)?,
+                                r.get::<_, Vec<u8>>(2)?,
+                            ))
+                        })
+                        .map_err(|_| "MCP clients unavailable")?;
+                    for row in rows {
+                        let (id, json, bytes) = row.map_err(|_| "MCP client data invalid")?;
+                        let client: Client =
+                            serde_json::from_str(&json).map_err(|_| "MCP client data invalid")?;
+                        let hash: [u8; 32] =
+                            bytes.try_into().map_err(|_| "MCP client data invalid")?;
+                        if client.id != id || grants.len() >= 32 {
+                            return Err("MCP client data invalid".into());
+                        }
+                        grants.insert(
+                            id,
+                            Grant {
+                                client,
+                                hash,
+                                live: Arc::new(AtomicBool::new(false)),
+                            },
+                        );
+                    }
+                }
+                Ok((db, enabled, port, grants))
+            })();
+        match load {
+            Ok((db, enabled, port, grants)) => {
+                agent.store = Some(Mutex::new(db));
+                agent.grants = Arc::new(RwLock::new(grants));
+                if enabled {
+                    if let Err(error) = agent.start(port) {
+                        *agent.startup_error.lock().unwrap() = Some(error);
+                    }
+                }
+            }
+            Err(error) => {
+                agent.storage_error = Some(error.clone());
+                *agent.startup_error.lock().unwrap() = Some(error);
+            }
+        }
+        agent
+    }
+    fn save_client(&self, client: &Client, hash: &[u8; 32]) -> Result<(), String> {
+        if let Some(error) = &self.storage_error {
+            return Err(error.clone());
+        }
+        if let Some(store) = &self.store {
+            let db = store.lock().map_err(|_| "MCP settings unavailable")?;
+            db.execute(
+                "INSERT OR REPLACE INTO clients VALUES(?1,?2,?3)",
+                rusqlite::params![
+                    client.id,
+                    serde_json::to_string(client).map_err(|_| "MCP client invalid")?,
+                    hash.as_slice()
+                ],
+            )
+            .map_err(|_| "MCP credential could not be saved")?;
+        }
+        Ok(())
+    }
+    fn save_enabled(&self, enabled: bool, port: u16) -> Result<(), String> {
+        if let Some(error) = &self.storage_error {
+            return Err(error.clone());
+        }
+        if let Some(store) = &self.store {
+            store
+                .lock()
+                .map_err(|_| "MCP settings unavailable")?
+                .execute(
+                    "UPDATE settings SET enabled=?1,port=?2 WHERE id=1",
+                    rusqlite::params![enabled, port],
+                )
+                .map_err(|_| "MCP startup setting could not be saved")?;
+        }
+        Ok(())
+    }
+    pub fn rotate(&self, id: &str) -> Result<Pairing, String> {
+        let _running = self.running.lock().map_err(|_| "MCP state unavailable")?;
+        let mut grants = self.grants.write().map_err(|_| "MCP clients unavailable")?;
+        let grant = grants.get_mut(id).ok_or("Client pairing unavailable")?;
+        let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+        let hash = *blake3::hash(token.as_bytes()).as_bytes();
+        self.save_client(&grant.client, &hash)?;
+        grant.live.store(false, Ordering::Release);
+        grant.hash = hash;
+        grant.live = Arc::new(AtomicBool::new(true));
+        if let Some(library) = &self.library {
+            library.revoke(id);
+        }
+        Ok(Pairing {
+            client: grant.client.clone(),
+            token,
+        })
+    }
+    pub fn disable(&self) -> Result<(), String> {
+        self.stop_internal(true)
+    }
+    fn remembered_port(&self) -> Result<u16, String> {
+        if let Some(store) = &self.store {
+            store
+                .lock()
+                .map_err(|_| "MCP settings unavailable")?
+                .query_row("SELECT port FROM settings WHERE id=1", [], |r| r.get(0))
+                .map_err(|_| "MCP settings unavailable".into())
+        } else {
+            Ok(0)
+        }
     }
     pub fn client(&self, id: &str) -> Result<Client, String> {
         self.grants
@@ -153,6 +306,11 @@ impl Agent {
         Ok(Status {
             endpoint: running.as_ref().map(|r| r.endpoint.clone()),
             clients,
+            startup_error: self
+                .startup_error
+                .lock()
+                .map_err(|_| "MCP state unavailable")?
+                .clone(),
         })
     }
     pub fn start(&self, port: u16) -> Result<Status, String> {
@@ -160,12 +318,24 @@ impl Agent {
         if state.is_some() {
             return Err("MCP is already running".into());
         }
+        if let Some(error) = &self.storage_error {
+            return Err(error.clone());
+        }
+        let port = if port == 0 {
+            self.remembered_port()?
+        } else {
+            port
+        };
         let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).map_err(|_| {
-            "MCP port unavailable. Choose another port or use 0 for an available port."
+            "MCP port unavailable. Close the conflicting service or choose another explicit port."
         })?;
         listener
             .set_nonblocking(true)
             .map_err(|_| "MCP listener unavailable")?;
+        let listener_port = listener
+            .local_addr()
+            .map_err(|_| "MCP address unavailable")?
+            .port();
         let authority = listener
             .local_addr()
             .map_err(|_| "MCP listener unavailable")?
@@ -223,6 +393,23 @@ impl Agent {
                 }
                 "MCP worker could not start"
             })?;
+        if let Err(error) = self.save_enabled(true, listener_port) {
+            cancel.cancel();
+            let _ = worker.join();
+            if let Some(path) = &self.discovery {
+                let _ = std::fs::remove_file(path);
+            }
+            return Err(error);
+        }
+        if let Ok(mut grants) = self.grants.write() {
+            for grant in grants.values_mut() {
+                grant.live = Arc::new(AtomicBool::new(true));
+            }
+        }
+        *self
+            .startup_error
+            .lock()
+            .map_err(|_| "MCP state unavailable")? = None;
         *state = Some(Running {
             endpoint,
             cancel,
@@ -264,22 +451,32 @@ impl Agent {
         };
         // 244 random bits; only the hash remains in application memory.
         let token = format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple());
+        let hash = *blake3::hash(token.as_bytes()).as_bytes();
+        self.save_client(&client, &hash)?;
         grants.insert(
             client.id.clone(),
             Grant {
                 client: client.clone(),
-                hash: *blake3::hash(token.as_bytes()).as_bytes(),
+                hash,
                 live: Arc::new(AtomicBool::new(true)),
             },
         );
         Ok(Pairing { client, token })
     }
     pub fn revoke(&self, id: &str) -> Result<(), String> {
-        let grant = self
-            .grants
-            .write()
-            .map_err(|_| "MCP clients unavailable")?
-            .remove(id);
+        let _running = self.running.lock().map_err(|_| "MCP state unavailable")?;
+        let mut grants = self.grants.write().map_err(|_| "MCP clients unavailable")?;
+        if let Some(error) = &self.storage_error {
+            return Err(error.clone());
+        }
+        if let Some(store) = &self.store {
+            store
+                .lock()
+                .map_err(|_| "MCP settings unavailable")?
+                .execute("DELETE FROM clients WHERE id=?1", [id])
+                .map_err(|_| "MCP revocation could not be saved")?;
+        }
+        let grant = grants.remove(id);
         if let Some(grant) = grant {
             grant.live.store(false, Ordering::Release);
             if let Some(library) = &self.library {
@@ -289,7 +486,14 @@ impl Agent {
         Ok(())
     }
     pub fn stop(&self) {
-        if let Ok(mut state) = self.running.lock() {
+        let _ = self.stop_internal(false);
+    }
+    fn stop_internal(&self, disable: bool) -> Result<(), String> {
+        {
+            let mut state = self.running.lock().map_err(|_| "MCP state unavailable")?;
+            if disable {
+                self.save_enabled(false, self.remembered_port()?)?;
+            }
             if let Some(running) = state.take() {
                 if let Ok(grants) = self.grants.read() {
                     for grant in grants.values() {
@@ -306,9 +510,12 @@ impl Agent {
                 library.shutdown();
             }
             if let Ok(mut grants) = self.grants.write() {
-                grants.clear();
+                if self.store.is_none() {
+                    grants.clear();
+                }
             }
         }
+        Ok(())
     }
 }
 impl Drop for Agent {

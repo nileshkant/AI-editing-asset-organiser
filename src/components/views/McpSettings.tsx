@@ -4,7 +4,7 @@ import type { Source } from '../../types';
 type Access = { source_ids: string[]; read: boolean; edit: boolean; export: boolean; paths: boolean };
 const defaultAccess: Access = { source_ids: [], read: true, edit: false, export: false, paths: false };
 type Client = { id: string; name: string; access?: Access };
-type Status = { endpoint: string | null; clients: Client[] };
+type Status = { endpoint: string | null; clients: Client[]; startup_error?: string | null };
 type Pairing = { client: Client; token: string };
 const stopped: Status = { endpoint: null, clients: [] };
 export function McpSettings({ onError, roots = [] }: { onError: (error: string) => void; roots?: Source[] }) {
@@ -30,7 +30,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
     if (busy) return;
     setBusy(true);
     try {
-      if (command === 'mcp_pair') { setPairing(await call<Pairing>(command, args)); setName(''); setStatus(await call<Status>('mcp_status')); }
+      if (command === 'mcp_pair' || command === 'mcp_rotate') { setPairing(await call<Pairing>(command, args)); setName(''); setStatus(await call<Status>('mcp_status')); }
       else { setDestination(null); setPairing(null); setStatus(await call<Status>(command, args)); }
     } catch (e) { onError(String(e)); } finally { setBusy(false); }
   };
@@ -42,14 +42,15 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
   const validPort = /^\d{1,5}$/.test(port) && Number(port) <= 65535;
   return <section aria-label="MCP access">
     <h2>Agent access · MCP</h2>
-    <p className="muted">Off by default. CreativeShelf must stay open. Quitting stops access. Tray mode is unavailable. Give each client access to specific sources. Editing, exporting and machine paths require separate permission.</p>
+    <p className="muted">Off until first enabled. After setup, MCP starts with CreativeShelf on its remembered port. Stop MCP disables automatic startup; pairings are kept. CreativeShelf must stay open; quitting closes access. Give each client access to specific sources. Editing, exporting and machine paths require separate permission.</p>
     <button disabled={busy} onClick={() => void showBridge()}>Show installed bridge</button>
     {bridge && <div><p>For a command-based client, use this absolute executable path and discovery arguments. Set SOUNDSHELF_MCP_TOKEN privately to the paired credential below.</p><pre aria-label="Installed MCP bridge configuration">{JSON.stringify({ command: bridge.command, args: ['--discovery', bridge.discovery] }, null, 2)}</pre></div>}
+    {status.startup_error && <p role="alert">MCP could not start automatically: {status.startup_error}</p>}
     <div className="setting-row">
       <span role="status">{status.endpoint ? 'Running' : 'Stopped'}</span>
       {status.endpoint ? <><code>{status.endpoint}</code><button disabled={busy} onClick={() => void act('mcp_stop')}>Stop MCP</button></> : <>
         <label className="settings-control">Port <input aria-label="MCP port" inputMode="numeric" value={port} onChange={e => setPort(e.target.value)} /></label>
-        <small>0 selects an available port.</small>
+        <small>0 reuses the remembered port, or selects an available port on first setup.</small>
         <button disabled={busy || !validPort} onClick={() => void act('mcp_start', { port: Number(port) })}>Start MCP</button>
       </>}
     </div>
@@ -66,7 +67,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
         </fieldset>
         <button disabled={busy || !name.trim()}>Pair client</button>
       </form>
-      <p className="muted">Pairings last until MCP stops. Each client has its own credential. Store it privately; it is shown once.</p>
+      <p className="muted">Pairings survive Stop and app restarts. Rotate a credential to replace it, or revoke a client to remove access. Each client has its own credential. Store it privately; it is shown once.</p>
       {pairing && <div>
         <strong>Configuration for {pairing.client.name}</strong>
         <pre aria-label="MCP client configuration">{configuration}</pre>
@@ -75,7 +76,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
       </div>}
       {destination && <p role="status">Approved for {status.clients.find(c => c.id === destination.clientId)?.name}: <code>{destination.path}</code> · Destination ID <code>{destination.id}</code>. Give this ID to that client for one export.</p>}
       <ul aria-label="Paired MCP clients">{status.clients.map(client => <li key={client.id}>{client.name} · {client.access?.source_ids.length || 0} sources · {!client.access?.read ? 'Status only' : client.access?.edit ? 'Edit enabled' : 'Read only'}
-        {client.access?.export && <><button disabled={busy} onClick={() => void approveDestination(client.id, 'wav')}>Approve WAV destination for {client.name}</button><button disabled={busy} onClick={() => void approveDestination(client.id, 'flac')}>Approve FLAC destination for {client.name}</button></>} <button disabled={busy} onClick={() => void act('mcp_revoke', { id: client.id })}>Revoke {client.name}</button></li>)}</ul>
+        {client.access?.export && <><button disabled={busy} onClick={() => void approveDestination(client.id, 'wav')}>Approve WAV destination for {client.name}</button><button disabled={busy} onClick={() => void approveDestination(client.id, 'flac')}>Approve FLAC destination for {client.name}</button></>} <button disabled={busy} onClick={() => { if (window.confirm(`Replace the credential for ${client.name}? Its current configuration will stop working.`)) void act('mcp_rotate', { id: client.id }); }}>Rotate token for {client.name}</button><button disabled={busy} onClick={() => void act('mcp_revoke', { id: client.id })}>Revoke {client.name}</button></li>)}</ul>
     </>}
   </section>;
 }

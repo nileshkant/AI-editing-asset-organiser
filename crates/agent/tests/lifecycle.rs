@@ -294,3 +294,151 @@ async fn legacy_negotiation_and_same_origin_are_supported() {
     assert!(!body.to_string().contains(&paired.token));
     agent.stop();
 }
+
+#[tokio::test]
+async fn persistent_credentials_autostart_rotate_revoke_and_disable() {
+    let _fixture = LIFECYCLE.lock().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let discovery = dir.path().join("runtime/mcp.json");
+    let store = dir.path().join("access.sqlite");
+    let agent = Agent::persistent(discovery.clone(), store.clone(), None);
+    assert!(agent.status().unwrap().endpoint.is_none());
+    let endpoint = agent.start(0).unwrap().endpoint.unwrap();
+    let paired = agent.pair("Editor".into()).unwrap();
+    let old_session = connect(&endpoint, &paired.token).await;
+    assert_eq!(old_session.list_all_tools().await.unwrap().len(), 1);
+    agent.stop();
+    assert_eq!(agent.status().unwrap().clients.len(), 1);
+    drop(agent);
+    let agent = Agent::persistent(discovery.clone(), store.clone(), None);
+    assert_eq!(
+        agent.status().unwrap().endpoint.as_deref(),
+        Some(endpoint.as_str())
+    );
+    let session = connect(&endpoint, &paired.token).await;
+    assert_eq!(session.list_all_tools().await.unwrap().len(), 1);
+    let rotated = agent.rotate(&paired.client.id).unwrap();
+    assert_ne!(rotated.token, paired.token);
+    assert!(session.list_all_tools().await.is_err());
+    assert_eq!(
+        client()
+            .post(&endpoint)
+            .bearer_auth(&paired.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+    assert_eq!(
+        connect(&endpoint, &rotated.token)
+            .await
+            .list_all_tools()
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    agent.stop();
+    drop(agent);
+    let agent = Agent::persistent(discovery.clone(), store.clone(), None);
+    assert_eq!(
+        connect(&endpoint, &rotated.token)
+            .await
+            .list_all_tools()
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    agent.revoke(&paired.client.id).unwrap();
+    agent.disable().unwrap();
+    drop(agent);
+    let agent = Agent::persistent(discovery, store.clone(), None);
+    assert!(agent.status().unwrap().endpoint.is_none());
+    assert!(agent.status().unwrap().clients.is_empty());
+    assert_eq!(
+        agent.start(0).unwrap().endpoint.as_deref(),
+        Some(endpoint.as_str())
+    );
+    assert_eq!(
+        client()
+            .post(&endpoint)
+            .bearer_auth(&rotated.token)
+            .send()
+            .await
+            .unwrap()
+            .status(),
+        401
+    );
+    let bytes = std::fs::read(store).unwrap();
+    for token in [&paired.token, &rotated.token] {
+        assert!(!bytes.windows(token.len()).any(|w| w == token.as_bytes()));
+    }
+}
+
+#[test]
+fn persistent_port_conflicts_and_corrupt_storage_do_not_reset_pairings() {
+    let _fixture = LIFECYCLE.lock().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let discovery = dir.path().join("runtime/mcp.json");
+    let store = dir.path().join("access.sqlite");
+    let agent = Agent::persistent(discovery.clone(), store.clone(), None);
+    let endpoint = agent.start(0).unwrap().endpoint.unwrap();
+    let paired = agent.pair("Editor".into()).unwrap();
+    agent.stop();
+    drop(agent);
+    let address = endpoint
+        .strip_prefix("http://")
+        .unwrap()
+        .strip_suffix("/mcp")
+        .unwrap();
+    let occupied = std::net::TcpListener::bind(address).unwrap();
+    let agent = Agent::persistent(discovery.clone(), store.clone(), None);
+    assert!(agent.status().unwrap().endpoint.is_none());
+    assert!(agent.status().unwrap().startup_error.is_some());
+    assert_eq!(agent.status().unwrap().clients[0].id, paired.client.id);
+    assert!(agent.start(0).is_err());
+    drop(occupied);
+    assert_eq!(
+        agent.start(0).unwrap().endpoint.as_deref(),
+        Some(endpoint.as_str())
+    );
+    agent.stop();
+    drop(agent);
+    std::fs::write(&store, b"invalid database").unwrap();
+    let agent = Agent::persistent(discovery, store.clone(), None);
+    assert!(agent.status().unwrap().startup_error.is_some());
+    assert!(agent.start(0).is_err());
+    assert_eq!(std::fs::read(store).unwrap(), b"invalid database");
+}
+
+#[tokio::test]
+async fn failed_credential_writes_preserve_existing_authorization() {
+    let _fixture = LIFECYCLE.lock().unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("access.sqlite");
+    let agent = Agent::persistent(dir.path().join("runtime/mcp.json"), store.clone(), None);
+    let endpoint = agent.start(0).unwrap().endpoint.unwrap();
+    let paired = agent.pair("Editor".into()).unwrap();
+    let db = rusqlite::Connection::open(store).unwrap();
+    db.execute_batch("CREATE TRIGGER reject_insert BEFORE INSERT ON clients BEGIN SELECT RAISE(FAIL,'fixture'); END; CREATE TRIGGER reject_delete BEFORE DELETE ON clients BEGIN SELECT RAISE(FAIL,'fixture'); END; CREATE TRIGGER reject_settings BEFORE UPDATE ON settings BEGIN SELECT RAISE(FAIL,'fixture'); END;").unwrap();
+    assert!(agent.rotate(&paired.client.id).is_err());
+    assert!(agent.pair("Other".into()).is_err());
+    assert!(agent.revoke(&paired.client.id).is_err());
+    assert!(agent.disable().is_err());
+    assert_eq!(agent.status().unwrap().clients.len(), 1);
+    assert_eq!(
+        connect(&endpoint, &paired.token)
+            .await
+            .list_all_tools()
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+    agent.stop();
+    assert!(agent.start(0).is_err());
+    assert!(agent.status().unwrap().endpoint.is_none());
+    assert!(!dir.path().join("runtime/mcp.json").exists());
+}

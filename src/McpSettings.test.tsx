@@ -70,3 +70,24 @@ it('shows the installed absolute bridge location without workspace or PATH disco
   expect(mock).toHaveBeenCalledWith('mcp_bridge_location');
   expect(screen.getByText('Stopped')).toBeInTheDocument();
 });
+it('shows automatic startup errors and replaces credentials only after explicit rotation', async () => {
+  const client = { id: 'editor', name: 'Editor' };
+  const running = { endpoint: 'http://127.0.0.1:1234/mcp', clients: [client], startup_error: null };
+  mock.mockResolvedValueOnce(running).mockResolvedValueOnce({ client, token: 'replacement-token' }).mockResolvedValueOnce(running);
+  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  render(<McpSettings onError={vi.fn()} />);
+  await screen.findByText('Rotate token for Editor');
+  fireEvent.click(screen.getByText('Rotate token for Editor'));
+  expect(mock).not.toHaveBeenCalledWith('mcp_rotate', expect.anything());
+  confirm.mockReturnValue(true);
+  fireEvent.click(screen.getByText('Rotate token for Editor'));
+  expect(await screen.findByLabelText('MCP client configuration')).toHaveTextContent('replacement-token');
+  expect(mock).toHaveBeenCalledWith('mcp_rotate', { id: 'editor' });
+  confirm.mockRestore();
+});
+it('reports a startup conflict without silently starting on a different port', async () => {
+  mock.mockResolvedValueOnce({ endpoint: null, clients: [], startup_error: 'MCP port unavailable' });
+  render(<McpSettings onError={vi.fn()} />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('MCP port unavailable');
+  expect(mock).toHaveBeenCalledTimes(1);
+});
