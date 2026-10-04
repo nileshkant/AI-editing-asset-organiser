@@ -1,0 +1,91 @@
+/* Shared desktop preferences: native fonts/controls, grouped panes, and a
+   compact layout that fits the app's minimum window at increased text sizes. */
+.settings-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+}
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px;
+  flex-shrink: 0;
+}
+.settings-tabs button {
+  min-height: 40px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.settings-tabs button[aria-selected="true"] {
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.settings-panel {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 4px 8px 12px 4px;
+  scrollbar-gutter: stable;
+}
+.settings-panel[hidden] { display: none; }
+.settings-card {
+  max-width: 880px;
+  margin-bottom: 20px;
+  padding: 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+}
+.settings-card h2 { margin: 0 0 12px; font-size: 18px; }
+.settings-card h2:not(:first-child) { margin-top: 28px; }
+.settings-card p { margin: 8px 0 16px; max-width: 72ch; }
+.settings-card .setting-row {
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 0;
+  align-items: flex-start;
+}
+.settings-card .setting-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.settings-card .folder-detail { flex: 1 1 240px; }
+.settings-card .setting-row code { max-width: 100%; text-align: start; word-break: normal; overflow-wrap: anywhere; }
+.settings-card .header-actions, .settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 1;
+  gap: 8px;
+  align-items: center;
+}
+.settings-card button { min-height: 36px; max-width: 100%; white-space: normal; }
+.settings-card .settings-danger { color: var(--danger); }
+.settings-card form { display: grid; gap: 16px; margin-top: 24px; }
+.settings-card form > button { justify-self: start; }
+.settings-control { display: grid; gap: 8px; max-width: 100%; }
+.settings-control input, .settings-control select { width: min(100%, 380px); max-width: 100%; }
+.settings-check { display: flex; gap: 10px; align-items: start; margin: 12px 0; line-height: 1.5; }
+.settings-check input[type="checkbox"] { flex: 0 0 auto; width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--accent); }
+.settings-card fieldset { min-width: 0; padding: 16px; border: 1px solid var(--border-strong); border-radius: var(--radius-md); }
+.settings-card legend { padding: 0 8px; font-weight: 600; }
+.settings-card ul { padding-left: 20px; }
+.settings-card li { margin: 10px 0; }
+.settings-card li button { margin: 4px; }
+.settings-card pre { max-width: 100%; padding: 16px; background: var(--bg-input); border-radius: var(--radius-md); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; }
+.settings-card [role="status"] { overflow-wrap: anywhere; }
+@media (max-width: 900px) {
+  .settings-workspace { padding: 0 16px 16px; gap: 12px; }
+  .settings-card { padding: 16px; }
+  .settings-tabs { gap: 4px; }
+  .settings-tabs button { padding: 8px 10px; }
+}
+@media (forced-colors: active) {
+  .settings-tabs button[aria-selected="true"] { border: 2px solid Highlight; }
+  .settings-card, .settings-card fieldset { border-color: CanvasText; }
+}
