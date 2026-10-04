@@ -102,11 +102,11 @@ SS-016/017 acceptance evidence becomes a release gate for that build.
 
 ## Progress snapshot
 
-- Complete: 23 of 34 tickets.
-- In review: 0 of 34 tickets.
-- Partial: 4 of 34 tickets.
-- Not started: 7 of 34 tickets.
-- Current implementation: SS-034 optimized Linux regression passed; signed/installed qualification remains pending.
+- Complete: 23 of 39 tickets.
+- In review: 2 of 39 tickets.
+- Partial: 6 of 39 tickets.
+- Not started: 8 of 39 tickets.
+- Current implementation: alpha.5 published with SS-035/036 tester fixes; SS-037/038 are separate follow-up PRs, and SS-039 is an upcoming audio workflow. Installed qualification remains pending.
 - Remaining baseline work: SS-023 installed qualification, SS-024 all-platform installers/signatures, SS-031 real tester evidence and SS-034 Linux verification.
 - New tickets from this review: 5 (3 audio v1, 2 upcoming).
 
@@ -134,3 +134,5 @@ and display-scaling acceptance.
 ## MCP tester feedback follow-up
 
 - [SS-037: Persistent MCP credentials and startup](SS-037.md) | in-review
+- [SS-038: In-app MCP guide and release labels](SS-038.md) | in-review
+- [SS-039: Approved MCP audio import and AI tagging workflow](SS-039.md) | not-started | upcoming audio enhancement

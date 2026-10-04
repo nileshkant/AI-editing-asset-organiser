@@ -27,11 +27,11 @@ it('exposes one labelled pane and supports arrow, Home and End keyboard navigati
   expect(screen.getByRole('tabpanel', { name: 'Catalog data' })).toBeVisible();
   expect(sourceTab).toHaveAttribute('tabindex', '-1');
   fireEvent.keyDown(document.activeElement!, { key: 'End' });
-  expect(screen.getByRole('tab', { name: 'Application' })).toHaveFocus();
+  expect(screen.getByRole('tab', { name: 'MCP guide' })).toHaveFocus();
   fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
   expect(sourceTab).toHaveFocus();
   fireEvent.keyDown(sourceTab, { key: 'ArrowLeft' });
-  expect(screen.getByRole('tab', { name: 'Application' })).toHaveFocus();
+  expect(screen.getByRole('tab', { name: 'MCP guide' })).toHaveFocus();
   fireEvent.keyDown(document.activeElement!, { key: 'Home' });
   expect(sourceTab).toHaveFocus();
 });
