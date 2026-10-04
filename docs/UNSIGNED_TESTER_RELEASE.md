@@ -1,4 +1,13 @@
-CreativeShelf's first audio tester preview is distributed directly here, outside app stores. **These installers have no trusted publisher signature. This is an experimental prerelease, not a certified production release.** macOS uses free ad-hoc signing for executable integrity, without Developer ID or Apple notarization. Windows is unsigned. Linux has checksums without a publisher GPG signature.
+## Changes in v0.1.0-alpha.5
+
+- SS-035: Windows media workers now use CREATE_NO_WINDOW during imports, waveform generation, playback/seek and export. Windows CI observes no console in native child processes and preserved output pipes. Installed-app flash/focus observation remains a tester check.
+- SS-036: Settings has five keyboard-accessible categories, grouped controls, wrapping actions/paths and preserved form/import-preview state. Settings keyboard controls no longer trigger library shortcuts. The version now uses packaged alpha metadata instead of Cargo’s fixed version; removed the misleading Development label. Browser checks cover the minimum 720x560 window; installed OS scaling and screen-reader checks remain pending.
+
+The fixes are reviewed separately in [PR #33](https://github.com/nileshkant/AI-editing-asset-organiser/pull/33) and [PR #34](https://github.com/nileshkant/AI-editing-asset-organiser/pull/34). This tester artifact combines the branches without automatically merging those PRs into main.
+
+Testing team: follow [SS-035 Windows checks](https://github.com/nileshkant/AI-editing-asset-organiser/blob/v0.1.0-alpha.5/tickets/SS-035.md#tester-procedure) and [SS-036 Settings checks](https://github.com/nileshkant/AI-editing-asset-organiser/blob/v0.1.0-alpha.5/tickets/SS-036.md#testing-team-handoff). Record the installer hash, OS, scaling and screen recording with any report. Do not use alpha.4 to validate these fixes.
+
+CreativeShelf's audio tester preview is distributed directly here, outside app stores. **These installers have no trusted publisher signature. This is an experimental prerelease, not a certified production release.** macOS uses free ad-hoc signing for executable integrity, without Developer ID or Apple notarization. Windows is unsigned. Linux has checksums without a publisher GPG signature.
 
 Download the installer matching your operating system and the architecture shown in its filename/provenance:
 
