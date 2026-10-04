@@ -13,8 +13,8 @@ function Inline({ text }: { text: string }) {
     return part;
   })}</>;
 }
-function Document({ text }: { text: string }) {
-  return <div className="mcp-reference">{text.split(/\n\n+/).map((block, index) => {
+export function ReferenceDocument({ text }: { text: string }) {
+  return <div className="mcp-reference">{text.replace(/\r\n?/g, '\n').split(/\n\n+/).map((block, index) => {
     if (block.startsWith('# ')) return <h3 key={index}>{block.slice(2)}</h3>;
     if (block.startsWith('## ')) return <h4 key={index}>{block.slice(3)}</h4>;
     if (block.startsWith('- ')) return <ul key={index}>{block.split('\n').map((line, i) => <li key={i}><Inline text={line.replace(/^- /, '')} /></li>)}</ul>;
@@ -62,7 +62,7 @@ export function McpGuide() {
       <label className="settings-control">Reference document <select value={reference} onChange={event => setReference(event.target.value as 'tools' | 'access')}>
         <option value="tools">Every tool, argument and error</option><option value="access">Transport, credentials and bridge</option>
       </select></label>
-      <Document text={reference === 'tools' ? toolContract : accessGuide} />
+      <ReferenceDocument text={reference === 'tools' ? toolContract : accessGuide} />
     </div>
   </article>;
 }
