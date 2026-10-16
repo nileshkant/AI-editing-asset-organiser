@@ -1,0 +1,145 @@
+{
+  "schema": "creativeshelf-image-contract/v1",
+  "sources": [
+    {
+      "id": "fixture-source",
+      "scope": "folder",
+      "files": []
+    }
+  ],
+  "audio_ids": [
+    "11111111-1111-4111-8111-111111111111"
+  ],
+  "images": [
+    {
+      "header": {
+        "id": "22222222-2222-4222-8222-222222222222",
+        "kind": "image",
+        "source_id": "fixture-source",
+        "relative_path": "图像/fox.png",
+        "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "technical_state": "ready",
+        "availability": "available",
+        "enrichment_state": "complete"
+      },
+      "profile": {
+        "raw_width": 900,
+        "raw_height": 1600,
+        "orientation": 6,
+        "width": 1600,
+        "height": 900,
+        "format": "png",
+        "encoded_bytes": 12345,
+        "bit_depth": 8,
+        "source_color_profile": "sRGB",
+        "alpha_channel": true,
+        "transparency": "none",
+        "analyzer_version": "fixture-image-v1"
+      },
+      "annotations": {
+        "revision": 1,
+        "tags": [
+          "狐狸",
+          "watercolor"
+        ],
+        "comment": "Synthetic fixture only.\nNo original image is included.",
+        "favorite": true,
+        "rating": null,
+        "caption": null
+      },
+      "evidence": [
+        {
+          "id": "44444444-4444-4444-8444-444444444444",
+          "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "origin": "model",
+          "coverage": "full_image",
+          "tags": [
+            "fox",
+            "forest"
+          ],
+          "caption": "A fox in a forest (synthetic model claim).",
+          "model": {
+            "provider": "fixture-only",
+            "model": "synthetic-vision",
+            "revision": "1",
+            "preprocessing": "srgb-oriented-v1",
+            "output_schema": "tags-v1"
+          },
+          "confidence": null,
+          "confidence_kind": "unavailable",
+          "review_state": "suggested",
+          "stale": false,
+          "created_at_ms": 1792108800000
+        }
+      ],
+      "recipes": [
+        {
+          "id": "55555555-5555-4555-8555-555555555555",
+          "asset_id": "22222222-2222-4222-8222-222222222222",
+          "asset_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revision": 1,
+          "source_width": 1600,
+          "source_height": 900,
+          "crop": {
+            "left": 200,
+            "top": 0,
+            "right": 1400,
+            "bottom": 900
+          },
+          "output_width": 800,
+          "output_height": 600,
+          "allow_upscale": false,
+          "color_policy": "srgb",
+          "stale": false
+        }
+      ],
+      "lineage": null
+    },
+    {
+      "header": {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "kind": "element",
+        "source_id": "fixture-source",
+        "relative_path": "elements/fox.png",
+        "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "technical_state": "ready",
+        "availability": "available",
+        "enrichment_state": "disabled"
+      },
+      "profile": {
+        "raw_width": 300,
+        "raw_height": 400,
+        "orientation": 1,
+        "width": 300,
+        "height": 400,
+        "format": "png",
+        "encoded_bytes": 12345,
+        "bit_depth": 8,
+        "source_color_profile": "sRGB",
+        "alpha_channel": true,
+        "transparency": "partial",
+        "analyzer_version": "fixture-image-v1"
+      },
+      "annotations": {
+        "revision": 1,
+        "tags": [
+          "fox"
+        ],
+        "comment": "Synthetic fixture only.\nNo original image is included.",
+        "favorite": false,
+        "rating": 5,
+        "caption": null
+      },
+      "evidence": [],
+      "recipes": [],
+      "lineage": {
+        "parent_id": "22222222-2222-4222-8222-222222222222",
+        "parent_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "recipe_id": "55555555-5555-4555-8555-555555555555",
+        "recipe_revision": 1,
+        "mask_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "mask_revision": 1
+      }
+    }
+  ]
+}

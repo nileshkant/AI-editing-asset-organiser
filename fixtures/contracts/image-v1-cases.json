@@ -1,0 +1,917 @@
+[
+  {
+    "name": "future schema",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/schema",
+        "value": "creativeshelf-image-contract/v2"
+      }
+    ],
+    "error": "UNSUPPORTED_SCHEMA"
+  },
+  {
+    "name": "unknown required field",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/future",
+        "value": true
+      }
+    ]
+  },
+  {
+    "name": "unknown asset kind",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/kind",
+        "value": "video"
+      }
+    ]
+  },
+  {
+    "name": "unknown technical state",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/technical_state",
+        "value": "missing"
+      }
+    ]
+  },
+  {
+    "name": "unknown enrichment state",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/enrichment_state",
+        "value": "magic"
+      }
+    ]
+  },
+  {
+    "name": "missing nullable field is not null",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/annotations/rating",
+        "remove": true
+      }
+    ]
+  },
+  {
+    "name": "missing content hash field",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/content_hash",
+        "remove": true
+      }
+    ]
+  },
+  {
+    "name": "ready requires profile",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile",
+        "value": null
+      }
+    ]
+  },
+  {
+    "name": "ready requires known content version",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/content_hash",
+        "value": null
+      }
+    ]
+  },
+  {
+    "name": "offline is independent from ready",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/header/availability",
+        "value": "offline"
+      }
+    ]
+  },
+  {
+    "name": "failed AI does not hide technical image",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/header/enrichment_state",
+        "value": "failed"
+      }
+    ]
+  },
+  {
+    "name": "pending unknown is explicit null",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/header/technical_state",
+        "value": "pending"
+      },
+      {
+        "path": "/images/0/header/content_hash",
+        "value": null
+      },
+      {
+        "path": "/images/0/header/enrichment_state",
+        "value": "disabled"
+      },
+      {
+        "path": "/images/0/profile",
+        "value": null
+      },
+      {
+        "path": "/images/0/evidence",
+        "value": []
+      },
+      {
+        "path": "/images/0/recipes",
+        "value": []
+      }
+    ]
+  },
+  {
+    "name": "unsafe path \"../secret\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "../secret"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"/etc/passwd\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "/etc/passwd"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"C:/secret\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "C:/secret"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"a\\\\b\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "a\\b"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"a//b\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "a//b"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"./a\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "./a"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"a/../b\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "a/../b"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"a\\u0000b\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "a\u0000b"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "unsafe path \"a/\"",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "a/"
+      }
+    ],
+    "error": "INVALID_PATH"
+  },
+  {
+    "name": "Unicode name remains exact",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/header/relative_path",
+        "value": "assets/नमस्ते 🦊.png"
+      }
+    ]
+  },
+  {
+    "name": "wrong source",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/source_id",
+        "value": "ungranted"
+      }
+    ],
+    "error": "INVALID_REFERENCE"
+  },
+  {
+    "name": "file scope blocks unselected image",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/sources/0/scope",
+        "value": "files"
+      },
+      {
+        "path": "/sources/0/files",
+        "value": [
+          "elements/fox.png"
+        ]
+      }
+    ],
+    "error": "INVALID_REFERENCE"
+  },
+  {
+    "name": "exact file membership succeeds",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/sources/0/scope",
+        "value": "files"
+      },
+      {
+        "path": "/sources/0/files",
+        "value": [
+          "elements/fox.png",
+          "图像/fox.png"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "folder cannot carry selected members",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/sources/0/files",
+        "value": [
+          "图像/fox.png"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "audio identity collision",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/audio_ids/0",
+        "value": "22222222-2222-4222-8222-222222222222"
+      }
+    ],
+    "error": "IDENTITY_CONFLICT"
+  },
+  {
+    "name": "duplicate image identity",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/1",
+        "value": {
+          "header": {
+            "id": "22222222-2222-4222-8222-222222222222",
+            "kind": "image",
+            "source_id": "fixture-source",
+            "relative_path": "图像/fox.png",
+            "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "technical_state": "ready",
+            "availability": "available",
+            "enrichment_state": "complete"
+          },
+          "profile": {
+            "raw_width": 900,
+            "raw_height": 1600,
+            "orientation": 6,
+            "width": 1600,
+            "height": 900,
+            "format": "png",
+            "encoded_bytes": 12345,
+            "bit_depth": 8,
+            "source_color_profile": "sRGB",
+            "alpha_channel": true,
+            "transparency": "none",
+            "analyzer_version": "fixture-image-v1"
+          },
+          "annotations": {
+            "revision": 1,
+            "tags": [
+              "狐狸",
+              "watercolor"
+            ],
+            "comment": "Synthetic fixture only.\nNo original image is included.",
+            "favorite": true,
+            "rating": null,
+            "caption": null
+          },
+          "evidence": [
+            {
+              "id": "44444444-4444-4444-8444-444444444444",
+              "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "origin": "model",
+              "coverage": "full_image",
+              "tags": [
+                "fox",
+                "forest"
+              ],
+              "caption": "A fox in a forest (synthetic model claim).",
+              "model": {
+                "provider": "fixture-only",
+                "model": "synthetic-vision",
+                "revision": "1",
+                "preprocessing": "srgb-oriented-v1",
+                "output_schema": "tags-v1"
+              },
+              "confidence": null,
+              "confidence_kind": "unavailable",
+              "review_state": "suggested",
+              "stale": false,
+              "created_at_ms": 1792108800000
+            }
+          ],
+          "recipes": [
+            {
+              "id": "55555555-5555-4555-8555-555555555555",
+              "asset_id": "22222222-2222-4222-8222-222222222222",
+              "asset_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revision": 1,
+              "source_width": 1600,
+              "source_height": 900,
+              "crop": {
+                "left": 200,
+                "top": 0,
+                "right": 1400,
+                "bottom": 900
+              },
+              "output_width": 800,
+              "output_height": 600,
+              "allow_upscale": false,
+              "color_policy": "srgb",
+              "stale": false
+            }
+          ],
+          "lineage": null
+        }
+      }
+    ],
+    "error": "IDENTITY_CONFLICT"
+  },
+  {
+    "name": "duplicate membership",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/1/header/relative_path",
+        "value": "图像/fox.png"
+      }
+    ],
+    "error": "IDENTITY_CONFLICT"
+  },
+  {
+    "name": "uppercase image UUID",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/id",
+        "value": "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"
+      }
+    ]
+  },
+  {
+    "name": "empty UUID",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/id",
+        "value": "00000000-0000-0000-0000-000000000000"
+      }
+    ]
+  },
+  {
+    "name": "wrong oriented dimensions",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/width",
+        "value": 900
+      }
+    ],
+    "error": "INVALID_RANGE"
+  },
+  {
+    "name": "zero dimensions",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/raw_width",
+        "value": 0
+      }
+    ],
+    "error": "LIMIT_EXCEEDED"
+  },
+  {
+    "name": "excessive pixels",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/raw_width",
+        "value": 32768
+      },
+      {
+        "path": "/images/0/profile/raw_height",
+        "value": 32768
+      }
+    ],
+    "error": "LIMIT_EXCEEDED"
+  },
+  {
+    "name": "integer overflow input",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/raw_width",
+        "value": 4294967296
+      }
+    ]
+  },
+  {
+    "name": "fractional dimensions",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/width",
+        "value": 1.5
+      }
+    ]
+  },
+  {
+    "name": "invalid orientation",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/orientation",
+        "value": 9
+      }
+    ]
+  },
+  {
+    "name": "unknown format",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/format",
+        "value": "avif"
+      }
+    ]
+  },
+  {
+    "name": "opaque without alpha is valid",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/profile/alpha_channel",
+        "value": false
+      }
+    ]
+  },
+  {
+    "name": "transparency requires alpha",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/alpha_channel",
+        "value": false
+      },
+      {
+        "path": "/images/0/profile/transparency",
+        "value": "partial"
+      }
+    ]
+  },
+  {
+    "name": "jpeg cannot preserve alpha",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/format",
+        "value": "jpeg"
+      }
+    ]
+  },
+  {
+    "name": "oversized encoded bytes",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/profile/encoded_bytes",
+        "value": 536870913
+      }
+    ],
+    "error": "LIMIT_EXCEEDED"
+  },
+  {
+    "name": "unknown color profile is null",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/profile/source_color_profile",
+        "value": null
+      }
+    ]
+  },
+  {
+    "name": "rating zero is not unknown",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/annotations/rating",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "revision cannot be zero",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/annotations/revision",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "revision cannot overflow u32",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/annotations/revision",
+        "value": 4294967296
+      }
+    ]
+  },
+  {
+    "name": "duplicate tags",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/annotations/tags",
+        "value": [
+          "fox",
+          "fox"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tag whitespace",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/annotations/tags",
+        "value": [
+          "
+fox"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "model evidence needs model",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/model",
+        "value": null
+      }
+    ]
+  },
+  {
+    "name": "confidence must match representation",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/confidence",
+        "value": 0.9
+      }
+    ]
+  },
+  {
+    "name": "reported confidence remains labeled",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/confidence",
+        "value": 0.9
+      },
+      {
+        "path": "/images/0/evidence/0/confidence_kind",
+        "value": "reported"
+      }
+    ]
+  },
+  {
+    "name": "confidence outside range",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/confidence",
+        "value": 1.1
+      },
+      {
+        "path": "/images/0/evidence/0/confidence_kind",
+        "value": "calibrated"
+      }
+    ]
+  },
+  {
+    "name": "unsafe JS timestamp",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/created_at_ms",
+        "value": 9007199254740992
+      }
+    ]
+  },
+  {
+    "name": "stale evidence cannot masquerade as current",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/content_hash",
+        "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      }
+    ],
+    "error": "STALE_VERSION"
+  },
+  {
+    "name": "old evidence is explicit",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/content_hash",
+        "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "path": "/images/0/evidence/0/stale",
+        "value": true
+      },
+      {
+        "path": "/images/0/header/enrichment_state",
+        "value": "stale"
+      }
+    ]
+  },
+  {
+    "name": "unknown evidence field",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/evidence/0/auto_approved",
+        "value": true
+      }
+    ]
+  },
+  {
+    "name": "wrong recipe owner",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/asset_id",
+        "value": "33333333-3333-4333-8333-333333333333"
+      }
+    ],
+    "error": "INVALID_REFERENCE"
+  },
+  {
+    "name": "changed recipe needs stale state",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/asset_version",
+        "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      }
+    ],
+    "error": "STALE_VERSION"
+  },
+  {
+    "name": "stale recipe retains old geometry",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/asset_version",
+        "value": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      {
+        "path": "/images/0/recipes/0/stale",
+        "value": true
+      }
+    ]
+  },
+  {
+    "name": "zero crop width",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/crop/right",
+        "value": 200
+      }
+    ],
+    "error": "INVALID_RANGE"
+  },
+  {
+    "name": "crop outside source",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/crop/bottom",
+        "value": 901
+      }
+    ],
+    "error": "INVALID_RANGE"
+  },
+  {
+    "name": "implicit upscaling denied",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/output_width",
+        "value": 1600
+      }
+    ],
+    "error": "INVALID_RANGE"
+  },
+  {
+    "name": "explicit upscaling allowed",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/output_width",
+        "value": 1600
+      },
+      {
+        "path": "/images/0/recipes/0/allow_upscale",
+        "value": true
+      }
+    ]
+  },
+  {
+    "name": "wrong source geometry",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/recipes/0/source_width",
+        "value": 1500
+      }
+    ],
+    "error": "INVALID_RANGE"
+  },
+  {
+    "name": "element needs lineage",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/1/lineage",
+        "value": null
+      }
+    ],
+    "error": "WRONG_ASSET_KIND"
+  },
+  {
+    "name": "image cannot carry lineage",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/lineage",
+        "value": {
+          "parent_id": "22222222-2222-4222-8222-222222222222",
+          "parent_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "recipe_id": "55555555-5555-4555-8555-555555555555",
+          "recipe_revision": 1,
+          "mask_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "mask_revision": 1
+        }
+      }
+    ],
+    "error": "WRONG_ASSET_KIND"
+  },
+  {
+    "name": "self lineage",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/1/lineage/parent_id",
+        "value": "33333333-3333-4333-8333-333333333333"
+      }
+    ],
+    "error": "INVALID_REFERENCE"
+  },
+  {
+    "name": "missing parent is allowed for portable subsets",
+    "valid": true,
+    "edits": [
+      {
+        "path": "/images/1/lineage/parent_id",
+        "value": "66666666-6666-4666-8666-666666666666"
+      }
+    ]
+  },
+  {
+    "name": "audio cannot be extraction parent",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/1/lineage/parent_id",
+        "value": "11111111-1111-4111-8111-111111111111"
+      }
+    ],
+    "error": "WRONG_ASSET_KIND"
+  },
+  {
+    "name": "lineage cycles",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/header/kind",
+        "value": "element"
+      },
+      {
+        "path": "/images/0/lineage",
+        "value": {
+          "parent_id": "33333333-3333-4333-8333-333333333333",
+          "parent_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "recipe_id": "55555555-5555-4555-8555-555555555555",
+          "recipe_revision": 1,
+          "mask_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "mask_revision": 1
+        }
+      }
+    ],
+    "error": "INVALID_REFERENCE"
+  },
+  {
+    "name": "complete enrichment requires current model evidence",
+    "valid": false,
+    "edits": [
+      {
+        "path": "/images/0/evidence",
+        "value": []
+      }
+    ]
+  }
+]

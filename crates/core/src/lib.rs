@@ -32,3 +32,6 @@ pub mod source_catalog;
 pub mod handoff;
 
 pub mod maintenance;
+
+// Data contracts only; image services are introduced by later tickets.
+pub mod image_contracts;
