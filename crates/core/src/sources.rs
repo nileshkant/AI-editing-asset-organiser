@@ -131,6 +131,7 @@ impl Catalog {
                 "Confirmation required: conversion imports all supported sibling files recursively",
             ));
         }
+        self.require_audio_only_source(id)?;
         let source = self.source(id)?;
         if source.scope != "files" {
             return Err(invalid("Source already imports a recursive folder"));

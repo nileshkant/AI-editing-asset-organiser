@@ -338,3 +338,11 @@ actual scoped core sounds.get/search and clips.get/list responses against fixed
 expected JSON. Audio-tool discovery is frozen against the 17-method inventory.
 These are contract tests on synthetic metadata, not a claim of actual image
 decoding, AI quality, native audio listening, or installed-platform qualification.
+
+## SS-041 storage amendment
+
+SS-040's schema-v9 inventory above is the frozen pre-image baseline. SS-041
+adds SQLite v10 with shared audio/image identity, versioned image persistence,
+cache reuse and bounded metadata APIs, documented in [Image storage](IMAGE_STORAGE.md).
+The image capability remains disabled, and existing IPC/MCP/portable payloads
+are unchanged. Mixed JSON persistence remains an explicit SS-048 boundary.

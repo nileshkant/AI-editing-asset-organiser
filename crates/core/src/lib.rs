@@ -35,3 +35,7 @@ pub mod maintenance;
 
 // Data contracts only; image services are introduced by later tickets.
 pub mod image_contracts;
+pub mod image_catalog;
+
+#[cfg(test)]
+mod image_migration_tests;

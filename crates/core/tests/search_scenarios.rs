@@ -1,3 +1,4 @@
+mod common;
 use soundshelf_core::{
     catalog::{hash_file, Catalog, Profile, Sound, Source},
     search::{search, SearchQuery},
@@ -459,6 +460,7 @@ fn v8_upgrade_preserves_full_profiles_annotations_and_original_backup() {
     profile.waveform = vec![[-0.5, 0.5]; 3200];
     catalog.publish(&source, &id, "rain-hash", &profile).unwrap();
     catalog.annotate(&id, &["custom".into()], "preserved", true).unwrap();
+    common::remove_image_schema_for_legacy_fixture(catalog.db_connection());
     catalog.db_connection().execute_batch("DROP TRIGGER analyses_search_insert; DROP TRIGGER analyses_search_update; DROP TABLE search_profiles; PRAGMA user_version=8;").unwrap();
     drop(catalog);
     let catalog = Catalog::open(&path).unwrap();
@@ -468,7 +470,7 @@ fn v8_upgrade_preserves_full_profiles_annotations_and_original_backup() {
     assert_eq!(result.items[0].comment, "preserved");
     assert!(result.items[0].favorite);
     assert!(result.items[0].profile.as_ref().unwrap().waveform.is_empty());
-    let backup = fs::read_dir(root.path()).unwrap().map(|e|e.unwrap().path()).find(|p|p.to_string_lossy().contains("pre-v9")).unwrap();
+    let backup = fs::read_dir(root.path()).unwrap().map(|e|e.unwrap().path()).find(|p|p.to_string_lossy().contains(&format!("pre-v{}",soundshelf_core::catalog::SCHEMA_VERSION))).unwrap();
     let old = rusqlite::Connection::open(backup).unwrap();
     assert_eq!(old.pragma_query_value(None,"user_version",|r|r.get::<_,u32>(0)).unwrap(),8);
     assert_eq!(old.query_row("SELECT comment FROM annotations",[],|r|r.get::<_,String>(0)).unwrap(),"preserved");
@@ -482,6 +484,7 @@ fn v8_search_migration_failure_keeps_original_version_and_data() {
     let source = catalog.add_source(root.path()).unwrap();
     let id = catalog.register(&source, "rain.wav", "hash").unwrap();
     catalog.annotate(&id, &[], "keep", true).unwrap();
+    common::remove_image_schema_for_legacy_fixture(catalog.db_connection());
     catalog.db_connection().execute_batch("DROP TRIGGER analyses_search_insert; DROP TRIGGER analyses_search_update; DROP TABLE search_profiles; CREATE TABLE search_profiles(collision TEXT); PRAGMA user_version=8;").unwrap();
     drop(catalog);
     assert!(Catalog::open(&path).is_err());

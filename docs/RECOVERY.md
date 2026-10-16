@@ -48,3 +48,14 @@ automatically. The user can attach that report to feedback deliberately.
 
 No recognition model ships in the baseline. AI consent/provider controls belong
 to the optional provider/model tickets before recognition can be enabled.
+
+## Additive image storage (schema v10)
+
+SS-041 adds internal image metadata without enabling image UI/import. Full
+SQLite backups include those records and restore validates their typed fields,
+registry membership, version history and lineage before changing live data.
+Migration creates a pre-v10 snapshot for v5–v9 databases; restore that snapshot
+with the matching old binary for downgrade, retaining the newer database
+separately. Never edit `user_version`. Mixed-library portable JSON and image
+source snapshots remain blocked until SS-048. See [Image storage](IMAGE_STORAGE.md)
+for migration failure behavior, naming and compatibility limits.
