@@ -69,7 +69,7 @@ export const SoundInspector = memo(function SoundInspector({
 
   const p = sound.profile;
   const isThisSound = playback?.sound_id === sound.id;
-  const currentPos = isThisSound ? playback?.position_seconds || 0 : 0;
+  const currentPos = isThisSound ? (playback?.position_seconds || 0) + (playback?.source_start_seconds || 0) : 0;
   const pitchKey = extractPitchInfo(sound);
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export const SoundInspector = memo(function SoundInspector({
       setSelection({ start, end });
       handleSeek(start);
     },
-    [p?.sample_rate],
+    [p?.sample_rate, isThisSound, onSeek, onPlay, sound],
   );
 
   const handleRebind = useCallback(
@@ -173,17 +173,17 @@ export const SoundInspector = memo(function SoundInspector({
 
   const handleSeek = useCallback(
     (sec: number) => {
-      if (isThisSound) {
+      if (isThisSound && playback?.source_start_seconds == null) {
         void onSeek(sec);
       } else {
-        void onPlay(sound).then(() => onSeek(sec));
+        void onPlay(sound).then(started => started === false ? undefined : onSeek(sec));
       }
     },
-    [isThisSound, onSeek, onPlay, sound],
+    [isThisSound, playback?.source_start_seconds, onSeek, onPlay, sound],
   );
 
   return (
-    <aside className="inspector" aria-labelledby="inspector-title">
+    <aside className="inspector" aria-labelledby="inspector-title" tabIndex={-1}>
       <div className="inspector-heading">
         <span>DETAILS</span>
         <button
@@ -196,7 +196,7 @@ export const SoundInspector = memo(function SoundInspector({
         </button>
       </div>
 
-      <h2 id="inspector-title">{sound.title}</h2>
+      <h2 id="inspector-title" tabIndex={-1}>{sound.title}</h2>
       <small className="muted path-text">{sound.relative_path}</small>
 
       {p && (
@@ -329,7 +329,7 @@ export const SoundInspector = memo(function SoundInspector({
                           disabled={clip.is_stale}
                           onClick={() => {
                             // Play only the clip region using the dedicated IPC command.
-                            void playClip(sound.id, clip.id).catch(() => {});
+                            void playClip(sound.id, clip.id).catch(error => onError(String(error)));
                           }}
                         >
                           <Play size={11} aria-hidden="true" /> Play Clip

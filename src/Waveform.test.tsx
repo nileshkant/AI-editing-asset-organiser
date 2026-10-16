@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import { Waveform } from './components/waveform/Waveform';
 
 const mockInvoke = vi.fn();
@@ -359,6 +360,7 @@ describe('Waveform', () => {
 
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent(/Start cannot be negative; clamped to 0\.000s/i);
+    fireEvent.blur(startInput);
     expect((startInput as HTMLInputElement).value).toBe('0.000');
   });
 
@@ -438,3 +440,45 @@ describe('Waveform', () => {
   });
 });
 
+
+
+describe('waveform keyboard and viewport regressions', () => {
+  it('keeps clip-name editing and number-input arrows out of selection shortcuts', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={10} />);
+    fireEvent.click(screen.getByText('Select All'));
+    fireEvent.change(screen.getByLabelText('Selection start in seconds'), { target: { value: '2' } });
+    const start = screen.getByLabelText('Selection start in seconds');
+    expect(fireEvent.keyDown(start, { key: 'ArrowRight' })).toBe(true);
+    expect(start).toHaveValue(2);
+    fireEvent.click(screen.getByLabelText('Save selection as clip recipe'));
+    expect(fireEvent.keyDown(screen.getByLabelText('Clip variant name'), { key: 'i' })).toBe(true);
+    expect(start).toHaveValue(2);
+  });
+
+  it('fits a selection away from the file start using the new zoom', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={10} />);
+    fireEvent.click(screen.getByText('Select All'));
+    fireEvent.change(screen.getByLabelText('Selection start in seconds'), { target: { value: '6' } });
+    fireEvent.change(screen.getByLabelText('Selection duration in seconds'), { target: { value: '2' } });
+    fireEvent.click(screen.getByLabelText('Fit to selection'));
+    expect(screen.getByLabelText('Pan offset')).toHaveAttribute('aria-valuetext', '0:06.00 to 0:08.00');
+  });
+});
+
+
+it('allows typing decimal boundaries without reformatting the caret on each keystroke', async () => {
+  const user = userEvent.setup();
+  render(<Waveform peaks={SAMPLE_PEAKS} duration={10} sampleRate={48000} />);
+  await user.click(screen.getByText('Select All'));
+  const start = screen.getByLabelText('Selection start in seconds');
+  await user.clear(start);
+  await user.type(start, '0.5');
+  await user.tab();
+  expect(start).toHaveValue(0.5);
+  const span = screen.getByLabelText('Selection duration in seconds');
+  await user.clear(span);
+  await user.type(span, '1.25');
+  await user.tab();
+  expect(span).toHaveValue(1.25);
+  expect(screen.getByText('Frames: 24000 – 84000 (exclusive)')).toBeInTheDocument();
+});

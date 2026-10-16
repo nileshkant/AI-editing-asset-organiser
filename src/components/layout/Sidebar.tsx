@@ -48,6 +48,7 @@ export const Sidebar = memo(function Sidebar({
         {NAV_ITEMS.map((n) => (
           <button
             key={n.id}
+            aria-label={n.label}
             className={`nav ${page === n.id ? 'active' : ''}`}
             aria-current={page === n.id ? 'page' : undefined}
             onClick={() => setPage(n.id)}
@@ -73,12 +74,17 @@ export const Sidebar = memo(function Sidebar({
         </button>
       </div>
 
-      <div className="source-links">
+      <div className="source-links" role="group" aria-label="Source filters">
+        <button className={`source-link ${!source ? 'chosen' : ''}`} aria-pressed={!source}
+          onClick={() => { setSource(''); setPage('library'); }}>
+          <Library size={15} aria-hidden="true" /><span>All sources</span>
+        </button>
         {roots.map((root) => (
           <button
             key={root.id}
             className={`source-link ${source === root.id ? 'chosen' : ''}`}
             title={root.root}
+            aria-pressed={source === root.id}
             onClick={() => {
               setSource(source === root.id ? '' : root.id);
               setPage('library');

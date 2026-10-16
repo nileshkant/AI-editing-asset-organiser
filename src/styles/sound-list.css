@@ -45,7 +45,7 @@
   background: #1f1f26;
 }
 
-.sound-row.keyboard-focused {
+.sound-row:focus-within {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
@@ -94,7 +94,7 @@
 }
 
 .sound-label strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -102,7 +102,7 @@
 }
 
 .sound-label small {
-  font-size: 10px;
+  font-size: 12px;
   color: #9c9ca6;
   white-space: nowrap;
   overflow: hidden;
@@ -325,7 +325,7 @@
 }
 
 .clip-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   display: flex;
   align-items: center;

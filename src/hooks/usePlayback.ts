@@ -21,6 +21,8 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
 
   // Tracks the active play request token to guard against re-entry.
   const playToken = useRef(0);
+  const seekTarget = useRef<number | null>(null);
+  const seekTask = useRef<Promise<unknown> | null>(null);
 
   const guard = async <T,>(task: () => Promise<T>): Promise<T | undefined> => {
     try {
@@ -48,14 +50,21 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
         sound_id: sound.id,
         state: 'playing' as const,
         position_seconds: 0,
-        duration_seconds: sound.profile?.duration || prev?.duration_seconds || 0,
+        duration_seconds: sound.profile?.duration || 0,
+        source_start_seconds: null,
         volume: prev?.volume ?? 1,
         peak: 0,
         error: null,
       }));
 
+      const previousSound = stateRef.current.playingSound;
+      const previous = playbackRef.current;
       try {
         await call("playback_play", { id: sound.id });
+      } catch (error) {
+        setPlayingSound(previousSound);
+        setPlayback(previous);
+        throw error;
       } finally {
         // Only clear pending if this was still the current token (not superseded).
         if (playToken.current === token) {
@@ -63,7 +72,8 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
           setIsPlayPending(false);
         }
       }
-    }), []);
+      return true;
+    }).then(result => result === true), []);
 
   const togglePlay = useCallback(() =>
     guard(async () => {
@@ -75,7 +85,8 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
       if (
         !currentState ||
         currentState === "stopped" ||
-        currentState === "finished"
+        currentState === "finished" ||
+        currentState === "error"
       ) {
         if (playingSound) await playSound(playingSound);
         else if (selected) await playSound(selected);
@@ -104,17 +115,42 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
     guard(async () => {
       if (pendingRef.current) return;
       ++commandRevision.current;
+      pendingRef.current = true;
+      setIsPlayPending(true);
+      const previous = playbackRef.current;
       setAnnouncement("Playback stopped");
-      // Optimistic stop: clear state before IPC round-trip.
-      setPlayback(prev => prev ? { ...prev, state: 'stopped' as const, position_seconds: 0 } : prev);
-      setIsPlayPending(false);
-      await call("playback_stop");
+      setPlayback(prev => prev ? { ...prev, state: 'stopped', position_seconds: 0 } : prev);
+      try { await call("playback_stop"); }
+      catch (error) { setPlayback(previous); throw error; }
+      finally { pendingRef.current = false; setIsPlayPending(false); }
     }), []);
 
-  const seekPlayback = useCallback((pos: number) =>
-    guard(async () => {
-      await call("playback_seek", { positionSeconds: pos });
-    }), []);
+  const seekPlayback = useCallback((pos: number) => {
+    if (!Number.isFinite(pos) || (pendingRef.current && !seekTask.current)) return Promise.resolve(false);
+    seekTarget.current = pos;
+    if (seekTask.current) return seekTask.current;
+    const task = guard(async () => {
+      pendingRef.current = true;
+      ++commandRevision.current;
+      setIsPlayPending(true);
+      try {
+        while (seekTarget.current !== null) {
+          const target = seekTarget.current;
+          seekTarget.current = null;
+          await call("playback_seek", { positionSeconds: target });
+          setPlayback(previous => previous ? {
+            ...previous, position_seconds: Math.max(0, Math.min(target, previous.duration_seconds)),
+          } : previous);
+        }
+      } finally {
+        seekTarget.current = null;
+        pendingRef.current = false;
+        setIsPlayPending(false);
+      }
+    });
+    seekTask.current = task;
+    return task.finally(() => { seekTask.current = null; });
+  }, []);
 
   const changeVolume = useCallback((v: number) =>
     guard(async () => {
@@ -136,9 +172,11 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
   useEffect(() => {
     if (!isTauri()) return;
     let alive = true;
+    let polling = false;
     const interval = setInterval(async () => {
+      if (pendingRef.current || polling) return;
+      polling = true;
       try {
-        if (pendingRef.current) return;
         const revision = commandRevision.current;
         const s = await call<PlaybackStatus>("playback_status");
         if (alive && !pendingRef.current && revision === commandRevision.current) {
@@ -146,6 +184,7 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
 
         }
       } catch (_) {}
+      finally { polling = false; }
     }, 120);
     return () => {
       alive = false;
@@ -162,11 +201,13 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
     } else if (selected?.id === playback.sound_id) {
       setPlayingSound(selected);
     } else if (isTauri()) {
+      let active = true;
       call<Sound>("get_sound", { id: playback.sound_id })
         .then((s) => {
-          if (s) setPlayingSound(s);
+          if (active && s) setPlayingSound(s);
         })
         .catch(() => {});
+      return () => { active = false; };
     }
   }, [playback?.sound_id, resultsItems, selected, playingSound]);
 

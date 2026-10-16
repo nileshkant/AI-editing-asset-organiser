@@ -16,7 +16,7 @@ const EMPTY: SearchResults = {
 
 type Page = "library" | "favorites" | "imports" | "settings";
 
-export function useAudioSearch(page: Page, selectedId: string | undefined, setSelected: (s: Sound | null) => void) {
+export function useAudioSearch(page: Page) {
   const [info, setInfo] = useState<AppInfo>();
   const [roots, setRoots] = useState<Source[]>([]);
   const [jobs, setJobs] = useState<Progress[]>([]);
@@ -28,7 +28,7 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
   const [results, setResults] = useState<SearchResults>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
-  const queryKey = JSON.stringify([text, source, max, page, offset, revision]);
+  const queryKey = JSON.stringify([text, source, max, page, offset]);
   const [resultKey, setResultKey] = useState("");
   const [filters, setFilters] = useState(false);
   
@@ -96,7 +96,7 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
           refresh();
         }
         const sources = await call<Source[]>("sources");
-        setRoots(sources || []);
+        if (alive) setRoots(sources || []);
       } catch (e) {
         if (alive) setError(String(e));
       }
@@ -157,18 +157,6 @@ export function useAudioSearch(page: Page, selectedId: string | undefined, setSe
     return () => { clearTimeout(timer); ++request.current; };
   }, [text, source, max, page, offset, revision]);
 
-  // Re-fetch selected sound only when selectedId changes — NOT on every results update.
-  // Previously this fired on results changes (every 1.5s poll), causing two IPC calls to
-  // race and momentarily highlight two sounds at once.
-  useEffect(() => {
-    let active = true;
-    if (selectedId && isTauri()) {
-      call<Sound>("get_sound", { id: selectedId })
-        .then((s) => { if (active) setSelected(s); })
-        .catch(() => { if (active) setSelected(null); });
-    }
-    return () => { active = false; };
-  }, [selectedId, setSelected]);
 
   return {
     info,

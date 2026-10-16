@@ -1,0 +1,8 @@
+   Compiling soundshelf-core v0.1.0 (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/crates/core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.80s
+     Running tests/playback_scenarios.rs (target/debug/deps/playback_scenarios-cc5a623826389ee6)
+
+running 1 test
+test clip_timeline_and_seeking_remain_within_the_selected_source_region ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.35s

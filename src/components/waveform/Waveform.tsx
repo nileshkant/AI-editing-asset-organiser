@@ -16,6 +16,7 @@ import {
   Check,
 } from 'lucide-react';
 import { call, duration, secondsToFrame, createClip } from '../../api';
+import { TimeInput } from './TimeInput';
 import { PitchOverlay } from './PitchOverlay';
 import type { WaveformResponse, ChannelBucket, Clip, ClipRecipe } from '../../types';
 
@@ -120,7 +121,7 @@ export function Waveform({
         });
     }, 100); // 100ms debounce
 
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(timer); ++tileRequestRef.current; };
   }, [soundId, startFrame, endFrame]);
 
   // Track container size for PitchOverlay
@@ -158,8 +159,8 @@ export function Waveform({
     const selSpan = activeSelection.end - activeSelection.start;
     if (selSpan <= 0.001) return;
     const targetZoom = Math.min(64, Math.max(1, safeDuration / selSpan));
-    const targetPan =
-      maxPanStart > 0 ? activeSelection.start / maxPanStart : 0;
+    const targetMaxPan = safeDuration - safeDuration / targetZoom;
+    const targetPan = targetMaxPan > 0 ? activeSelection.start / targetMaxPan : 0;
     setZoom(targetZoom);
     setPanOffset(Math.max(0, Math.min(1, targetPan)));
   };
@@ -529,7 +530,9 @@ export function Waveform({
 
   // Keyboard nudging for selection
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!activeSelection) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('input, textarea, select, button, [contenteditable="true"]')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey || !activeSelection) return;
     const step = e.shiftKey ? 0.1 : 0.01;
     const minFrameSec = 1 / sampleRate;
     if (e.key === 'ArrowLeft') {
@@ -783,7 +786,7 @@ export function Waveform({
             <div className="numeric-input-group">
               <label>
                 Start
-                <input
+                <TimeInput
                   type="number"
                   step="0.01"
                   min="0"
@@ -837,7 +840,7 @@ export function Waveform({
 
               <label>
                 Duration
-                <input
+                <TimeInput
                   type="number"
                   step="0.01"
                   min={1 / sampleRate}
@@ -896,7 +899,7 @@ export function Waveform({
 
               <label>
                 End
-                <input
+                <TimeInput
                   type="number"
                   step="0.01"
                   min={activeSelection.start}

@@ -1,0 +1,17 @@
+Native development smoke run, 2026-10-16
+macOS 27.0.1 (26A434), Apple Silicon
+Final development executable SHA-256: 613326c56a01f00e13e7dcc7896fb1ad962e7821b9636c3fc6c0f61ed19d681d
+
+Isolated generated fixture; no live user catalog.
+Native file selection and import: 1/1 complete, 0 failed.
+Native Tab and Space: filters opened; Tab reached recording; Enter opened details.
+Native decimal typing: 0.5s start = frame 24000 at 48000 Hz.
+Saved clip [24000,48000); native export reported 24000 frames.
+FFprobe: 48000 Hz, stereo, 24-bit PCM, duration_ts=24000.
+Restart retained comment, favorite, clip and exported sound.
+Before native audio fix: output stream reported buffer underrun/overrun as permanent error.
+After fix: full source reached Finished 0:02.00 and clip reached Finished 0:00.50.
+Final rebuilt executable: clip reached Finished 0:00.50.
+Final native source confirmation: background controls disappeared from native accessibility tree; Escape cancelled; keyboard-opened confirmation returned focus to Remove source.
+Final details selection moved focus directly to the details container.
+Review app closed after verification. Listening quality and prolonged device testing remain qualification work.

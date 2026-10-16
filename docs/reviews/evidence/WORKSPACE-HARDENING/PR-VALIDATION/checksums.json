@@ -1,0 +1,22 @@
+{
+  "code_commit": "6f4b852bf1ac0bfaea8fcf94f61de29455ff86dd",
+  "excluded_preexisting_files": [
+    "crates/core/src/source_catalog.rs",
+    "crates/core/tests/source_catalog.rs",
+    "docs/PORTABLE_CATALOG.md"
+  ],
+  "results": {
+    "frontend_tests": 182,
+    "browser_tests": 5,
+    "rust_media_tests": 204,
+    "failed": 0,
+    "ignored": 0,
+    "build": "passed"
+  },
+  "logs": {
+    "browser-tests.txt": "7e3557a7fa98bd5f78ca11ee2f5476e2804c92817bfd6982665d75f4af8fc7c5",
+    "frontend-build.txt": "bce44a77aae4cede4f841b6f5bd50b4aa1ca642b9cd4d4798d272d890795e055",
+    "frontend-tests.txt": "b85dec208acbe9733a68ef0613dd5c943c60f30835ae4afbe0130a122469d0d8",
+    "rust-media-tests.txt": "defb8637ac60a3115590d6259bf2cd105b7c0991bdb1bb8e1a6ba542b92bb4f1"
+  }
+}

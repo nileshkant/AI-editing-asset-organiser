@@ -4,6 +4,7 @@ import { duration } from '../../api';
 import type { Sound, PlaybackStatus } from '../../types';
 
 interface TransportBarProps {
+  pending?: boolean;
   playback: PlaybackStatus | null;
   playingSound: Sound | null;
   selected: Sound | null;
@@ -17,6 +18,7 @@ interface TransportBarProps {
 }
 
 export const TransportBar = memo(function TransportBar({
+  pending = false,
   playback,
   playingSound,
   selected,
@@ -36,7 +38,7 @@ export const TransportBar = memo(function TransportBar({
     playback?.duration_seconds ||
     playingSound?.profile?.duration ||
     selected?.profile?.duration ||
-    1;
+    0;
 
   const currentPosition = playback?.position_seconds || 0;
   const displayPosition = isScrubbing ? scrubValue : currentPosition;
@@ -104,6 +106,7 @@ export const TransportBar = memo(function TransportBar({
           className="icon-button"
           title={playback?.state === 'playing' ? 'Pause' : 'Play'}
           aria-label={playback?.state === 'playing' ? 'Pause' : 'Play'}
+          disabled={pending}
           onClick={onTogglePlay}
         >
           {playback?.state === 'playing' ? (
@@ -116,7 +119,7 @@ export const TransportBar = memo(function TransportBar({
           className="icon-button"
           title="Stop"
           aria-label="Stop"
-          disabled={!playback || playback.state === 'stopped'}
+          disabled={pending || !playback || playback.state === 'stopped'}
           onClick={onStop}
         >
           <Square size={16} aria-hidden="true" />
@@ -140,6 +143,7 @@ export const TransportBar = memo(function TransportBar({
         <span className="transport-time">{duration(displayPosition)}</span>
         <input
           type="range"
+          disabled={pending || !playback?.sound_id || playback.state === 'stopped'}
           className="transport-slider"
           aria-label="Seek position"
           aria-valuemin={0}
@@ -154,6 +158,8 @@ export const TransportBar = memo(function TransportBar({
           onPointerDown={handleScrubStart}
           onChange={handleScrubChange}
           onPointerUp={handleScrubEnd}
+          onBlur={handleScrubEnd}
+          onPointerCancel={() => setIsScrubbing(false)}
         />
         <span className="transport-time">{duration(currentDuration)}</span>
       </div>

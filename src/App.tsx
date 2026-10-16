@@ -26,7 +26,7 @@ export function App() {
   const selectionId = useRef(0);
 
   // Custom hooks
-  const search = useAudioSearch(page, selected?.id, setSelected);
+  const search = useAudioSearch(page);
   const playback = usePlayback(selected, search.results.items);
   const { dropping } = useDragDrop(search.importPath, setError);
 
@@ -43,16 +43,22 @@ export function App() {
     [],
   );
 
-  // Fix 1: Optimistic selection — show immediately, merge full data after
+  const closeDetails = useCallback(() => {
+    ++selectionId.current;
+    setSelected(null);
+    requestAnimationFrame(() => document.querySelectorAll<HTMLButtonElement>('.sound-select')[focusedIndex]?.focus());
+  }, [focusedIndex]);
+
   const select = useCallback(
     (sound: Sound, index?: number) =>
       guard(async () => {
         if (typeof index === 'number') setFocusedIndex(index);
-        setSelected(sound); // ← Optimistic: instant UI feedback
+        setSelected(sound);
         setAnnouncement(`Selected ${sound.title}`);
+        requestAnimationFrame(() => document.querySelector<HTMLElement>('.inspector')?.focus());
         const id = ++selectionId.current;
         const full = await call<Sound>('get_sound', { id: sound.id });
-        if (selectionId.current === id) setSelected(full); // Merge full data
+        if (selectionId.current === id) setSelected(full);
       }),
     [guard],
   );
@@ -60,17 +66,14 @@ export function App() {
   const favorite = useCallback(
     (sound: Sound) =>
       guard(async () => {
-        await call('annotate', {
+        await call('set_favorite', {
           id: sound.id,
-          tags: sound.user_tags,
-          comment: sound.comment,
           favorite: !sound.favorite,
         });
-        if (selected?.id === sound.id)
-          setSelected({ ...selected, favorite: !sound.favorite });
+        setSelected(current => current?.id === sound.id ? { ...current, favorite: !sound.favorite } : current);
         search.refresh();
       }),
-    [guard, selected, search],
+    [guard, search.refresh],
   );
 
   const handleRescan = useCallback(
@@ -98,7 +101,7 @@ export function App() {
     togglePlay: playback.togglePlay,
     toggleMute: playback.toggleMute,
     select,
-    setSelected,
+    setSelected: (sound) => { if (!sound) closeDetails(); else setSelected(sound); },
     setFocusedIndex,
     setOffset: search.setOffset,
     setRelink,
@@ -118,6 +121,7 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#workspace">Skip to workspace</a>
       {/* Live region for screen readers */}
       <div
         role="status"
@@ -128,6 +132,8 @@ export function App() {
       >
         {announcement}
       </div>
+      <div role="status" aria-live="polite" aria-atomic="true" aria-label="Playback announcements" className="sr-only">{playback.announcement}</div>
+      <div role="status" aria-live="polite" aria-atomic="true" aria-label="Search announcements" className="sr-only">{search.announcement}</div>
 
       <Sidebar
         page={page}
@@ -146,7 +152,7 @@ export function App() {
         onAddFolder={search.addFolder}
       />
 
-      <main>
+      <main id="workspace" tabIndex={-1}>
         <PageHeader page={page} onAddFolder={search.addFolder} onAddFiles={search.addFiles} />
 
         {(error || search.error || playback.error) && (
@@ -175,7 +181,8 @@ export function App() {
                 <input
                   ref={searchInputRef}
                   aria-label="Search audio"
-                  placeholder="Search sounds, tags, or a short whoosh under 3 seconds (Press '/' to focus)"
+                  placeholder="Search sounds, tags, or descriptions"
+                  aria-describedby="library-keyboard-help"
                   value={search.text}
                   onChange={(e) => search.setText(e.target.value)}
                 />
@@ -245,11 +252,12 @@ export function App() {
               </div>
             )}
 
+            <p className="keyboard-help" id="library-keyboard-help">/ Search · ↑ ↓ Browse · Enter Details</p>
             <div className="results-bar">
               <span>
                 {search.busy
                   ? 'Searching...'
-                  : `${search.results.total.toLocaleString()} sounds`}
+                  : `${search.results.total.toLocaleString()} ${search.results.total === 1 ? 'sound' : 'sounds'}`}
               </span>
               <span>
                 {search.results.interpretation.corrected.join(' · ') ||
@@ -263,11 +271,11 @@ export function App() {
             >
               <section
                 className="sound-list"
-                role="listbox"
+                role="list"
                 aria-label="Sounds"
                 aria-busy={search.busy}
               >
-                {search.busy ? (
+                {search.busy && !search.results.items.length ? (
                   <div className="catalog-loading" role="status" aria-label="Loading sounds">
                     <div className="loading-wave" aria-hidden="true">
                       {Array.from({ length: 5 }, (_, i) => <span key={i} />)}
@@ -300,18 +308,17 @@ export function App() {
                   playback={playback.playback}
                   onPlay={playback.playSound}
                   onSeek={playback.seekPlayback}
-                  onClose={() => setSelected(null)}
+                  onClose={closeDetails}
                   onSave={async (tags, comment) => {
                     await call('annotate', {
                       id: selected.id,
                       tags,
                       comment,
-                      favorite: selected.favorite,
                     });
                     const full = await call<Sound>('get_sound', {
                       id: selected.id,
                     });
-                    setSelected(full);
+                    setSelected(current => current?.id === full.id ? full : current);
                     setAnnouncement('Annotations saved');
                     search.refresh();
                   }}
@@ -376,6 +383,7 @@ export function App() {
         )}
 
         <TransportBar
+          pending={playback.isPlayPending}
           playback={playback.playback}
           playingSound={playback.playingSound}
           selected={selected}

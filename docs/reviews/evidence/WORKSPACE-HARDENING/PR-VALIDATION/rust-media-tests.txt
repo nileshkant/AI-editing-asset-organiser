@@ -1,0 +1,809 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling serde_core v1.0.229
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling cfg-if v1.0.5
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.13
+   Compiling zmij v1.0.23
+   Compiling cc v1.4.7
+   Compiling strsim v0.11.1
+   Compiling serde v1.0.229
+   Compiling thiserror v2.0.20
+   Compiling objc2 v0.6.4
+   Compiling aho-corasick v1.1.5
+   Compiling regex-syntax v0.8.11
+   Compiling objc2-encode v4.1.0
+   Compiling smallvec v1.16.1
+   Compiling same-file v1.0.6
+   Compiling walkdir v2.5.0
+   Compiling litemap v0.8.3
+   Compiling writeable v0.6.4
+   Compiling utf8_iter v1.0.4
+   Compiling icu_normalizer_data v2.3.0
+   Compiling icu_properties_data v2.3.0
+   Compiling once_cell v1.21.4
+   Compiling serde_json v1.0.151
+   Compiling rand_core v0.10.1
+   Compiling getrandom v0.4.3
+   Compiling syn v3.0.6
+   Compiling syn v2.0.119
+   Compiling errno v0.3.14
+   Compiling bytes v1.12.1
+   Compiling log v0.4.34
+   Compiling siphasher v1.0.3
+   Compiling objc2-exception-helper v0.1.1
+   Compiling phf_shared v0.13.1
+   Compiling fastrand v2.5.0
+   Compiling ident_case v1.0.1
+   Compiling stable_deref_trait v1.2.1
+   Compiling phf_generator v0.13.1
+   Compiling autocfg v1.5.1
+   Compiling pkg-config v0.3.34
+   Compiling http v1.5.0
+   Compiling vcpkg v0.2.15
+   Compiling foldhash v0.2.0
+   Compiling hashbrown v0.16.1
+   Compiling blake3 v1.8.7
+   Compiling cpal v0.18.2
+   Compiling hashbrown v0.17.1
+   Compiling libsqlite3-sys v0.36.0
+   Compiling equivalent v1.0.2
+   Compiling hashlink v0.11.1
+   Compiling regex-automata v0.4.18
+   Compiling dasp_sample v0.11.0
+   Compiling mach2 v0.6.0
+   Compiling arrayvec v0.7.8
+   Compiling block2 v0.6.2
+   Compiling bitflags v2.13.2
+   Compiling uuid v1.26.1
+   Compiling dispatch2 v0.3.1
+   Compiling objc2-core-audio-types v0.3.2
+   Compiling objc2-core-foundation v0.3.2
+   Compiling base64 v0.23.1
+   Compiling fallible-iterator v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling constant_time_eq v0.4.2
+   Compiling rtrb v0.4.0
+   Compiling rustix v1.1.5
+   Compiling pin-project-lite v0.2.17
+   Compiling num-conv v0.2.2
+   Compiling winnow v1.0.4
+   Compiling dyn-clone v1.0.20
+   Compiling time-core v0.1.9
+   Compiling phf_codegen v0.13.1
+   Compiling toml_writer v1.1.2+spec-1.1.0
+   Compiling powerfmt v0.2.0
+   Compiling toml_parser v1.1.3+spec-1.1.0
+   Compiling synstructure v0.14.0
+   Compiling darling_core v0.24.1
+   Compiling typeid v1.0.3
+   Compiling regex v1.13.1
+   Compiling deranged v0.5.8
+   Compiling erased-serde v0.4.10
+   Compiling objc2-foundation v0.3.2
+   Compiling byteorder v1.5.0
+   Compiling percent-encoding v2.3.2
+   Compiling futures-core v0.3.34
+   Compiling parking_lot_core v0.9.12
+   Compiling tempfile v3.27.0
+   Compiling phf_macros v0.13.1
+   Compiling fnv v1.0.7
+   Compiling scopeguard v1.2.0
+   Compiling thiserror v1.0.69
+   Compiling unic-char-range v0.9.0
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling thiserror-impl v2.0.20
+   Compiling unic-common v0.9.0
+   Compiling rusqlite v0.38.0
+   Compiling new_debug_unreachable v1.0.6
+   Compiling unic-ucd-version v0.9.0
+   Compiling phf v0.13.1
+   Compiling unic-char-property v0.9.0
+   Compiling lock_api v0.4.14
+   Compiling thiserror-impl v1.0.69
+   Compiling zerofrom v0.1.8
+   Compiling form_urlencoded v1.2.2
+   Compiling string_cache_codegen v0.6.1
+   Compiling alloc-no-stdlib v2.0.4
+   Compiling darling_macro v0.24.1
+   Compiling precomputed-hash v0.1.1
+   Compiling alloc-stdlib v0.2.4
+   Compiling parking_lot v0.12.5
+   Compiling unic-ucd-ident v0.9.0
+   Compiling darling v0.24.1
+   Compiling web_atoms v0.2.6
+   Compiling yoke v0.8.3
+   Compiling serde_spanned v1.1.1
+   Compiling quick-xml v0.42.0
+   Compiling anyhow v1.0.104
+   Compiling string_cache v0.9.0
+   Compiling serde_with_macros v3.23.0
+   Compiling brotli-decompressor v5.0.3
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling tokio-macros v2.7.2
+   Compiling semver v1.0.28
+   Compiling signal-hook-registry v1.4.8
+   Compiling mio v1.2.3
+   Compiling socket2 v0.6.5
+   Compiling dtoa v1.0.11
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling ctor-proc-macro v0.0.7
+   Compiling futures-sink v0.3.34
+   Compiling icu_locale_core v2.3.0
+   Compiling icu_collections v2.3.0
+   Compiling dunce v1.0.5
+   Compiling objc2-core-audio v0.3.2
+   Compiling ctor v0.8.0
+   Compiling tokio v1.53.1
+   Compiling objc2-audio-toolbox v0.3.2
+   Compiling dtoa-short v0.3.5
+   Compiling brotli v8.0.4
+   Compiling tendril v0.5.1
+   Compiling cssparser-macros v0.6.1
+   Compiling derive_more-impl v2.1.1
+   Compiling selectors v0.36.1
+   Compiling toml_datetime v1.1.1+spec-1.1.0
+   Compiling indexmap v1.9.3
+   Compiling glob v0.3.4
+   Compiling camino v1.2.6
+   Compiling coreaudio-rs v0.14.2
+   Compiling icu_provider v2.3.1
+   Compiling derive_more v2.1.1
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling markup5ever v0.38.0
+   Compiling toml v1.1.6+spec-1.1.0
+   Compiling cssparser v0.36.0
+   Compiling swift-rs v1.0.8
+   Compiling futures-channel v0.3.34
+   Compiling serde_derive_internals v0.29.1
+   Compiling soundshelf-core v0.1.0 (/private/var/folders/d6/zxvy7yg50n59psgkyh0z225r0000gn/T/soundshelf-pr-verify-pttp55hc/crates/core)
+   Compiling servo_arc v0.4.3
+   Compiling bit-vec v0.8.0
+   Compiling rustc-hash v2.1.3
+   Compiling idna_adapter v1.2.2
+   Compiling schemars v0.8.22
+   Compiling idna v1.1.0
+   Compiling hashbrown v0.12.3
+   Compiling version_check v0.9.5
+   Compiling schemars_derive v0.8.22
+   Compiling bit-set v0.8.0
+   Compiling url v2.5.8
+   Compiling html5ever v0.38.0
+   Compiling cfb v0.7.3
+   Compiling jsonptr v0.6.3
+   Compiling cargo-platform v0.1.9
+   Compiling futures-macro v0.3.34
+   Compiling time v0.3.55
+   Compiling indexmap v2.14.2
+   Compiling slab v0.4.12
+   Compiling futures-io v0.3.34
+   Compiling futures-task v0.3.34
+   Compiling base64 v0.21.7
+   Compiling infer v0.19.0
+   Compiling futures-util v0.3.34
+   Compiling serde-untagged v0.1.9
+   Compiling dom_query v0.27.0
+   Compiling urlpattern v0.3.0
+   Compiling json-patch v3.0.1
+   Compiling cargo_metadata v0.19.2
+   Compiling serde_with v3.23.0
+   Compiling http-body v1.1.0
+   Compiling base64 v0.22.1
+   Compiling tracing-attributes v0.1.31
+   Compiling tracing-core v0.1.36
+   Compiling tower-service v0.3.3
+   Compiling httparse v1.10.1
+   Compiling option-ext v0.2.0
+   Compiling dirs-sys v0.5.0
+   Compiling sync_wrapper v1.0.2
+   Compiling tracing v0.1.44
+   Compiling try-lock v0.2.5
+   Compiling tower-layer v0.3.3
+   Compiling simd-adler32 v0.3.10
+   Compiling want v0.3.1
+   Compiling dirs v6.0.0
+   Compiling http-body-util v0.1.5
+   Compiling plist v1.10.1
+   Compiling rustc_version v0.4.1
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling num-traits v0.2.19
+   Compiling atomic-waker v1.1.2
+   Compiling httpdate v1.0.3
+   Compiling adler2 v2.0.1
+   Compiling crc32fast v1.5.2
+   Compiling winnow v0.7.15
+   Compiling mime v0.3.17
+   Compiling hyper v1.11.1
+   Compiling embed-resource v3.0.11
+   Compiling generic-array v0.14.7
+   Compiling objc2-app-kit v0.3.2
+   Compiling heck v0.5.0
+   Compiling ref-cast v1.0.27
+   Compiling ipnet v2.12.2
+   Compiling tauri-utils v2.9.3
+   Compiling tower v0.5.3
+   Compiling tauri-winres v0.3.6
+   Compiling hyper-util v0.1.20
+   Compiling miniz_oxide v0.9.1
+   Compiling ref-cast-impl v1.0.27
+   Compiling serde_derive_internals v0.30.0
+   Compiling time-macros v0.2.32
+   Compiling typenum v1.20.1
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling chrono v0.4.45
+   Compiling schemars_derive v1.2.2
+   Compiling flate2 v1.1.10
+   Compiling cargo_toml v0.22.3
+   Compiling tower-http v0.6.11
+   Compiling futures-executor v0.3.34
+   Compiling miniz_oxide v0.8.9
+   Compiling fdeflate v0.3.7
+   Compiling tokio-util v0.7.19
+   Compiling chacha20 v0.10.2
+   Compiling crossbeam-utils v0.8.23
+   Compiling ryu v1.0.23
+   Compiling raw-window-handle v0.6.2
+   Compiling rmcp v3.5.0
+   Compiling reqwest v0.13.5
+   Compiling serde_urlencoded v0.7.1
+   Compiling schemars v1.2.2
+   Compiling rand v0.10.3
+   Compiling futures v0.3.34
+   Compiling sse-stream v0.2.6
+   Compiling axum-core v0.5.6
+   Compiling tokio-stream v0.1.19
+   Compiling cookie v0.18.2
+   Compiling dpi v0.1.2
+   Compiling rmcp-macros v3.5.0
+   Compiling async-trait v0.1.92
+   Compiling serde_path_to_error v0.1.20
+   Compiling pastey v0.2.3
+   Compiling core-foundation-sys v0.8.7
+   Compiling matchit v0.8.4
+   Compiling core-foundation v0.10.1
+   Compiling axum v0.8.9
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling foreign-types-macros v0.2.4
+   Compiling bitflags v1.3.2
+   Compiling foreign-types-shared v0.3.1
+   Compiling subtle v2.6.1
+   Compiling png v0.17.16
+   Compiling foreign-types v0.5.0
+   Compiling crossbeam-channel v0.5.17
+   Compiling digest v0.10.7
+   Compiling tauri-build v2.6.3
+   Compiling tauri-plugin v2.6.3
+   Compiling core-graphics-types v0.2.0
+   Compiling objc2-web-kit v0.3.2
+   Compiling cpufeatures v0.2.17
+   Compiling tauri-runtime v2.11.3
+   Compiling wry v0.55.1
+   Compiling sha2 v0.10.9
+   Compiling ico v0.5.0
+   Compiling core-graphics v0.25.0
+   Compiling unicode-segmentation v1.13.3
+   Compiling getrandom v0.3.4
+   Compiling tauri-runtime-wry v2.11.4
+   Compiling tauri-codegen v2.6.3
+   Compiling keyboard-types v0.7.0
+   Compiling tao v0.35.3 (/private/var/folders/d6/zxvy7yg50n59psgkyh0z225r0000gn/T/soundshelf-pr-verify-pttp55hc/vendor/tao)
+   Compiling png v0.18.1
+   Compiling serialize-to-javascript-impl v0.1.2
+   Compiling window-vibrancy v0.6.0
+warning: unused import: `NSString`
+  --> vendor/tao/src/platform_impl/macos/monitor.rs:23:53
+   |
+23 | use objc2_foundation::{ns_string, MainThreadMarker, NSString, NSUInteger};
+   |                                                     ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DispatchQueueAttr`
+  --> vendor/tao/src/platform_impl/macos/util/async.rs:11:32
+   |
+11 | use dispatch2::{DispatchQueue, DispatchQueueAttr};
+   |                                ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSKeyUp`
+  --> vendor/tao/src/platform_impl/macos/app.rs:38:30
+   |
+38 |     if event_type == appkit::NSKeyUp
+   |                              ^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated static `objc2_app_kit::NSWindowFullScreenButton`: The standard window button for NSWindowFullScreenButton is always nil; use NSWindowZoomButton instead
+  --> vendor/tao/src/platform_impl/macos/window.rs:56:57
+   |
+56 |   NSWindow, NSWindowButton, NSWindowCollectionBehavior, NSWindowFullScreenButton,
+   |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSWindowFullScreenButton`: The standard window button for NSWindowFullScreenButton is always nil; use NSWindowZoomButton instead
+   --> vendor/tao/src/platform_impl/macos/window.rs:274:11
+    |
+274 |           NSWindowFullScreenButton,
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSFilenamesPboardType`: Create multiple pasteboard items with NSPasteboardTypeFileURL or kUTTypeFileURL instead
+   --> vendor/tao/src/platform_impl/macos/window.rs:577:75
+    |
+577 |       ns_window.registerForDraggedTypes(&NSArray::arrayWithObject(appkit::NSFilenamesPboardType));
+    |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSFilenamesPboardType`: Create multiple pasteboard items with NSPasteboardTypeFileURL or kUTTypeFileURL instead
+   --> vendor/tao/src/platform_impl/macos/window_delegate.rs:424:61
+    |
+424 |     unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSFilenamesPboardType`: Create multiple pasteboard items with NSPasteboardTypeFileURL or kUTTypeFileURL instead
+   --> vendor/tao/src/platform_impl/macos/window_delegate.rs:458:61
+    |
+458 |     unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling serialize-to-javascript v0.1.2
+   Compiling serde_repr v0.1.21
+   Compiling rfd v0.16.0
+   Compiling muda v0.19.3
+   Compiling embed_plist v1.2.2
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform_impl/macos/app_delegate.rs:140:14
+    |
+140 |   let urls = unsafe {
+    |              ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform_impl/macos/event.rs:165:21
+    |
+165 |     let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };
+    |                     ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform_impl/macos/event.rs:307:15
+    |
+307 |   let flags = unsafe { NSEvent::modifierFlags(event) };
+    |               ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform/macos.rs:419:5
+    |
+419 |     unsafe { objc2_app_kit::NSApplication::sharedApplication(mtm).unhide(None) }
+    |     ^^^^^^ unnecessary `unsafe` block
+
+warning: methods `set_badge_count` and `set_badge_label` are never used
+   --> vendor/tao/src/platform_impl/macos/event_loop.rs:127:10
+    |
+ 86 | impl<T: 'static> EventLoopWindowTarget<T> {
+    | ----------------------------------------- methods in this implementation
+...
+127 |   pub fn set_badge_count(&self, count: Option<i64>, _desktop_filename: Option<String>) {
+    |          ^^^^^^^^^^^^^^^
+...
+132 |   pub fn set_badge_label(&self, label: Option<String>) {
+    |          ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `0` is never read
+ --> vendor/tao/src/platform_impl/macos/icon.rs:8:25
+  |
+8 | pub struct PlatformIcon(RgbaIcon);
+  |            ------------ ^^^^^^^^
+  |            |
+  |            field in this struct
+  |
+  = help: consider removing this field
+  = note: `PlatformIcon` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `yes` is never used
+   --> vendor/tao/src/platform_impl/macos/util/mod.rs:126:19
+    |
+126 | pub extern "C" fn yes(_: &Object, _: Sel) -> BOOL {
+    |                   ^^^
+
+warning: field `saved_desktop_display_mode` is never read
+   --> vendor/tao/src/platform_impl/macos/window.rs:473:7
+    |
+453 | pub struct SharedState {
+    |            ----------- field in this struct
+...
+473 |   pub saved_desktop_display_mode: Option<(CGDisplay, CGDisplayMode)>,
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `inner_rect` is never read
+   --> vendor/tao/src/platform_impl/macos/window.rs:510:7
+    |
+502 | pub struct UnownedWindow {
+    |            ------------- field in this struct
+...
+510 |   pub inner_rect: Option<PhysicalSize<u32>>,
+    |       ^^^^^^^^^^
+
+warning: function `hit_test` is never used
+    --> vendor/tao/src/window.rs:1665:15
+     |
+1665 | pub(crate) fn hit_test(
+     |               ^^^^^^^^
+
+warning: `tao` (lib) generated 18 warnings (run `cargo fix --lib -p tao` to apply 2 suggestions)
+   Compiling tauri v2.11.6
+   Compiling tauri-plugin-fs v2.5.2
+   Compiling tauri-macros v2.6.3
+   Compiling tauri-plugin-dialog v2.7.3
+   Compiling soundshelf v0.1.0 (/private/var/folders/d6/zxvy7yg50n59psgkyh0z225r0000gn/T/soundshelf-pr-verify-pttp55hc/src-tauri)
+   Compiling soundshelf-agent v0.1.0 (/private/var/folders/d6/zxvy7yg50n59psgkyh0z225r0000gn/T/soundshelf-pr-verify-pttp55hc/crates/agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 56.52s
+     Running unittests src/main.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/soundshelf-745aa5130e92af17)
+
+running 5 tests
+test service::tests::desktop_shutdown_closes_mcp_and_preserves_pairings ... ok
+test service::tests::cancelling_import_does_not_cancel_waveform_decoding ... ok
+test service::tests::duplicate_submissions_share_work_and_same_parent_files_keep_distinct_progress ... ok
+test service::tests::worker_restart_resumes_only_persisted_targets ... ok
+test service::tests::paused_imports_wait_until_preferences_resume ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running unittests src/lib.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/soundshelf_agent-193a9d8debadb3e9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/soundshelf-mcp.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/soundshelf_mcp-bc2883796fcca8e3)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/catalog_tools.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/catalog_tools-917467a4caf2ca7c)
+
+running 7 tests
+test selected_file_scope_never_grants_siblings ... ok
+test path_grant_containment_offline_and_sanitized_jobs ... ok
+test scoped_discovery_search_facets_parity_and_portable_export ... ok
+test edits_versions_idempotency_and_invalid_arguments ... ok
+test real_clip_export_is_owned_idempotent_and_preserves_original ... ok
+test compiled_bridge_search_and_disconnect_use_running_catalog ... ok
+test cancelled_callers_cannot_bypass_blocking_work_limit ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+
+     Running tests/lifecycle.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/lifecycle-acbd047b513d529b)
+
+running 9 tests
+test discovery_contains_no_credentials_and_drop_stops_listener ... ok
+test occupied_port_and_pairing_limits ... ok
+test persistent_port_conflicts_and_corrupt_storage_do_not_reset_pairings ... ok
+test compiled_bridge_with_official_sdk ... ok
+test failed_credential_writes_preserve_existing_authorization ... ok
+test persistent_credentials_autostart_rotate_revoke_and_disable ... ok
+test headers_rebinding_tokens_and_body_are_bounded ... ok
+test legacy_negotiation_and_same_origin_are_supported ... ok
+test official_sdk_initialize_list_call_revoke_restart_stop ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running unittests src/lib.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/soundshelf_core-7d516736262563d6)
+
+running 26 tests
+test playback::frame_alignment_tests::callbacks_preserve_partial_stereo_frames_and_exact_consumed_count ... ok
+test playback::frame_alignment_tests::loopback_preserves_partial_stereo_frames ... ok
+test media::tests::truncated_rejected ... ok
+test playback::frame_alignment_tests::transient_output_underruns_do_not_poison_playback_but_device_failures_remain_visible ... ok
+test media::tests::nonfinite_rejected ... ok
+test media::tests::stereo_does_not_cancel ... ok
+test media::tests::silence_valid ... ok
+test search::tests::indexed_canonicalization_preserves_every_alias_and_unknown_word ... ok
+test search::tests::no_train_rain_confusion ... ok
+test search::tests::missing_hidden ... ok
+test search::tests::exact_filters ... ok
+test search::tests::pagination_and_waveform_omission ... ok
+test search::tests::exclusions ... ok
+test search::tests::offline_hidden ... ok
+test search::tests::annotations_searchable ... ok
+test search::tests::diacritics_normalization ... ok
+test search::tests::prefix_negative_exclusion ... ok
+test search::tests::quoted_phrase_and_exact_ranking ... ok
+test search::tests::short_default ... ok
+test search::tests::transposition ... ok
+test search::tests::synonyms ... ok
+test search::tests::natural_duration ... ok
+test search::tests::typo ... ok
+test search::tests::invalid_query ... ok
+test search::tests::strict_boundary ... ok
+test media::tests::waveform_bounded ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/bin/creativeshelf-handoff.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/creativeshelf_handoff-33257c5d08b5912f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/catalog.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/catalog-a2b7640ca2d487fe)
+
+running 10 tests
+test paths_reject_traversal ... ok
+test symlink_escape_rejected ... ok
+test duplicate_roots_idempotent_and_overlap_denied ... ok
+test invalid_profiles_do_not_publish ... ok
+test incomplete_scan_does_not_delete ... ok
+test changed_content_keeps_annotations_but_not_stale_measurements ... ok
+test offline_source_is_not_deleted ... ok
+test wrong_root_is_atomic ... ok
+test relink_reuses_identity_and_profile ... ok
+test metadata_persists_and_normalizes_tags ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/clip_scenarios.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/clip_scenarios-a9b24dd9885ab5bb)
+
+running 11 tests
+test fractional_seconds_and_exact_rounding ... ok
+test source_replacement_flags_stale_recipes ... ok
+test v3_catalogs_gain_clips_table_transactionally ... ok
+test clip_deletion_removes_clip_and_revisions ... ok
+test revision_concurrency_conflict_detected ... ok
+test validation_rejects_zero_negative_out_of_range_nan ... ok
+test clip_playback_rejects_cross_sound_stale_unavailable_and_invalid_regions ... ok
+test independent_annotation_patches_preserve_current_metadata ... ok
+test source_shortened_flags_stale_recipes ... ok
+test rebind_clip_restores_freshness_and_creates_revision ... ok
+test sample_rate_and_decimal_string_counters_44k_and_48k ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/export_scenarios.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/export_scenarios-bd74763cb1cd3250)
+
+running 15 tests
+test grants_are_exact_one_use_cancellable_and_collision_safe ... ok
+test recovery_ignores_corrupt_and_unowned_journal_entries ... ok
+test interrupted_export_keeps_journal_until_destination_returns ... ok
+test interrupted_export_cleanup_preserves_unrelated_files ... ok
+test refuses_overwrites_stale_revisions_replacement_and_invalid_options ... ok
+test unix_faults::cancel_running_export_kills_process_and_cleans_staging ... ok
+test unix_faults::symlink_destination_and_commit_collision_never_overwrite ... ok
+test destination_scope_searchable_variants_and_duplicate_reimport ... ok
+test real_export_handoff_relocates_without_source_or_editor ... ok
+test watched_source_export_reuses_scope_and_preserves_annotations_on_reindex ... ok
+test export_enrolls_only_generated_file_and_preserves_selected_source_scope ... ok
+test pre_cancel_and_single_frame_export ... ok
+test unix_faults::disk_full_and_corrupt_output_leave_no_final_media ... ok
+test resample_flac_fades_gain_and_channel_mapping ... ok
+test exact_lossless_boundaries_and_manifest_at_44k_and_48k ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.78s
+
+     Running tests/file_scopes.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/file_scopes-b45183e9c781a4ff)
+
+running 14 tests
+test failed_upgrade_rolls_back_schema_and_preserves_backup ... ok
+test relink_snapshot_rejects_catalog_changes_during_unlocked_hashing ... ok
+test confirmed_removal_deletes_metadata_and_recipes_but_preserves_original ... ok
+test collision_rolls_back_and_target_reconciliation_never_marks_siblings_missing ... ok
+test explicit_membership_deduplicates_paths_but_retains_content_identities ... ok
+test rename_and_parent_move_preserve_source_sound_profile_and_annotations ... ok
+test selected_parent_relink_checks_only_members_and_preserves_recipes ... ok
+test selected_symlink_escape_and_unsupported_extension_do_not_create_scopes ... ok
+test targeted_import_within_folder_preserves_unselected_sounds ... ok
+test nested_file_selections_work_in_either_order_without_duplicate_identity ... ok
+test jobs_recover_exact_targets_deduplicate_and_bound_queue ... ok
+test v4_upgrade_preserves_catalog_and_creates_recoverable_backup ... ok
+test real_selected_scan_ignores_siblings_reuses_content_and_isolates_failures ... ok
+test reconciliation_of_ten_thousand_paths_preserves_existing_entries ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s
+
+     Running tests/handoff_scenarios.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/handoff_scenarios-2bb3fc3f968d5f41)
+
+running 5 tests
+test refuses_outside_public_and_oversized_manifest ... ok
+test relocation_retains_portable_paths_and_sample_duration ... ok
+test rejects_external_media_symlink_and_fifo_without_waiting ... ok
+test refuses_changed_audio_and_hostile_manifest_fields ... ok
+test cli_never_overwrites_existing_props ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+     Running tests/import.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/import-c13931d9340b0b75)
+
+running 3 tests
+test full_scan_reuses_analysis_after_move_and_hides_deleted_file ... ok
+test stalled_media_process_is_killed_and_reaped ... ok
+test real_ffmpeg_measured_profiles_and_layouts ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests/jobs.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/jobs-52b0e9571da625a0)
+
+running 5 tests
+test live_lease_is_not_stolen ... ok
+test graceful_checkpoint_requeues_running_work ... ok
+test v1_catalogs_gain_jobs_table_transactionally ... ok
+test finished_scan_is_durable_and_retryable ... ok
+test expired_running_job_returns_to_queue_and_pending_stays_unready ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/maintenance_scenarios.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/maintenance_scenarios-cba4c2f21fe705cd)
+
+running 7 tests
+test purge_only_generated_waveforms_never_media_or_symlinks ... ok
+test report_allowlist_excludes_catalog_names_paths_comments_and_secrets ... ok
+test v7_migration_preserves_catalog_and_backs_up_before_preferences_schema ... ok
+test active_import_prevents_restore_and_backup_failure_preserves_database ... ok
+test restore_rejects_inconsistent_derived_search_metadata_before_rollback ... ok
+test backup_collision_and_invalid_restore_do_not_change_live_data ... ok
+test wal_backup_restore_retains_metadata_preferences_and_rollback ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/packaged_media.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/packaged_media-f20db4c1995f5943)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/playback_scenarios.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/playback_scenarios-3433b18ce7190728)
+
+running 14 tests
+test test_device_error_visibility ... ok
+test test_underrun_graceful_silence ... ok
+test seeking_to_the_end_of_a_very_short_clip_finishes_without_frames ... ok
+test test_pause_and_resume ... ok
+test test_volume_and_metering ... ok
+test test_decode_error_file_safety ... ok
+test test_app_quit_cleanup ... ok
+test test_play_clip_duration_bounded ... ok
+test test_natural_end_detection ... ok
+test test_bounded_memory_long_file ... ok
+test test_seek_spam_stability ... ok
+test test_audible_wav_and_mp3_playback ... ok
+test clip_timeline_and_seeking_remain_within_the_selected_source_region ... ok
+test unavailable_selected_output_reports_error_without_silent_loopback ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running tests/portable_catalog.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/portable_catalog-5ef1c5dc23c4734b)
+
+running 10 tests
+test legacy_symlink_escape_does_not_read_unselected_file ... ok
+test legacy_opt_in_count_hash_and_coverage_annotations_survive_reanalysis ... ok
+test file_scope_roundtrip_preserves_only_explicit_members ... ok
+test rejects_schema_paths_orphans_invalid_profiles_and_scope_broadening ... ok
+test roundtrip_relocated_unicode_profiles_annotations_clips_and_search_without_media_reads ... ok
+test catalog_files_refuse_overwrite_and_markdown_escapes_html ... ok
+test collision_after_inserting_source_rolls_back_every_change ... ok
+test unmapped_root_offline_metadata_survives_and_verified_relink_restores_identity ... ok
+test v5_upgrade_preserves_metadata_and_backup_failure_is_transactional ... ok
+test large_legacy_source_uses_durable_scoped_scan_without_256_file_selection_limit ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/profiles.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/profiles-a26de8e03837cb21)
+
+running 8 tests
+test descriptions_state_provenance_and_no_fabricated_identity ... ok
+test layout_normalization ... ok
+test asymmetric_stereo_tracks_channels_independently ... ok
+test antiphase_stereo_no_energy_cancellation ... ok
+test impulse_and_pronounced_peaks ... ok
+test profile_validation_rejects_corrupt_data_and_underscores ... ok
+test pure_silence_profile_valid ... ok
+test synthetic_calibrated_sine_tone ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/qualification.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/qualification-8a347e4516277eed)
+
+running 7 tests
+test oversized_cache_file_fails_without_reading_it ... ok
+test forged_waveform_lengths_and_algorithm_versions_fail_before_allocation ... ok
+test parser_corpus_never_panics_and_never_returns_unbounded_page ... ok
+test media_input_allowlist_denies_http_and_playlist_demuxers ... ok
+test cold_import_and_metadata_reuse_record_io_and_elapsed_time ... ok
+test long_waveforms_adapt_resolution_with_bounded_buckets ... ok
+test catalog_search_100k_records ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.20s
+
+     Running tests/relink_and_availability.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/relink_and_availability-36792abde54b4fe8)
+
+running 10 tests
+test paths_and_symlink_security ... ok
+test overlapping_roots_rejected_at_add_and_relink ... ok
+test stale_worker_scan_rejection ... ok
+test wrong_relink_destination_is_atomic ... ok
+test partial_scan_never_mass_deletes ... ok
+test relink_reuses_identity_with_zero_decode_jobs ... ok
+test one_changed_file_alone_reanalyzed ... ok
+test missing_sounds_absent_from_search_and_queries ... ok
+test volume_unplug_and_restoration_lifecycle ... ok
+test reconciliation_marks_deleted_file_missing_and_resurrection_reuses_profile ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/search_scenarios.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/search_scenarios-7d2994faf603b1d6)
+
+running 15 tests
+test tauri_camel_case_search_query_deserialization_and_filtering ... ok
+test exact_matches_rank_first ... ok
+test negative_filter_syntax ... ok
+test search_facets_computation ... ok
+test quoted_phrases_exact_matching ... ok
+test typo_corpus_and_transposition ... ok
+test strict_duration_boundaries ... ok
+test unicode_and_accent_matching ... ok
+test deterministic_pagination_stability ... ok
+test ui_and_mcp_search_identity ... ok
+test v8_search_migration_failure_keeps_original_version_and_data ... ok
+test saved_searches_lifecycle_and_migration ... ok
+test search_keeps_full_profiles_out_of_results_and_tracks_profile_changes ... ok
+test v8_upgrade_preserves_full_profiles_annotations_and_original_backup ... ok
+test scale_100k_performance ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/source_catalog.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/source_catalog-9e79900a959b837b)
+
+running 13 tests
+test access_error_and_concurrent_writer_do_not_prune_or_overwrite ... ok
+test changed_content_cannot_be_acknowledged_by_a_metadata_only_save ... ok
+test malformed_catalog_and_symlink_escape_fail_without_database_mutation ... ok
+test cancellation_and_oversized_snapshot_preserve_database_and_disk ... ok
+test byte_limit_and_non_regular_catalog_fail_before_import ... ok
+test clip_history_roundtrip_and_offline_root_preserves_previous_snapshot ... ok
+test competing_revision_preserves_prior_snapshot_and_explicit_rebuild_retains_backup ... ok
+test read_only_snapshot_failure_is_retryable_and_member_access_denial_never_prunes ... ok
+test portable_relocation_same_library_edits_and_missing_pruning_without_decoders ... ok
+test dirty_state_survives_restart_and_v6_migration_backs_up ... ok
+test restored_database_does_not_overwrite_newer_source_annotations ... ok
+test real_import_creates_snapshot_warm_import_skips_unlisted_and_refresh_adds_it ... ok
+test ten_thousand_members_reuse_metadata_without_walk_hash_or_decode ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.46s
+
+     Running tests/waveform_scenarios.rs (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/target/debug/deps/waveform_scenarios-7ee9fcdbdec79e3d)
+
+running 10 tests
+test cache_serialization_and_recovery ... ok
+test pyramid_downsampling_math ... ok
+test stereo_separate_antiphase ... ok
+test impulse_sample_mapping ... ok
+test disk_cache_file_save_and_read ... ok
+test untrusted_catalog_digest_cannot_escape_the_waveform_cache ... ok
+test waveform_service_cache_hit_logic ... ok
+test high_zoom_query_window ... ok
+test bounded_points_query_for_long_file ... ok
+test missing_cache_rebuild ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+   Doc-tests soundshelf_agent
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests soundshelf_core
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

@@ -79,3 +79,23 @@ jobs:
         with:
           name: advisory-reports
           path: '*-advisory-report.json'
+  browser-accessibility:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:browser
+      - name: Retain browser accessibility and keyboard evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-accessibility
+          path: |
+            playwright-report/
+            test-results/

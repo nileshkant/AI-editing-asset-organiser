@@ -1,0 +1,18 @@
+Isolated temporary copy of current UI tests with original HEAD implementations of useKeyboardShortcuts.ts and Waveform.tsx.
+Original implementation: 5084baad5d472e7e5cf193fb655b4534a2a4fb70
+Command: vitest run src/App.test.tsx src/Waveform.test.tsx -t "activates navigation with Space|moves actual focus|lets Enter activate Favorite|keeps clip-name editing|fits a selection away|allows typing decimal"
+
+     × keeps clip-name editing and number-input arrows out of selection shortcuts 54ms
+     × fits a selection away from the file start using the new zoom 25ms
+   × allows typing decimal boundaries without reformatting the caret on each keystroke 167ms
+     × activates navigation with Space without starting playback 502ms
+     × moves actual focus through results and opens details only with Enter 280ms
+     × lets Enter activate Favorite instead of opening details 233ms
+ FAIL  src/App.test.tsx > keyboard and details regression coverage > activates navigation with Space without starting playback
+ FAIL  src/App.test.tsx > keyboard and details regression coverage > moves actual focus through results and opens details only with Enter
+ FAIL  src/App.test.tsx > keyboard and details regression coverage > lets Enter activate Favorite instead of opening details
+ FAIL  src/Waveform.test.tsx > waveform keyboard and viewport regressions > keeps clip-name editing and number-input arrows out of selection shortcuts
+ FAIL  src/Waveform.test.tsx > waveform keyboard and viewport regressions > fits a selection away from the file start using the new zoom
+ FAIL  src/Waveform.test.tsx > allows typing decimal boundaries without reformatting the caret on each keystroke
+ Test Files  2 failed (2)
+      Tests  6 failed | 64 skipped (70)

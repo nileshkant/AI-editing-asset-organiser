@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { App } from './App';
+import userEvent from '@testing-library/user-event';
 import { duration } from './api';
 import type { Sound, SearchResults, PlaybackStatus } from './types';
 
@@ -118,6 +119,7 @@ beforeEach(() => {
       case 'playback_seek':
       case 'playback_set_volume':
       case 'annotate':
+      case 'set_favorite':
         return Promise.resolve();
       default:
         return Promise.resolve(null);
@@ -340,7 +342,7 @@ describe('App', () => {
 
   it('sound list uses listbox role', async () => {
     render(<App />);
-    const listbox = await waitFor(() => screen.getByRole('listbox'));
+    const listbox = await waitFor(() => screen.getByRole('list', { name: 'Sounds' }));
     expect(listbox).toHaveAttribute('aria-label', 'Sounds');
   });
 
@@ -551,7 +553,7 @@ describe('Playback and tab regression tests', () => {
     fireEvent.click(screen.getByText('Favorites'));
     expect(screen.queryByText(SOUND_A.title)).not.toBeInTheDocument();
     expect(screen.getByLabelText('Loading sounds')).toBeInTheDocument();
-    expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('list', { name: 'Sounds' })).toHaveAttribute('aria-busy', 'true');
     await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('search_sounds', expect.objectContaining({ query: expect.objectContaining({ favorites_only: true }) })));
     await act(async () => resolveFavorites({ ...MOCK_RESULTS, items: [SOUND_B], total: 1 }));
     expect(screen.queryByLabelText('Loading sounds')).not.toBeInTheDocument();
@@ -588,4 +590,80 @@ it('does not reopen the previous inspector when selection fetch finishes after n
   fireEvent.click(screen.getByText('Favorites'));
   await act(async () => finish(SOUND_A));
   expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
+});
+
+
+describe('keyboard and details regression coverage', () => {
+  it('activates navigation with Space without starting playback', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText(SOUND_A.title);
+    const favorites = screen.getByRole('button', { name: 'Favorites' });
+    favorites.focus();
+    await user.keyboard(' ');
+    expect(screen.getByRole('heading', { level: 1, name: 'Favorites' })).toBeInTheDocument();
+    expect(mockInvoke.mock.calls.some(call => call[0] === 'playback_play')).toBe(false);
+  });
+
+  it('moves actual focus through results and opens details only with Enter', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const first = await screen.findByRole('button', { name: /Cinematic Whoosh Stereo, duration/ });
+    const second = screen.getByRole('button', { name: /Heavy Impact Mono, duration/ });
+    first.focus();
+    await user.keyboard('{ArrowDown}');
+    expect(second).toHaveFocus();
+    expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
+    await user.keyboard('{Home}');
+    expect(first).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByText('DETAILS')).toBeInTheDocument();
+  });
+
+  it('lets Enter activate Favorite instead of opening details', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText(SOUND_A.title);
+    screen.getByLabelText(`Favorite ${SOUND_A.title}`).focus();
+    await user.keyboard('{Enter}');
+    expect(mockInvoke).toHaveBeenCalledWith('set_favorite', { id: SOUND_A.id, favorite: true });
+    expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
+  });
+
+  it('does not hijack modified shortcuts or navigation in Imports', async () => {
+    render(<App />);
+    await screen.findByText(SOUND_A.title);
+    fireEvent.keyDown(window, { key: 'm', metaKey: true });
+    expect(mockInvoke.mock.calls.some(call => call[0] === 'playback_set_volume')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Imports' }));
+    expect(fireEvent.keyDown(window, { key: 'ArrowDown' })).toBe(true);
+    expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
+  });
+
+  it('keeps details closed when a deferred selection resolves after Escape', async () => {
+    let finish!: (sound: Sound) => void;
+    const fallback = mockInvoke.getMockImplementation()!;
+    mockInvoke.mockImplementation((command: string, args: unknown) => command === 'get_sound'
+      ? new Promise(resolve => { finish = resolve; }) : fallback(command, args));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /Cinematic Whoosh Stereo, duration/ }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await act(async () => finish(SOUND_A));
+    expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
+    expect(mockInvoke.mock.calls.filter(call => call[0] === 'get_sound')).toHaveLength(1);
+  });
+
+  it('does not reopen details when saving finishes after closing', async () => {
+    let finish!: () => void;
+    const fallback = mockInvoke.getMockImplementation()!;
+    mockInvoke.mockImplementation((command: string, args: unknown) => command === 'annotate'
+      ? new Promise<void>(resolve => { finish = resolve; }) : fallback(command, args));
+    render(<App />);
+    fireEvent.click(await screen.findByRole('button', { name: /Cinematic Whoosh Stereo, duration/ }));
+    await screen.findByLabelText('Comment');
+    fireEvent.click(screen.getByText('Save changes'));
+    fireEvent.click(screen.getByLabelText('Close details'));
+    await act(async () => finish());
+    expect(screen.queryByText('DETAILS')).not.toBeInTheDocument();
+  });
 });

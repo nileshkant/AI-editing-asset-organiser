@@ -422,7 +422,15 @@ impl WaveformService {
     }
 
     pub fn cache_path(&self, hash: &str) -> PathBuf {
-        self.cache_dir.join(format!("{hash}.sswf"))
+        // Portable catalogs may carry opaque legacy version identifiers. They
+        // must never become paths, even when a catalog supplies ../ or an
+        // absolute filename. Keep existing digest-named cache files reusable.
+        let key = if hash.len() == 64 && hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            hash.to_ascii_lowercase()
+        } else {
+            blake3::hash(hash.as_bytes()).to_hex().to_string()
+        };
+        self.cache_dir.join(format!("{key}.sswf"))
     }
 
     pub fn load_or_build(

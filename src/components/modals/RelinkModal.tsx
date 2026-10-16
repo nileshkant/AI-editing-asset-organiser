@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { FolderOpen } from 'lucide-react';
 import { call } from '../../api';
 import type { Source } from '../../types';
@@ -10,60 +10,61 @@ interface RelinkModalProps {
   onError: (e: string) => void;
 }
 
-export const RelinkModal = memo(function RelinkModal({
-  source,
-  onClose,
-  onRelinked,
-  onError,
-}: RelinkModalProps) {
+export const RelinkModal = memo(function RelinkModal({ source, onClose, onRelinked, onError }: RelinkModalProps) {
   const [path, setPath] = useState(source.root);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const pending = useRef(false);
+  const dialog = useRef<HTMLDialogElement>(null);
 
-  const handleBrowse = async () => {
-    try {
-      const p = await call<string | null>('choose_folder');
-      if (p) setPath(p);
-    } catch (e) {
-      onError(String(e));
-    }
-  };
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const element = dialog.current;
+    if (element?.showModal) element.showModal();
+    else element?.setAttribute('open', '');
+    element?.querySelector('input')?.focus();
+    return () => { element?.close?.(); opener?.focus(); };
+  }, []);
 
-  const handleRelink = async () => {
-    try {
-      await call('relink_source', { id: source.id, path });
-      onRelinked();
-    } catch (e) {
-      onError(String(e));
-    }
+  const run = async (task: () => Promise<void>) => {
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    setError('');
+    try { await task(); }
+    catch (e) { setError(String(e)); onError(String(e)); }
+    finally { pending.current = false; setBusy(false); }
   };
 
   return (
-    <div className="modal-backdrop">
-      <section
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="relink-title"
-      >
+    <dialog ref={dialog} className="modal relink-dialog" aria-labelledby="relink-title" aria-modal="true"
+      onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
+      onKeyDown={event => {
+        if (event.key === 'Escape') { event.preventDefault(); if (!busy) onClose(); }
+        if (event.key === 'Tab') {
+          const controls = event.currentTarget.querySelectorAll<HTMLElement>('input:not(:disabled), button:not(:disabled)');
+          const first = controls[0], last = controls[controls.length - 1];
+          if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        }
+      }}>
+      <form onSubmit={event => { event.preventDefault(); void run(async () => {
+        await call('relink_source', { id: source.id, path: path.trim() });
+        onRelinked();
+      }); }}>
         <h2 id="relink-title">Relink {source.name}</h2>
-        <label>
-          Folder path
-          <input
-            autoFocus
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-          />
-        </label>
+        <label>Folder path<input value={path} disabled={busy} onChange={event => setPath(event.target.value)} /></label>
+        {error && <p role="alert">{error}</p>}
+        {busy && <p role="status">Verifying folder…</p>}
         <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button onClick={handleBrowse}>
-            <FolderOpen size={16} aria-hidden="true" />
-            Browse
-          </button>
-          <button className="primary" onClick={handleRelink}>
-            Verify & relink
-          </button>
+          <button type="button" disabled={busy} onClick={onClose}>Cancel</button>
+          <button type="button" disabled={busy} onClick={() => void run(async () => {
+            const chosen = await call<string | null>('choose_folder');
+            if (chosen) setPath(chosen);
+          })}><FolderOpen size={16} aria-hidden="true" />Browse</button>
+          <button type="submit" className="primary" disabled={busy || !path.trim()}>Verify &amp; relink</button>
         </div>
-      </section>
-    </div>
+      </form>
+    </dialog>
   );
 });

@@ -30,6 +30,7 @@ pub struct PlaybackStatus {
     pub state: PlaybackState,
     pub position_seconds: f64,
     pub duration_seconds: f64,
+    pub source_start_seconds: Option<f64>,
     pub volume: f32,
     pub peak: f32,
     pub error: Option<String>,
@@ -140,6 +141,7 @@ struct ActiveTrack {
     path: PathBuf,
     duration_seconds: f64,
     seek_offset_seconds: f64,
+    clip_start_seconds: Option<f64>,
     shared: Arc<SharedAudioState>,
     cancel: Arc<AtomicBool>,
     child: Arc<Mutex<Option<Child>>>,
@@ -305,7 +307,10 @@ impl Player {
     }
 
     pub fn seek(&self, target_seconds: f64) -> Result<()> {
-        let (sound_id, path, duration_seconds, is_playing) = {
+        if !target_seconds.is_finite() {
+            return Err(invalid("Seek position must be finite"));
+        }
+        let (sound_id, path, duration_seconds, is_playing, clip_start_seconds) = {
             let guard = self.active.lock().unwrap();
             match guard.as_ref() {
                 Some(t) => (
@@ -313,13 +318,18 @@ impl Player {
                     t.path.clone(),
                     t.duration_seconds,
                     t.shared.is_playing.load(Ordering::Relaxed),
+                    t.clip_start_seconds,
                 ),
                 None => return Ok(()),
             }
         };
 
         let target = target_seconds.max(0.0).min(duration_seconds);
-        self.play_at(&sound_id, &path, target, duration_seconds, is_playing)
+        if let Some(source_start) = clip_start_seconds {
+            self.play_clip_at(&sound_id, &path, source_start, duration_seconds, target, is_playing)
+        } else {
+            self.play_at(&sound_id, &path, target, duration_seconds, is_playing)
+        }
     }
 
     pub fn status(&self) -> PlaybackStatus {
@@ -333,6 +343,7 @@ impl Player {
                     state: if last_err.is_some() { PlaybackState::Error } else { PlaybackState::Stopped },
                     position_seconds: 0.0,
                     duration_seconds: 0.0,
+                    source_start_seconds: None,
                     volume: self.volume(),
                     peak: 0.0,
                     error: last_err,
@@ -347,6 +358,7 @@ impl Player {
                     state: PlaybackState::Error,
                     position_seconds: 0.0,
                     duration_seconds: track.duration_seconds,
+                    source_start_seconds: track.clip_start_seconds,
                     volume: self.volume(),
                     peak: 0.0,
                     error: Some(e.clone()),
@@ -362,7 +374,7 @@ impl Player {
         let elapsed = (played_frames as f64) / (track.shared.sample_rate as f64);
         let mut position = track.seek_offset_seconds + elapsed;
 
-        if (decoder_eof && played_frames >= decoded_frames && decoded_frames > 0)
+        if (decoder_eof && played_frames >= decoded_frames)
             || (decoder_eof && position >= track.duration_seconds.max(0.05))
         {
             track.shared.is_playing.store(false, Ordering::Relaxed);
@@ -371,6 +383,7 @@ impl Player {
                 state: PlaybackState::Finished,
                 position_seconds: track.duration_seconds,
                 duration_seconds: track.duration_seconds,
+                source_start_seconds: track.clip_start_seconds,
                 volume: self.volume(),
                 peak: 0.0,
                 error: None,
@@ -389,6 +402,7 @@ impl Player {
             state,
             position_seconds: position,
             duration_seconds: track.duration_seconds,
+            source_start_seconds: track.clip_start_seconds,
             volume: self.volume(),
             peak,
             error: None,
@@ -433,11 +447,7 @@ impl Player {
         let callback_shared = shared.clone();
         let err_shared = shared.clone();
 
-        let error_callback = move |err| {
-            if let Ok(mut e) = err_shared.error_msg.lock() {
-                *e = Some(format!("Audio output stream error: {err}"));
-            }
-        };
+        let error_callback = move |err| record_output_error(&err_shared, err);
 
         let stream_config: cpal::StreamConfig = config.into();
         let stream = match device.build_output_stream(
@@ -484,17 +494,23 @@ impl Player {
         clip_duration_seconds: f64,
     ) -> Result<()> {
         // Duration in status is shown from 0 to clip_duration_seconds for UX clarity.
-        self.play_at_with_clip_duration(sound_id, path, start_seconds, clip_duration_seconds, true)
+        self.play_clip_at(sound_id, path, start_seconds, clip_duration_seconds, 0.0, true)
     }
 
-    fn play_at_with_clip_duration(
+    fn play_clip_at(
         &self,
         sound_id: &str,
         path: &Path,
         start_seconds: f64,
         clip_duration_seconds: f64,
+        position_seconds: f64,
         start_playing: bool,
     ) -> Result<()> {
+        if !start_seconds.is_finite() || start_seconds < 0.0
+            || !clip_duration_seconds.is_finite() || clip_duration_seconds <= 0.0
+            || !(start_seconds + clip_duration_seconds).is_finite() {
+            return Err(invalid("Invalid clip playback range"));
+        }
         self.stop();
         *self.last_error.lock().unwrap() = None;
 
@@ -513,17 +529,20 @@ impl Player {
         let volume = self.volume();
         let (sink, shared, producer) = self.create_sink(volume)?;
 
-        let track = self.start_decoder_and_track(
+        let mut track = self.start_decoder_and_track(
             sound_id,
             path,
             clip_duration_seconds,
-            start_seconds,
-            Some(clip_duration_seconds),
+            start_seconds + position_seconds,
+            Some(clip_duration_seconds - position_seconds),
             tools,
             shared,
             sink,
             producer,
         )?;
+
+        track.seek_offset_seconds = position_seconds;
+        track.clip_start_seconds = Some(start_seconds);
 
         if start_playing {
             track.shared.is_playing.store(true, Ordering::Relaxed);
@@ -573,6 +592,7 @@ impl Player {
             path: path.to_path_buf(),
             duration_seconds,
             seek_offset_seconds,
+            clip_start_seconds: None,
             shared,
             cancel,
             child,
@@ -585,6 +605,18 @@ impl Player {
 impl Drop for Player {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+fn record_output_error(shared: &SharedAudioState, error: cpal::Error) {
+    if error.kind() == cpal::ErrorKind::Xrun {
+        // CoreAudio can report a transient deadline miss while the stream
+        // remains usable. Count the glitch without poisoning all later status.
+        shared.underrun_count.fetch_add(1, Ordering::Relaxed);
+        return;
+    }
+    if let Ok(mut message) = shared.error_msg.lock() {
+        *message = Some(format!("Audio output stream error: {error}"));
     }
 }
 
@@ -800,6 +832,20 @@ fn spawn_decoder(
 #[cfg(test)]
 mod frame_alignment_tests {
     use super::*;
+    #[test]
+    fn transient_output_underruns_do_not_poison_playback_but_device_failures_remain_visible() {
+        let shared = SharedAudioState::new(48000, 2, 1.0);
+        shared.is_playing.store(true, Ordering::Relaxed);
+        record_output_error(&shared, cpal::Error::new(cpal::ErrorKind::Xrun));
+        assert_eq!(shared.underrun_count.load(Ordering::Relaxed), 1);
+        assert!(shared.error_msg.lock().unwrap().is_none());
+        assert!(shared.is_playing.load(Ordering::Relaxed));
+        record_output_error(&shared, cpal::Error::new(cpal::ErrorKind::DeviceNotAvailable));
+        assert!(shared.error_msg.lock().unwrap().is_some());
+        record_output_error(&shared, cpal::Error::new(cpal::ErrorKind::Xrun));
+        assert!(shared.error_msg.lock().unwrap().is_some());
+    }
+
     #[test]
     fn callbacks_preserve_partial_stereo_frames_and_exact_consumed_count() {
         let (mut producer, mut consumer) = rtrb::RingBuffer::new(8);

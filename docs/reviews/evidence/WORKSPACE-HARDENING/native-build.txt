@@ -1,0 +1,136 @@
+warning: unused import: `NSString`
+  --> vendor/tao/src/platform_impl/macos/monitor.rs:23:53
+   |
+23 | use objc2_foundation::{ns_string, MainThreadMarker, NSString, NSUInteger};
+   |                                                     ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `DispatchQueueAttr`
+  --> vendor/tao/src/platform_impl/macos/util/async.rs:11:32
+   |
+11 | use dispatch2::{DispatchQueue, DispatchQueueAttr};
+   |                                ^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSKeyUp`
+  --> vendor/tao/src/platform_impl/macos/app.rs:38:30
+   |
+38 |     if event_type == appkit::NSKeyUp
+   |                              ^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated static `objc2_app_kit::NSWindowFullScreenButton`: The standard window button for NSWindowFullScreenButton is always nil; use NSWindowZoomButton instead
+  --> vendor/tao/src/platform_impl/macos/window.rs:56:57
+   |
+56 |   NSWindow, NSWindowButton, NSWindowCollectionBehavior, NSWindowFullScreenButton,
+   |                                                         ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSWindowFullScreenButton`: The standard window button for NSWindowFullScreenButton is always nil; use NSWindowZoomButton instead
+   --> vendor/tao/src/platform_impl/macos/window.rs:274:11
+    |
+274 |           NSWindowFullScreenButton,
+    |           ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSFilenamesPboardType`: Create multiple pasteboard items with NSPasteboardTypeFileURL or kUTTypeFileURL instead
+   --> vendor/tao/src/platform_impl/macos/window.rs:577:75
+    |
+577 |       ns_window.registerForDraggedTypes(&NSArray::arrayWithObject(appkit::NSFilenamesPboardType));
+    |                                                                           ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSFilenamesPboardType`: Create multiple pasteboard items with NSPasteboardTypeFileURL or kUTTypeFileURL instead
+   --> vendor/tao/src/platform_impl/macos/window_delegate.rs:424:61
+    |
+424 |     unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated static `objc2_app_kit::NSFilenamesPboardType`: Create multiple pasteboard items with NSPasteboardTypeFileURL or kUTTypeFileURL instead
+   --> vendor/tao/src/platform_impl/macos/window_delegate.rs:458:61
+    |
+458 |     unsafe { NSPasteboard::propertyListForType(&pb, appkit::NSFilenamesPboardType) }.unwrap();
+    |                                                             ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform_impl/macos/app_delegate.rs:140:14
+    |
+140 |   let urls = unsafe {
+    |              ^^^^^^ unnecessary `unsafe` block
+    |
+    = note: `#[warn(unused_unsafe)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform_impl/macos/event.rs:165:21
+    |
+165 |     let modifiers = unsafe { NSEvent::modifierFlags(ns_event) };
+    |                     ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform_impl/macos/event.rs:307:15
+    |
+307 |   let flags = unsafe { NSEvent::modifierFlags(event) };
+    |               ^^^^^^ unnecessary `unsafe` block
+
+warning: unnecessary `unsafe` block
+   --> vendor/tao/src/platform/macos.rs:419:5
+    |
+419 |     unsafe { objc2_app_kit::NSApplication::sharedApplication(mtm).unhide(None) }
+    |     ^^^^^^ unnecessary `unsafe` block
+
+warning: methods `set_badge_count` and `set_badge_label` are never used
+   --> vendor/tao/src/platform_impl/macos/event_loop.rs:127:10
+    |
+ 86 | impl<T: 'static> EventLoopWindowTarget<T> {
+    | ----------------------------------------- methods in this implementation
+...
+127 |   pub fn set_badge_count(&self, count: Option<i64>, _desktop_filename: Option<String>) {
+    |          ^^^^^^^^^^^^^^^
+...
+132 |   pub fn set_badge_label(&self, label: Option<String>) {
+    |          ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `0` is never read
+ --> vendor/tao/src/platform_impl/macos/icon.rs:8:25
+  |
+8 | pub struct PlatformIcon(RgbaIcon);
+  |            ------------ ^^^^^^^^
+  |            |
+  |            field in this struct
+  |
+  = help: consider removing this field
+  = note: `PlatformIcon` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `yes` is never used
+   --> vendor/tao/src/platform_impl/macos/util/mod.rs:126:19
+    |
+126 | pub extern "C" fn yes(_: &Object, _: Sel) -> BOOL {
+    |                   ^^^
+
+warning: field `saved_desktop_display_mode` is never read
+   --> vendor/tao/src/platform_impl/macos/window.rs:473:7
+    |
+453 | pub struct SharedState {
+    |            ----------- field in this struct
+...
+473 |   pub saved_desktop_display_mode: Option<(CGDisplay, CGDisplayMode)>,
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `inner_rect` is never read
+   --> vendor/tao/src/platform_impl/macos/window.rs:510:7
+    |
+502 | pub struct UnownedWindow {
+    |            ------------- field in this struct
+...
+510 |   pub inner_rect: Option<PhysicalSize<u32>>,
+    |       ^^^^^^^^^^
+
+warning: function `hit_test` is never used
+    --> vendor/tao/src/window.rs:1665:15
+     |
+1665 | pub(crate) fn hit_test(
+     |               ^^^^^^^^
+
+warning: `tao` (lib) generated 18 warnings (run `cargo fix --lib -p tao` to apply 2 suggestions)
+   Compiling soundshelf v0.1.0 (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/src-tauri)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.97s

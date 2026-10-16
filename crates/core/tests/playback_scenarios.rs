@@ -452,3 +452,61 @@ fn unavailable_selected_output_reports_error_without_silent_loopback() {
     let player=Player::new(Some(tools));player.set_output_device(Some(format!("unavailable-{}",uuid::Uuid::new_v4()))).unwrap();
     assert!(player.play("tone",&path,0.1).is_err());assert!(player.loopback_sink().is_none());assert_ne!(player.status().state,PlaybackState::Playing);
 }
+
+#[test]
+#[ignore = "requires explicit FFmpeg fixture tools"]
+fn clip_timeline_and_seeking_remain_within_the_selected_source_region() {
+    let tools = test_tools().expect("Explicit FFmpeg tools required");
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("regions.wav");
+    // Only the clip [1, 1.5) is silent; seeking into the source beginning
+    // produces a clearly detectable tone.
+    assert!(Command::new(&tools.ffmpeg).args([
+        "-v", "error", "-f", "lavfi", "-i",
+        "aevalsrc=if(between(t\\,1\\,1.5)\\,0\\,0.5):s=48000:d=3",
+        "-ac", "2",
+    ]).arg(&path).status().unwrap().success());
+    let player = Player::new_loopback(Some(tools));
+    player.play_clip("clip", &path, 1.0, 0.5).unwrap();
+    let sink = player.loopback_sink().unwrap();
+    assert!(wait_for_samples(&sink, 4800, Duration::from_secs(10)));
+    assert_eq!(player.status().position_seconds, 0.0);
+    sink.step(2400);
+    assert!((player.status().position_seconds - 0.05).abs() < 0.001);
+    player.pause();
+    player.seek(0.2).unwrap();
+    assert_eq!(player.status().state, PlaybackState::Paused);
+    assert_eq!(player.status().position_seconds, 0.2);
+    assert_eq!(player.status().duration_seconds, 0.5);
+    let sink = player.loopback_sink().unwrap();
+    assert!(wait_for_samples(&sink, 4800, Duration::from_secs(10)));
+    player.resume().unwrap();
+    let samples = sink.step(2400);
+    assert!(samples.iter().all(|sample| sample.abs() < 0.001), "Seek escaped the silent clip region");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while player.status().state != PlaybackState::Finished {
+        sink.step(480);
+        assert!(Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(player.status().position_seconds, 0.5);
+    assert_eq!(sink.shared.decoded_frames.load(Ordering::Relaxed), 14400);
+}
+
+#[test]
+#[ignore = "requires explicit FFmpeg fixture tools"]
+fn seeking_to_the_end_of_a_very_short_clip_finishes_without_frames() {
+    let tools = test_tools().expect("Explicit FFmpeg tools required");
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("short.wav");
+    create_tone_wav(&tools, &path, 0.1);
+    let player = Player::new_loopback(Some(tools));
+    player.play_clip("clip", &path, 0.02, 0.01).unwrap();
+    player.seek(0.01).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while player.status().state != PlaybackState::Finished {
+        assert!(Instant::now() < deadline, "Seek to clip end never finished: {:?}", player.status());
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(player.status().position_seconds, 0.01);
+}
