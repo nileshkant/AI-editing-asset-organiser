@@ -240,6 +240,12 @@ impl AppState {
         state.resume_persisted()?;
         Ok(state)
     }
+    // Import cancellation must not poison waveform requests until another scan.
+    // Waveform decoding is cancelled only when the desktop service shuts down.
+    pub fn waveform_cancellation(&self) -> Arc<AtomicBool> {
+        self.stop.clone()
+    }
+
     fn remember(&self, job: &Job) -> Result<(), String> {
         let mut list = self.progress.lock().map_err(|e| e.to_string())?;
         list.retain(|p| p.job_id != job.id);
@@ -405,6 +411,25 @@ mod tests {
             thread::sleep(Duration::from_millis(10));
         }
     }
+    #[test]
+    #[ignore = "requires explicit FFmpeg fixture tools"]
+    fn cancelling_import_does_not_cancel_waveform_decoding() {
+        let f = fixture();
+        media(&f);
+        let state = f.state.as_ref().unwrap();
+        state.cancel.store(true, Ordering::Relaxed);
+        let hash = "a".repeat(64);
+        let pyramid = state.waveforms.load_or_build(
+            &hash, &f.root.join("media/a.wav"), 44100, 1,
+            state.tools.as_ref().unwrap(), state.waveform_cancellation(),
+        ).unwrap();
+        assert!(pyramid.total_frames > 0);
+        assert!(state.cancel.load(Ordering::Relaxed));
+        let cancellation = state.waveform_cancellation();
+        state.shutdown();
+        assert!(cancellation.load(Ordering::Relaxed));
+    }
+
     #[test]
     #[ignore = "requires explicit FFmpeg fixture tools"]
     fn duplicate_submissions_share_work_and_same_parent_files_keep_distinct_progress() {

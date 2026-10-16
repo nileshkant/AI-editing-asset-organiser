@@ -253,3 +253,24 @@ fn missing_cache_rebuild() {
     assert_eq!(p1, p2);
     assert!(service.cache_path(hash).exists());
 }
+
+#[test]
+fn untrusted_catalog_digest_cannot_escape_the_waveform_cache() {
+    use soundshelf_core::{media::MediaTools, waveform::WaveformService};
+    use std::sync::{atomic::AtomicBool, Arc};
+    let dir = tempdir().unwrap();
+    let cache = dir.path().join("cache/nested");
+    std::fs::create_dir_all(&cache).unwrap();
+    let outside = dir.path().join("outside.sswf");
+    let pcm = generate_stereo_pcm(512, |_| 0.5, |_| -0.5);
+    WaveformPyramid::build(&mut &pcm[..], 48000, 2, 256).unwrap().save_to_file(&outside).unwrap();
+    let service = WaveformService::new(cache.clone());
+    let tools = MediaTools { ffmpeg: "missing-ffmpeg".into(), ffprobe: "missing-ffprobe".into() };
+    let before = std::fs::read(&outside).unwrap();
+    for digest in ["../../outside", "..\\..\\outside", outside.to_str().unwrap(), "normal-legacy-version"] {
+        let path = service.cache_path(digest);
+        assert_eq!(path.parent(), Some(cache.as_path()), "Digest was interpreted as a path");
+        assert!(service.load_or_build(digest, &dir.path().join("missing.wav"), 48000, 2, &tools, Arc::new(AtomicBool::new(false))).is_err());
+    }
+    assert_eq!(std::fs::read(&outside).unwrap(), before);
+}

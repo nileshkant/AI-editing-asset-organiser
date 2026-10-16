@@ -40,3 +40,63 @@ describe('playback command reconciliation',()=>{
     expect(result.current.error).toContain('Pause failed');
   });
 });
+
+it('restores prior playback when starting a different sound fails', async () => {
+  const { result } = renderHook(() => usePlayback(null, []));
+  await act(async () => vi.advanceTimersByTimeAsync(120));
+  invoke.mockRejectedValueOnce(new Error('Output device is unavailable'));
+  await act(async () => { await result.current.playSound({ id: 'missing', title: 'Missing sound' } as never); });
+  expect(result.current.playback).toEqual(playing);
+  expect(result.current.isPlayPending).toBe(false);
+  expect(result.current.error).toContain('Output device is unavailable');
+});
+
+it('retries play after the backend reports an error', async () => {
+  invoke.mockImplementation((cmd: string) => Promise.resolve(cmd === 'playback_status' ? { ...playing, state: 'error' } : null));
+  const { result } = renderHook(() => usePlayback({ id: 'sound-a', title: 'Sound A' } as never, []));
+  await act(async () => vi.advanceTimersByTimeAsync(120));
+  await act(async () => { await result.current.togglePlay(); });
+  expect(invoke).toHaveBeenCalledWith('playback_play', { id: 'sound-a' });
+});
+
+it('serializes Stop with Play and rolls back a rejected stop', async () => {
+  const { result } = renderHook(() => usePlayback(null, []));
+  await act(async () => vi.advanceTimersByTimeAsync(120));
+  let fail!: (error: Error) => void;
+  invoke.mockImplementation((cmd: string) => cmd === 'playback_stop' ? new Promise((_, reject) => { fail = reject; }) : Promise.resolve(null));
+  act(() => { void result.current.stopPlayback(); void result.current.togglePlay(); });
+  expect(invoke.mock.calls.filter(call => call[0] === 'playback_play')).toHaveLength(0);
+  expect(result.current.isPlayPending).toBe(true);
+  await act(async () => fail(new Error('Stop failed')));
+  expect(result.current.playback).toEqual(playing);
+  expect(result.current.error).toContain('Stop failed');
+});
+
+it('keeps only one status request in flight when IPC stalls', async () => {
+  invoke.mockImplementation(() => new Promise(() => {}));
+  const { unmount } = renderHook(() => usePlayback(null, []));
+  await act(async () => vi.advanceTimersByTimeAsync(1200));
+  expect(invoke.mock.calls.filter(call => call[0] === 'playback_status')).toHaveLength(1);
+  unmount();
+});
+
+it('coalesces rapid seeks and ignores status captured before seeking', async () => {
+  const { result } = renderHook(() => usePlayback(null, []));
+  await act(async () => vi.advanceTimersByTimeAsync(120));
+  let oldStatus!: (value: unknown) => void;
+  let finishSeek!: () => void;
+  invoke.mockImplementation((cmd: string) => {
+    if (cmd === 'playback_status') return new Promise(resolve => { oldStatus = resolve; });
+    if (cmd === 'playback_seek') return new Promise<void>(resolve => { finishSeek = resolve; });
+    return Promise.resolve(null);
+  });
+  await act(async () => vi.advanceTimersByTimeAsync(120));
+  act(() => { void result.current.seekPlayback(1); void result.current.seekPlayback(2); void result.current.seekPlayback(3); });
+  expect(invoke.mock.calls.filter(call => call[0] === 'playback_seek')).toHaveLength(1);
+  await act(async () => finishSeek());
+  expect(invoke.mock.calls.filter(call => call[0] === 'playback_seek').map(call => call[1])).toEqual([{positionSeconds: 1}, {positionSeconds: 3}]);
+  await act(async () => finishSeek());
+  await act(async () => oldStatus(playing));
+  expect(result.current.playback?.position_seconds).toBe(3);
+  expect(result.current.isPlayPending).toBe(false);
+});

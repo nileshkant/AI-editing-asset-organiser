@@ -266,3 +266,11 @@ progress {
 .clip-export label { display: grid; gap: 4px; }
 .clip-export input, .clip-export select { min-width: 0; width: 100%; }
 .clip-export p { overflow-wrap: anywhere; }
+
+.relink-dialog, .confirmation-dialog { color: var(--text-primary); max-height: calc(100dvh - 32px); overflow: auto; }
+.relink-dialog::backdrop, .confirmation-dialog::backdrop { background: #000a; backdrop-filter: blur(2px); }
+.modal-actions { flex-wrap: wrap; }
+.keyboard-help { margin: 8px 32px 0; color: var(--text-muted); font-size: 12px; }
+.search-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.skip-link { position: fixed; top: 8px; left: 8px; padding: 10px 16px; z-index: 110; background: var(--accent); color: var(--accent-text); transform: translateY(-160%); }
+.skip-link:focus { transform: translateY(0); }

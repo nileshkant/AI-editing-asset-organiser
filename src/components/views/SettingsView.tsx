@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useId } from 'react';
+import React, { memo, useState, useRef, useId, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { call } from '../../api';
 import { McpSettings } from './McpSettings';
@@ -34,7 +34,15 @@ export const SettingsView = memo(function SettingsView({
   const [pending, setPending] = useState<{root: Source; action: 'convert_source' | 'remove_source'} | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const openConfirmation = (root: Source, action: 'convert_source' | 'remove_source') => {opener.current = document.activeElement as HTMLElement;setPending({root, action});};
-  const closeConfirmation = () => {setPending(null);opener.current?.focus();};
+  const closeConfirmation = () => setPending(null);
+  const confirmation = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!pending) return;
+    const dialog = confirmation.current;
+    if (dialog?.showModal) dialog.showModal(); else dialog?.setAttribute('open', '');
+    dialog?.querySelector<HTMLButtonElement>('button:last-child')?.focus();
+    return () => { dialog?.close?.(); opener.current?.focus(); };
+  }, [pending]);
   const [pages, setPages] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
   const act = async () => {
@@ -116,7 +124,7 @@ export const SettingsView = memo(function SettingsView({
       <div className="settings-card"><FolderCatalogs roots={roots} onError={onError} /></div>
       </section>
 
-      {pending && <div className="modal-backdrop"><section className="modal" role="dialog" aria-modal="true" aria-label="Confirm source change" onKeyDown={e => {
+      {pending && <dialog ref={confirmation} className="modal confirmation-dialog" aria-modal="true" aria-label="Confirm source change" onCancel={e => {e.preventDefault();if (!busy) closeConfirmation();}} onKeyDown={e => {
         if (e.key === 'Escape' && !busy) {e.preventDefault();closeConfirmation();}
         if (e.key === 'Tab') {
           const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
@@ -128,7 +136,7 @@ export const SettingsView = memo(function SettingsView({
         <p>{pending.action === 'convert_source' ? `Import all supported files recursively from ${pending.root.root}? This includes siblings of your selected files.` : `Remove ${pending.root.name} from the catalog? This deletes its annotations and clip recipes. Original media stays on disk.`}</p>
         <button disabled={busy} onClick={() => void act()}>Confirm</button>
         <button autoFocus disabled={busy} onClick={closeConfirmation}>Cancel</button>
-      </section></div>}
+      </dialog>}
       {/* Keep panes mounted: category changes must not discard import previews,
           in-flight recovery state or credentials that are only shown once. */}
       <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} /></div></section>

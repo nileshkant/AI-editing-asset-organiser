@@ -86,15 +86,14 @@ export const SoundRow = memo(function SoundRow({
 
   return (
     <div
-      role="option"
-      aria-selected={isSelected}
+      role="listitem"
       aria-current={isThisPlaying ? 'true' : undefined}
-      tabIndex={0}
       onFocus={handleFocus}
       className={className}
     >
       <button
         className="sound-select"
+        aria-pressed={isSelected}
         onClick={handleSelect}
         aria-label={`${sound.title}, duration ${duration(sound.profile?.duration || 0)}`}
       >

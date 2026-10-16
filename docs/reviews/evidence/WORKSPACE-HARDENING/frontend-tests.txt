@@ -1,0 +1,16 @@
+
+> soundshelf-desktop@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.1 /Users/nileshkant/Documents/audio effects whole pack/soundshelf
+
+
+ Test Files  19 passed (19)
+      Tests  182 passed (182)
+   Start at  10:51:24
+   Duration  8.06s (tests 44%, environment 39%, setup 7%, transform 6%, import 4%)
+
+Environment  jsdom was created 19 times · 14.10s total, 39% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments

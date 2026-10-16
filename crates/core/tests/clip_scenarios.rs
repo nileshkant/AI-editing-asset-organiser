@@ -475,3 +475,42 @@ fn clip_deletion_removes_clip_and_revisions() {
     // Re-deleting returns error
     assert!(catalog.delete_clip(&clip.id).is_err());
 }
+
+#[test]
+fn clip_playback_rejects_cross_sound_stale_unavailable_and_invalid_regions() {
+    let (_dir, mut catalog, sound_id, hash) = setup_catalog_with_sound(48000, 20.0);
+    let recipe = ClipRecipe {
+        asset_id: sound_id.clone(), asset_version_id: hash,
+        source_sample_rate_hz: 48000, start_frame: "48000".into(), end_frame: "72000".into(),
+        channel_policy: "preserve".into(), gain_db: 0.0, fade_in_ms: 0, fade_out_ms: 0,
+    };
+    let clip = catalog.create_clip(&sound_id, "Preview", &recipe).unwrap();
+    let (_, start, duration) = catalog.clip_playback_region(&sound_id, &clip.id).unwrap();
+    assert_eq!((start, duration), (1.0, 0.5));
+    assert!(catalog.clip_playback_region("another-sound", &clip.id).is_err());
+    catalog.db_connection_mut().execute("UPDATE clips SET start_frame='90000' WHERE id=?1", [&clip.id]).unwrap();
+    assert!(catalog.clip_playback_region(&sound_id, &clip.id).is_err());
+    catalog.db_connection_mut().execute("UPDATE clips SET start_frame='48000',asset_version_id='old' WHERE id=?1", [&clip.id]).unwrap();
+    assert!(catalog.clip_playback_region(&sound_id, &clip.id).is_err());
+    catalog.db_connection_mut().execute("UPDATE clips SET asset_version_id=?2 WHERE id=?1", rusqlite::params![clip.id, recipe.asset_version_id]).unwrap();
+    catalog.db_connection_mut().execute("UPDATE sounds SET status='missing' WHERE id=?1", [&sound_id]).unwrap();
+    assert!(catalog.clip_playback_region(&sound_id, &clip.id).is_err());
+}
+
+#[test]
+fn independent_annotation_patches_preserve_current_metadata() {
+    let (_dir, catalog, sound_id, _hash) = setup_catalog_with_sound(48000, 20.0);
+    catalog.annotate(&sound_id, &["original".into()], "original comment", false).unwrap();
+    // A stale search result is still in the renderer while metadata is saved.
+    catalog.update_annotations(&sound_id, Some(&["new tag".into()]), Some("new comment"), None).unwrap();
+    catalog.update_annotations(&sound_id, None, None, Some(true)).unwrap();
+    let sound = catalog.sound(&sound_id).unwrap();
+    assert_eq!(sound.user_tags, ["new tag"]);
+    assert_eq!(sound.comment, "new comment");
+    assert!(sound.favorite);
+    // A metadata editor opened before the favorite action must preserve it.
+    catalog.update_annotations(&sound_id, Some(&["final tag".into()]), Some("final comment"), None).unwrap();
+    assert!(catalog.sound(&sound_id).unwrap().favorite);
+    catalog.set_status(&sound_id, "missing").unwrap();
+    assert!(catalog.update_annotations(&sound_id, None, None, Some(false)).is_err());
+}

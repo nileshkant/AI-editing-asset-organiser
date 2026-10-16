@@ -1,0 +1,51 @@
+5084baa Merge pull request #37 from nileshkant/release/v0.1.0-alpha.6
+593bf3d Merge pull request #36 from nileshkant/feat/SS-038-mcp-guide
+fd9d623 Merge pull request #35 from nileshkant/feat/SS-037-persistent-mcp
+928d7cd Merge pull request #34 from nileshkant/feat/SS-036-settings-layout
+f3ba76e Merge pull request #33 from nileshkant/fix/SS-035-windows-media-console
+77f4db1 Merge pull request #32 from nileshkant/revert-31-fix/SS-029-source-catalog-retry-fixture
+456b9a0 Merge pull request #30 from nileshkant/feat/SS-024-unsigned-tester-release
+44e44b4 Merge pull request #31 from nileshkant/fix/SS-029-source-catalog-retry-fixture
+d3702f6 Merge pull request #29 from nileshkant/feat/SS-023-sustained-security-qualification
+01233a1 Merge pull request #28 from nileshkant/feat/SS-034-linux-gtk-audit-remediation
+5eecbb3 Merge pull request #27 from nileshkant/feat/SS-031-audio-v1-qualification
+b2682a7 Merge pull request #26 from nileshkant/feat/SS-024-cross-platform-installers-and-releases
+6927eff Merge pull request #25 from nileshkant/feat/SS-023-security-and-performance-qualification
+4351110 Merge pull request #24 from nileshkant/feat/SS-022-main-delivery
+2e1180d Merge pull request #23 from nileshkant/feat/SS-020-main-delivery
+3aeb477 Merge pull request #22 from nileshkant/feat/SS-030-main-delivery
+eb4ab5a Merge pull request #18 from nileshkant/feat/SS-029-source-folder-catalog
+18fbe77 Merge pull request #17 from nileshkant/chore/creative-shelf-v1-scope-review
+371189d Merge pull request #16 from nileshkant/feat/SS-019-mcp-catalog-and-clip-tools
+cab0bc0 Merge pull request #15 from nileshkant/feat/SS-018-mcp-lifecycle-authentication
+ab3d70e Merge pull request #14 from nileshkant/feat/SS-021-portable-catalog-and-migration
+559f35c Merge pull request #13 from nileshkant/fix/playback-pause-and-tab-loading
+830739f Merge pull request #12 from nileshkant/feat/SS-026-individual-file-import
+1e04fb8 Merge pull request #11 from nileshkant/feat/SS-013-clip-export-and-handoff
+b5f245b Merge pull request #10 from nileshkant/feat/SS-012-clip-recipes-and-selection
+4432bc8 Merge pull request #9 from nileshkant/refactor/production-polish
+8b341bd Merge pull request #8 from nileshkant/feat/SS-011-waveform-visualization
+aad8a16 Merge pull request #7 from nileshkant/feat/SS-009-library-workspace-and-accessibility
+fbda014 Merge pull request #6 from nileshkant/feat/SS-010-native-audio-playback
+3434999 Merge pull request #5 from nileshkant/feat/SS-008-offline-natural-language-and-fuzzy-search
+7f842dc Merge pull request #4 from nileshkant/feat/SS-006-folder-relink-and-availability
+4e6eede Merge pull request #3 from nileshkant/feat/SS-005-measured-profiles-and-descriptions
+092a7fd Merge pull request #2 from nileshkant/feat/SS-004-background-import-and-analysis
+15f0f50 reorder ticket
+975c522 Merge pull request #1 from nileshkant/fix/SS-028-windows-icon-resource
+5f52c06 Merge remote-tracking branch 'origin/main'
+7449d38 fix: tolerate missing packaged resource directory
+356eeec docs: review macOS 26 startup fix
+80ffd13 fix: defer tao startup event on macOS 26
+c85efa8 fix(SS-009): harden reconciliation and release media packaging
+3d62460 fix(SS-009): preserve queued import progress ordering
+db344c3 docs(SS-009): normalize review note
+fb81c92 docs(SS-025): define subscription-backed MCP access
+fbc6cfa feat(SS-009): connect the desktop library workspace
+145a119 feat(SS-004): analyze audio streams and reuse cached content profiles
+e917ae4 feat(SS-008): add offline natural-language and typo-tolerant search
+2acf9a0 test(SS-003): account for canonical macOS temporary paths
+7a6a67b feat(SS-003): persist portable sound identities and reusable profiles
+dd3ddc5 feat(SS-002): add native Tauri workspace and test foundation
+46e6ab8 docs(SS-001): define acceptance-tested incremental delivery backlog
+40f197c chore: initialize isolated SoundShelf repository

@@ -136,6 +136,7 @@ export type PlaybackStatus = {
   state: PlaybackState;
   position_seconds: number;
   duration_seconds: number;
+  source_start_seconds?: number | null;
   volume: number;
   peak: number;
   error: string | null;

@@ -118,7 +118,9 @@ async fn delete_saved_search(state:tauri::State<'_,AppState>,id:String)->Result<
 #[tauri::command]
 async fn get_sound(state:tauri::State<'_,AppState>,id:String)->Result<Sound,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.ready_sound(&id).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
-async fn annotate(state:tauri::State<'_,AppState>,id:String,tags:Vec<String>,comment:String,favorite:bool)->Result<(),String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.annotate(&id,&tags,&comment,favorite).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
+async fn annotate(state:tauri::State<'_,AppState>,id:String,tags:Vec<String>,comment:String,favorite:Option<bool>)->Result<(),String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.update_annotations(&id,Some(&tags),Some(&comment),favorite).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
+#[tauri::command]
+async fn set_favorite(state:tauri::State<'_,AppState>,id:String,favorite:bool)->Result<(),String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.update_annotations(&id,None,None,Some(favorite)).map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
 fn jobs(state:tauri::State<AppState>)->Result<Vec<Progress>,String>{state.progress.lock().map(|s|s.clone()).map_err(|e|e.to_string())}
 #[tauri::command]
@@ -144,16 +146,7 @@ async fn playback_play_clip(
 ) -> Result<(), String> {
     let (path, start_seconds, clip_duration) = {
         let c = state.catalog.lock().map_err(|e| e.to_string())?;
-        let clip = c.get_clip(&clip_id).map_err(|e| e.to_string())?;
-        let path = c.resolve(&id).map_err(|e| e.to_string())?;
-        let rate = clip.recipe.source_sample_rate_hz as f64;
-        let start_frame: u64 = clip.recipe.start_frame.parse()
-            .map_err(|_| "Invalid start frame".to_string())?;
-        let end_frame: u64 = clip.recipe.end_frame.parse()
-            .map_err(|_| "Invalid end frame".to_string())?;
-        let start_seconds = start_frame as f64 / rate;
-        let clip_duration = (end_frame - start_frame) as f64 / rate;
-        (path, start_seconds, clip_duration)
+        c.clip_playback_region(&id, &clip_id).map_err(|e| e.to_string())?
     };
     state.player.play_clip(&id, &path, start_seconds, clip_duration)
         .map_err(|e| e.to_string())
@@ -207,7 +200,7 @@ async fn get_waveform(
     let profile = sound.profile.ok_or_else(|| "Sound has no profile".to_string())?;
     let tools = state.tools.as_ref().ok_or_else(|| "Media tools unavailable".to_string())?.clone();
     let waveforms = state.waveforms.clone();
-    let cancel = state.cancel.clone();
+    let cancel = state.waveform_cancellation();
 
     tauri::async_runtime::spawn_blocking(move || {
         let pyramid = waveforms.load_or_build(
@@ -403,6 +396,7 @@ fn main() {
             delete_saved_search,
             get_sound,
             annotate,
+            set_favorite,
             jobs,
             cancel_import,
             playback_play,

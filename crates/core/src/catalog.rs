@@ -371,6 +371,13 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
         contained(Path::new(&source.root), &sound.relative_path)
     }
 
+    /// Patch independent annotation fields from current catalog state, so a
+    /// stale search row cannot overwrite newer comments/tags when favoriting.
+    pub fn update_annotations(&self, id: &str, tags: Option<&[String]>, comment: Option<&str>, favorite: Option<bool>) -> Result<()> {
+        let current = self.sound(id)?;
+        self.annotate(id, tags.unwrap_or(&current.user_tags), comment.unwrap_or(&current.comment), favorite.unwrap_or(current.favorite))
+    }
+
     pub fn annotate(&self, id: &str, tags: &[String], comment: &str, favorite: bool) -> Result<()> {
         let sound = self.sound(id)?;
         if sound.status == "missing" { return Err(invalid("Cannot annotate missing sound")); }
@@ -544,6 +551,25 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
                 (false, None)
             }
         }
+    }
+
+    /// Resolve a current, validated clip region for desktop playback.
+    pub fn clip_playback_region(&self, sound_id: &str, clip_id: &str) -> Result<(std::path::PathBuf, f64, f64)> {
+        let clip = self.get_clip(clip_id)?;
+        if clip.sound_id != sound_id || clip.recipe.asset_id != sound_id {
+            return Err(invalid("Clip does not belong to the requested sound"));
+        }
+        if clip.is_stale {
+            return Err(invalid("Clip source changed; rebind the clip before playback"));
+        }
+        let sound = self.ready_sound(sound_id)?;
+        let profile = sound.profile.as_ref().ok_or_else(|| invalid("Sound has no profile"))?;
+        let (start, end) = validate_clip_recipe(&clip.recipe, Some(profile.frames))?;
+        if profile.sample_rate != clip.recipe.source_sample_rate_hz {
+            return Err(invalid("Clip sample rate does not match source"));
+        }
+        let rate = profile.sample_rate as f64;
+        Ok((self.resolve(sound_id)?, start as f64 / rate, (end - start) as f64 / rate))
     }
 
     pub fn get_clip(&self, id: &str) -> Result<Clip> {

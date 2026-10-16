@@ -1,0 +1,24 @@
+   Compiling soundshelf-core v0.1.0 (/Users/nileshkant/Documents/audio effects whole pack/soundshelf/crates/core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.22s
+     Running tests/waveform_scenarios.rs (target/debug/deps/waveform_scenarios-cc9bd808d38f08c6)
+
+running 1 test
+test untrusted_catalog_digest_cannot_escape_the_waveform_cache ... FAILED
+
+failures:
+
+---- untrusted_catalog_digest_cannot_escape_the_waveform_cache stdout ----
+
+thread 'untrusted_catalog_digest_cannot_escape_the_waveform_cache' (3480609) panicked at crates/core/tests/waveform_scenarios.rs:272:9:
+assertion `left == right` failed: Digest was interpreted as a path
+  left: Some("/var/folders/d6/zxvy7yg50n59psgkyh0z225r0000gn/T/.tmpdcZ6Ha/cache/nested/../..")
+ right: Some("/var/folders/d6/zxvy7yg50n59psgkyh0z225r0000gn/T/.tmpdcZ6Ha/cache/nested")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    untrusted_catalog_digest_cannot_escape_the_waveform_cache
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p soundshelf-core --test waveform_scenarios`

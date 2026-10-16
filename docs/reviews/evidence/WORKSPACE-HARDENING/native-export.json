@@ -1,0 +1,18 @@
+{
+  "context": "Generated disposable 2-second WAV imported through native file picker. Clip selected [24000,48000). Native export completed and was indexed.",
+  "probe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "sample_rate": "48000",
+        "channels": 2,
+        "duration_ts": 24000,
+        "bits_per_raw_sample": "24"
+      }
+    ]
+  },
+  "manifest_frames": "24000",
+  "manifest_sample_rate": 48000,
+  "manifest_channels": 2
+}

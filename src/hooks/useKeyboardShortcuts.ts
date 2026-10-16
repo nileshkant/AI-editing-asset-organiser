@@ -37,7 +37,10 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
       // Settings owns its keyboard controls. Library shortcuts must not steal
       // Space/Enter or scrolling keys and unexpectedly play/select audio there.
       if (e.defaultPrevented || s.page === 'settings') return;
-      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target?.closest('[role="dialog"], dialog') || s.relink) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
+      const tag = target?.tagName?.toLowerCase();
       const isInput =
         tag === "input" ||
         tag === "textarea" ||
@@ -65,14 +68,22 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
         return;
       }
       if (isInput) return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        void s.togglePlay();
-        return;
-      }
       if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         s.searchInputRef.current?.focus();
+        return;
+      }
+
+      // Native controls own Space/Enter and their navigation keys. Only a
+      // sound's title button participates in result navigation.
+      const interactive = target?.closest('button, a, [role="button"], [role="tab"]');
+      const rowNavigation = target?.closest('.sound-select') &&
+        ['ArrowDown', 'ArrowUp', 'Home', 'End', 'j', 'k'].includes(e.key);
+      if (interactive && !rowNavigation) return;
+      if (target?.closest('.inspector, .waveform-workstation')) return;
+      if (e.code === "Space") {
+        e.preventDefault();
+        void s.togglePlay();
         return;
       }
       if (e.key === "m" || e.key === "M") {
@@ -80,22 +91,32 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
         void s.toggleMute();
         return;
       }
+      if (s.page !== 'library' && s.page !== 'favorites') return;
+      const focusResult = (index: number) => {
+        s.setFocusedIndex(index);
+        const button = document.querySelectorAll<HTMLButtonElement>('.sound-select')[index];
+        button?.focus();
+        button?.scrollIntoView?.({ block: 'nearest' });
+      };
+      if (e.key === 'Home' || e.key === 'End') {
+        if (!s.results.items.length) return;
+        e.preventDefault();
+        const index = e.key === 'Home' ? 0 : s.results.items.length - 1;
+        focusResult(index);
+        return;
+      }
       if (e.key === "ArrowDown" || e.key === "j") {
         if (!s.results.items.length) return;
         e.preventDefault();
         const nextIndex = Math.min(s.results.items.length - 1, s.focusedIndex + 1);
-        s.setFocusedIndex(nextIndex);
-        const item = s.results.items[nextIndex];
-        if (item) void s.select(item, nextIndex);
+        focusResult(nextIndex);
         return;
       }
       if (e.key === "ArrowUp" || e.key === "k") {
         if (!s.results.items.length) return;
         e.preventDefault();
         const nextIndex = Math.max(0, s.focusedIndex - 1);
-        s.setFocusedIndex(nextIndex);
-        const item = s.results.items[nextIndex];
-        if (item) void s.select(item, nextIndex);
+        focusResult(nextIndex);
         return;
       }
       if (e.key === "Enter") {
