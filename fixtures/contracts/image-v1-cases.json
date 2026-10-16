@@ -624,8 +624,7 @@
       {
         "path": "/images/0/annotations/tags",
         "value": [
-          "
-fox"
+          "\u0085fox"
         ]
       }
     ]
