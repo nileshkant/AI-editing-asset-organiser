@@ -154,3 +154,18 @@ long-session native audio, and external editor/client workflows require their
 existing release qualification checks. Chromium axe results and a local native
 macOS development run do not complete SS-023/024/031/034 or the outstanding
 installed accessibility acceptance. No new feature tickets were started.
+
+## Publication verification
+
+Before opening the PR, code commit `6f4b852bf1ac0bfaea8fcf94f61de29455ff86dd` was tested in a clean,
+detached Git worktree. This excludes the pre-existing source-snapshot changes
+and all unrelated untracked files. Results: **182 frontend/release tests,
+204 Rust/media tests, 5 browser tests, 0 failed, 0 ignored**; production
+frontend build passed. The earlier 206-test Rust result and native smoke
+observations above describe the initial review workspace, which contained two
+additional source-snapshot tests. They remain historical evidence and are not
+attributed to the isolated PR tree.
+
+[Isolated PR logs and checksums](evidence/WORKSPACE-HARDENING/PR-VALIDATION/)
+record the exact code commit and commands. GitHub Actions will also verify the
+pushed PR head; installed platform qualification remains unchanged.

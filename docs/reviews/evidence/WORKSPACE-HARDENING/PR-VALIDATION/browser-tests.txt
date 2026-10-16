@@ -1,0 +1,20 @@
+
+> soundshelf-desktop@0.1.0 test:browser
+> playwright test
+
+[WebServer] (node:94935) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 2 workers
+
+(node:94976) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:94975) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [chromium] › e2e/workspace.spec.ts:17:3 › library, inspector and settings fit 720×560 (8.0s)
+  ✓  1 [chromium] › e2e/workspace.spec.ts:17:3 › library, inspector and settings fit 1280×820 (10.0s)
+  ✓  3 [chromium] › e2e/workspace.spec.ts:42:1 › keyboard completes navigation, metadata, filters, transport and relink cancellation (2.0s)
+  ✓  4 [chromium] › e2e/workspace.spec.ts:90:1 › decimal clip boundaries survive real keyboard input (1.1s)
+  ✓  5 [chromium] › e2e/workspace.spec.ts:107:1 › Tab reaches details and native source confirmation keeps background inert (1.7s)
+
+  5 passed (24.7s)

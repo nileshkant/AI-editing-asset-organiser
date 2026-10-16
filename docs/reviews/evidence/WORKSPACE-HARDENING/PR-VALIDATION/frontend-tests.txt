@@ -1,0 +1,16 @@
+
+> soundshelf-desktop@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.1 /private/var/folders/d6/zxvy7yg50n59psgkyh0z225r0000gn/T/soundshelf-pr-verify-pttp55hc
+
+
+ Test Files  19 passed (19)
+      Tests  182 passed (182)
+   Start at  13:23:50
+   Duration  11.58s (environment 51%, tests 32%, setup 8%, transform 5%, import 3%, worker 1%)
+
+Environment  jsdom was created 19 times · 35.79s total, 51% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
