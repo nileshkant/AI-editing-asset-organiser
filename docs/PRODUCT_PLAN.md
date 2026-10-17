@@ -4,6 +4,23 @@ Status: evolving implementation specification; audio v1 is not release-qualified
 Prepared: 2026-09-20. Updated: 2026-10-02. CreativeShelf is the generic working product name.
 Scope: an installable, local desktop creative asset library, initially audio only for macOS, Windows, and Linux, with background analysis, reliable playback, precise clip export, and an MCP server that runs with the app.
 
+## 2026-10-16 image-phase sequencing amendment
+
+The next image/element phase is specified in
+[IMAGE_ASSET_PHASE_PLAN.md](IMAGE_ASSET_PHASE_PLAN.md) and broken into
+[SS-040–078 in strict execution order](../tickets/IMAGE_QUEUE.md).
+The [shared implementation contract](../tickets/IMAGE_CONTRACT.md) is mandatory.
+SS-032 is now a tracking umbrella. Each ticket is implemented, tested, reviewed,
+and delivered through its own PR; a green predecessor permits dependent
+development before merge. Merge in ticket order; blocked work is not skipped.
+
+This supersedes the older prohibition on beginning image development before all
+audio release qualification. It does not add image features to an already
+qualified audio release, waive installed/signing/platform gates, or claim any
+image implementation exists. Preserve audio contracts and qualify the new
+workflow at SS-072 and SS-078. Historical audio-v1 scope below still describes
+that baseline; IMAGE_QUEUE.md governs the new feature sequence.
+
 ## 2026-10-02 audio v1 scope contract
 
 Product name: **CreativeShelf**. Audio is the first asset type; images/elements
@@ -882,3 +899,11 @@ Current implementation order and completion evidence are maintained in tickets/R
 ## 2026-10-02 qualification progress
 
 Source-catalog, CreativeShelf display branding, editor handoff and recovery implementations are in main. Security/resource hardening is also merged, while its installed qualification remains partial. Packaging and exact-artifact tester gates are prepared in their own PRs; no signed installer has been qualified. The requested first tester release includes macOS, Windows and Linux. SS-034 backports the reviewed GTK pointer fix with upstream source-integrity checks and optimized Linux regression CI; Linux remains unqualified until this and installed platform evidence pass. Four qualification tickets remain (SS-023/024/031/034), including external signing and physical machine evidence; pinned minimal media now builds and passes macOS/Linux CI. Images/presets remain upcoming, and baseline audio event recognition is disclosed as absent until optional provider/semantic tagging tickets are delivered.
+
+## 17 October 2026 dependent-PR workflow
+
+The user authorized continuing to the next ticket after all checks pass on the
+predecessor PR, without waiting for merge. This supersedes merge-before-start
+wording above. Keep one ticket per PR, target unmerged dependent PRs to the
+predecessor branch, and merge in ticket order. Retarget and recheck dependents
+after predecessor merges. IMAGE_QUEUE.md is the canonical execution order.
