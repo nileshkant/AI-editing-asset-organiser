@@ -1,7 +1,7 @@
 use crate::{invalid, Result};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Read, path::{Component, Path, PathBuf}, time::Duration};
+use std::{fs::{self, File, OpenOptions}, io::Read, path::{Component, Path, PathBuf}, time::Duration};
 use uuid::Uuid;
 
 pub const ANALYZER: &str = "soundshelf-pcm-v1";
@@ -94,30 +94,66 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 9;
+pub const SCHEMA_VERSION: u32 = 10;
+
+pub(crate) fn upgrade_backup(db: &Connection, destination: &Path) -> Result<()> {
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)] {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    // Ownership is established before cleanup: never remove another file.
+    options.open(destination)?;
+    let result = (|| -> Result<()> {
+        db.execute("VACUUM INTO ?1", [path_text(destination)?])?;
+        OpenOptions::new().read(true).write(true).open(destination)?.sync_all()?;
+        #[cfg(unix)]
+        File::open(destination.parent().ok_or_else(|| invalid("Backup has no parent"))?)?.sync_all()?;
+        Ok(())
+    })();
+    if result.is_err() { let _ = fs::remove_file(destination); }
+    result
+}
 
 impl Catalog {
     pub fn open(path: &Path) -> Result<Self> {
         let mut db = Connection::open(path)?;
         db.busy_timeout(Duration::from_secs(5))?;
         db.pragma_update(None, "foreign_keys", true)?;
-        db.pragma_update(None, "journal_mode", "WAL")?;
         let version: u32 = db.pragma_query_value(None, "user_version", |row| row.get(0))?;
         if version > SCHEMA_VERSION { return Err(invalid("Database belongs to a newer CreativeShelf version")); }
+        db.pragma_update(None, "journal_mode", "WAL")?;
+        let observed_version = version;
+        let before_backup: i64 = db.pragma_query_value(None, "data_version", |r| r.get(0))?;
+        let mut owned_backup = None;
         if version > 0 && version < SCHEMA_VERSION && path.is_file() {
             let backup = path.with_file_name(format!("{}.pre-v{}-{}.sqlite", path.file_name().unwrap_or_default().to_string_lossy(), if version < 5 { 5 } else { SCHEMA_VERSION }, Uuid::new_v4()));
-            db.execute("VACUUM INTO ?1", [path_text(&backup)?])?;
+            upgrade_backup(&db, &backup)?;
+            owned_backup = Some(backup);
+        }
+        // Serialize initialization/upgrades and re-read under the writer lock.
+        let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let version: u32 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        if version > SCHEMA_VERSION { return Err(invalid("Database belongs to a newer CreativeShelf version")); }
+        if version == SCHEMA_VERSION {
+            tx.commit()?;
+            if let Some(backup) = owned_backup { let _ = fs::remove_file(backup); }
+            return Ok(Self { db });
+        }
+        if owned_backup.is_some() && (version != observed_version ||
+            tx.pragma_query_value(None, "data_version", |r| r.get::<_, i64>(0))? != before_backup) {
+            return Err(invalid("Catalog changed while backing up; reopen to retry the upgrade"));
         }
         if version == 0 {
-            let tx = db.transaction()?;
             tx.execute_batch(include_str!("schema.sql"))?;
             tx.execute_batch(include_str!("source_catalog_schema.sql"))?;
             tx.execute_batch(include_str!("settings_schema.sql"))?;
             tx.execute_batch(include_str!("search_profile_schema.sql"))?;
+            tx.execute_batch(include_str!("image_schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         } else {
-            let tx = db.transaction()?;
             if version < 2 {
                 tx.execute_batch("CREATE TABLE jobs (
  id TEXT PRIMARY KEY,
@@ -190,6 +226,9 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             if version < 7 { tx.execute_batch(include_str!("source_catalog_schema.sql"))?; }
             if version < 8 { tx.execute_batch(include_str!("settings_schema.sql"))?; }
             if version < 9 { tx.execute_batch(include_str!("search_profile_schema.sql"))?; }
+            if version < 10 { tx.execute_batch(include_str!("image_schema.sql"))?; }
+            let violations: i64 = tx.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| r.get(0))?;
+            if violations != 0 { return Err(invalid("Catalog has invalid references; upgrade rolled back")); }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         }
@@ -249,6 +288,7 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
     }
 
     pub fn relink(&mut self, id: &str, new_root: &Path) -> Result<Source> {
+        self.require_audio_only_source(id)?;
         let source = self.source(id)?;
         let new_root = new_root.canonicalize()?;
         if !new_root.is_dir() { return Err(invalid("Replacement must be a folder")); }

@@ -1,3 +1,4 @@
+mod common;
 use soundshelf_core::{catalog::Catalog, maintenance::Preferences, waveform::WaveformService};
 use std::fs;
 #[test]
@@ -120,6 +121,7 @@ fn v7_migration_preserves_catalog_and_backs_up_before_preferences_schema() {
     let path = temp.path().join("v7.sqlite");
     let db = Catalog::open(&path).unwrap();
     let source = db.add_source(temp.path()).unwrap();
+    common::remove_image_schema_for_legacy_fixture(db.db_connection());
     db.db_connection()
         .execute_batch("DROP TRIGGER analyses_search_insert; DROP TRIGGER analyses_search_update; DROP TABLE search_profiles; DROP TABLE app_settings; PRAGMA user_version=7;")
         .unwrap();

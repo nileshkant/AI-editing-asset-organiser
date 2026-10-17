@@ -57,3 +57,14 @@ failed source jobs remain; failures stay visible until retried. AI event labels
 will require a future versioned extension under SS-016/017.
 
 Database backup/restore and preference migration use SQLite v8; see [Recovery](RECOVERY.md). The portable JSON and source-folder schema versions remain unchanged.
+
+## Image storage compatibility boundary (SS-041)
+
+The current database schema is v10; the schema numbers above describe earlier
+migrations. Existing portable/source JSON schemas remain audio-only. Exporting
+a mixed library through whole-library portable export fails visibly rather than
+losing images. A source containing images cannot save, rebuild or reimport an
+audio-only folder snapshot. Its old snapshot remains protected with a retry
+warning; other audio-only sources can still save. Full SQLite backup preserves
+all image data. Mixed portable and folder envelopes are assigned to SS-048.
+See [Image storage](IMAGE_STORAGE.md) for exact service/recovery semantics.

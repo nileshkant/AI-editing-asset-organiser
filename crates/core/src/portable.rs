@@ -212,13 +212,28 @@ impl PortableCatalog {
 }
 impl Catalog {
     pub fn export_portable(&self) -> Result<PortableCatalog> {
+        self.export_audio_portable(None)
+    }
+    pub(crate) fn export_portable_for_source(&self, source_id: &str) -> Result<PortableCatalog> {
+        self.export_audio_portable(Some(source_id))
+    }
+    fn export_audio_portable(&self, source_id: Option<&str>) -> Result<PortableCatalog> {
         // Consistent snapshot even if a separate connection is writing.
         let tx = self.db.unchecked_transaction()?;
+        if let Some(id)=source_id {
+            self.require_audio_only_source(id)?;
+        } else {
+            let images:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM image_assets)",[],|r|r.get(0))?;
+            if images { return Err(invalid("Image metadata requires mixed catalog support; audio-only portable export is blocked")); }
+        }
+        let sounds=if let Some(id)=source_id { self.scoped_sounds(&[id.to_owned()])? } else { self.all_sounds()? };
+        let ids:HashSet<_>=sounds.iter().map(|s|s.id.clone()).collect();
         let result = PortableCatalog {
             schema: PORTABLE_SCHEMA.into(),
             sources: self
                 .sources()?
                 .into_iter()
+                .filter(|s|source_id.is_none_or(|id|s.id==id))
                 .map(|s| PortableSource {
                     id: s.id,
                     name: s.name,
@@ -226,10 +241,10 @@ impl Catalog {
                     files: s.files.into_iter().map(|f| f.relative_path).collect(),
                 })
                 .collect(),
-            sounds: self.all_sounds()?,
-            clips: self.all_clips()?,
-            saved_searches: self.saved_searches()?,
-            legacy_evidence: self.legacy_evidence()?,
+            sounds,
+            clips: self.all_clips()?.into_iter().filter(|c|ids.contains(&c.sound_id)).collect(),
+            saved_searches: if source_id.is_some(){vec![]}else{self.saved_searches()?},
+            legacy_evidence: self.legacy_evidence()?.into_iter().filter(|e|ids.contains(&e.sound_id)).collect(),
         };
         tx.commit()?;
         result.validate()?;

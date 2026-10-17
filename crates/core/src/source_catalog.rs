@@ -5,7 +5,7 @@ use crate::{
     portable::{PortableCatalog, MAX_BYTES},
     Result,
 };
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashSet},
@@ -274,6 +274,7 @@ pub fn import_folder(db: &Arc<Mutex<Catalog>>, root: &Path) -> Result<Source> {
         .into_iter()
         .find(|s| Path::new(&s.root) == root)
     {
+        c.require_audio_only_source(&existing.id)?;
         if existing.scope != "folder" || existing.id != snapshot.catalog.sources[0].id {
             return Err(invalid(
                 "Source catalog identity conflicts with this library; use Rebuild catalog",
@@ -296,6 +297,7 @@ pub fn import_folder(db: &Arc<Mutex<Catalog>>, root: &Path) -> Result<Source> {
     }
     let id = snapshot.catalog.sources[0].id.clone();
     if let Ok(existing) = c.source(&id) {
+        c.require_audio_only_source(&id)?;
         if Path::new(&existing.root).exists() {
             return Err(invalid("Catalog belongs to an existing source; use Relink folder instead of duplicating it"));
         }
@@ -368,6 +370,7 @@ fn save_inner(
     if source.scope != "folder" {
         return Ok(());
     }
+    db.lock().map_err(|_|invalid("Catalog unavailable"))?.require_audio_only_source(&source.id)?;
     let root = Path::new(&source.root);
     let (dir, _lock) = lock(root)?;
     let disk = read(root)?;
@@ -384,7 +387,7 @@ fn save_inner(
             )
             .optional()?;
         let (revision, serial) = state.unwrap_or((None, 1));
-        let mut data = c.export_portable()?;
+        let mut data = c.export_portable_for_source(&source.id)?;
         data.sources.retain(|s| s.id == source.id);
         data.sounds
             .retain(|s| s.source_id == source.id && s.status != "missing");
@@ -469,36 +472,89 @@ fn save_inner(
         if safe_dir(root, false)? != dir {
             return Err(invalid("Source catalog directory changed"));
         }
-        let c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
-        if c.source_generation(&source.id)? != source.generation {
-            return Err(invalid("Source moved; discard stale snapshot"));
-        }
-        // Recheck revision while holding the writer lock. Rename never follows a destination symlink.
-        if read(root)?.as_ref().map(|s| s.revision.clone()) != expected {
-            return Err(invalid("Source catalog changed before commit"));
-        }
-        fs::rename(&staged, dir.join("catalog.json"))?;
-        #[cfg(unix)]
-        File::open(&dir)?.sync_all()?;
-        c.db.execute("INSERT INTO source_catalog_state(source_id,revision,dirty,last_error) VALUES(?1,?2,0,'') ON CONFLICT(source_id) DO UPDATE SET revision=excluded.revision,dirty=CASE WHEN dirty=?3 THEN 0 ELSE dirty END,last_error=''",params![source.id,snapshot.revision,serial])?;
-        Ok(())
+        commit_snapshot(db, source, &dir, &staged, &snapshot, expected.as_deref(), serial)
     })();
     if result.is_err() {
         let _ = fs::remove_file(staged);
     }
     result
 }
+// Final publication fence also covers other app/database connections. Expensive
+// serialization and stat work has already completed before this writer lock.
+fn commit_snapshot(
+    db: &Arc<Mutex<Catalog>>,
+    source: &Source,
+    dir: &Path,
+    staged: &Path,
+    snapshot: &Snapshot,
+    expected: Option<&str>,
+    serial: i64,
+) -> Result<()> {
+    let c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
+    let tx = Transaction::new_unchecked(&c.db, TransactionBehavior::Immediate)?;
+    c.require_audio_only_source(&source.id)?;
+    if c.source_generation(&source.id)? != source.generation {
+        return Err(invalid("Source moved; discard stale snapshot"));
+    }
+    // Rename never follows a destination symlink.
+    if read(Path::new(&source.root))?.as_ref().map(|s| s.revision.as_str()) != expected {
+        return Err(invalid("Source catalog changed before commit"));
+    }
+    fs::rename(staged, dir.join("catalog.json"))?;
+    #[cfg(unix)]
+    File::open(dir)?.sync_all()?;
+    tx.execute("INSERT INTO source_catalog_state(source_id,revision,dirty,last_error) VALUES(?1,?2,0,'') ON CONFLICT(source_id) DO UPDATE SET revision=excluded.revision,dirty=CASE WHEN dirty=?3 THEN 0 ELSE dirty END,last_error=''",params![source.id,snapshot.revision,serial])?;
+    tx.commit()?;
+    Ok(())
+}
 /// Explicit recovery preserves the former snapshot as a sibling backup.
 pub fn rebuild(db: &Arc<Mutex<Catalog>>, source: &Source) -> Result<()> {
+    db.lock().map_err(|_|invalid("Catalog unavailable"))?.require_audio_only_source(&source.id)?;
     let root = Path::new(&source.root);
     let (dir, _lock) = lock(root)?;
+    let c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
+    let tx = Transaction::new_unchecked(&c.db, TransactionBehavior::Immediate)?;
+    c.require_audio_only_source(&source.id)?;
+    if c.source_generation(&source.id)? != source.generation {
+        return Err(invalid("Source moved; discard stale rebuild"));
+    }
     if fs::symlink_metadata(dir.join("catalog.json")).is_ok() {
         fs::rename(
             dir.join("catalog.json"),
             dir.join(format!("catalog-backup-{}.json", Uuid::new_v4())),
         )?;
     }
-    let c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
-    c.db.execute("INSERT INTO source_catalog_state(source_id,dirty) VALUES(?1,1) ON CONFLICT(source_id) DO UPDATE SET revision=NULL,dirty=dirty+1,last_error=''",[&source.id])?;
+    tx.execute("INSERT INTO source_catalog_state(source_id,dirty) VALUES(?1,1) ON CONFLICT(source_id) DO UPDATE SET revision=NULL,dirty=dirty+1,last_error=''",[&source.id])?;
+    tx.commit()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod image_publication_tests {
+    use super::*;
+
+    #[test]
+    fn image_registered_by_another_connection_after_staging_blocks_publication() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("media");
+        fs::create_dir(&root).unwrap();
+        let path = dir.path().join("catalog.sqlite");
+        let catalog = Catalog::open(&path).unwrap();
+        let source = catalog.add_source(&root).unwrap();
+        let db = Arc::new(Mutex::new(catalog));
+        save(&db, &source).unwrap();
+        let snapshot = read(&root).unwrap().unwrap();
+        let folder = root.join(".creativeshelf");
+        let original = fs::read(folder.join("catalog.json")).unwrap();
+        let staged = folder.join("staged-test.tmp");
+        fs::write(&staged, b"must never publish this audio-only snapshot").unwrap();
+        let mut other = Catalog::open(&path).unwrap();
+        other.register_image(&source, "new.png", None).unwrap();
+        let error = commit_snapshot(&db, &source, &folder, &staged, &snapshot,
+            Some(&snapshot.revision), 1).unwrap_err();
+        assert!(error.to_string().contains("Image metadata"));
+        assert_eq!(fs::read(folder.join("catalog.json")).unwrap(), original);
+        assert!(staged.exists()); // The save caller owns staging cleanup.
+        assert!(db.lock().unwrap().snapshot_states().unwrap()[0].dirty);
+    }
 }

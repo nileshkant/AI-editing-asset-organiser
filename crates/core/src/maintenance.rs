@@ -101,6 +101,7 @@ impl Catalog {
         if violations != 0 {
             return Err(invalid("Backup contains invalid references"));
         }
+        crate::image_catalog::validate_image_database(&source)?;
         // Search metadata is derived: a valid SQLite file must also agree with
         // its authoritative profiles before it can replace the live catalog.
         let stale: i64 = source.query_row(
