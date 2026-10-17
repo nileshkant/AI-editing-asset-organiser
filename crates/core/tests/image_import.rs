@@ -536,3 +536,27 @@ fn playback_and_audio_analysis_remain_responsive_during_large_image_decode() {
         "catalog/status stalled: {worst:?}"
     );
 }
+
+#[test]
+fn crash_lease_expiring_after_scheduler_startup_is_recovered_by_later_ticks() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let f = Fixture::new();
+    let stop = AtomicBool::new(false);
+    assert!(f.engine.tick("new-instance", &stop).unwrap().is_none());
+    picture(&f.root.join("one.png"), 30);
+    let id = f.select(
+        &[f.root.clone()],
+        NativeSelectionKind::Folders,
+        ImportMode::Images,
+    );
+    f.engine.tick("old-instance", &stop).unwrap();
+    f.db.lock().unwrap().db_connection().execute("UPDATE image_import_jobs SET state='running',lease_owner='crashed-instance',lease_until=?2 WHERE id=?1",rusqlite::params![id,soundshelf_core::jobs::now_secs()-1]).unwrap();
+    assert_eq!(
+        f.engine.tick("new-instance", &stop).unwrap().unwrap().id,
+        id
+    );
+    f.finish(&id);
+    let c = f.db.lock().unwrap();
+    let j = c.image_import_job(&id).unwrap();
+    assert_eq!((j.state, j.ready, j.total), (ImportState::Complete, 1, 1));
+}

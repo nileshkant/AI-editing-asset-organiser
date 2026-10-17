@@ -72,6 +72,9 @@ impl ImageImportEngine {
             if c.preferences().map_err(core_error)?.imports_paused {
                 return Ok(None);
             }
+            // A restarted app can arrive before the dead owner's lease expires.
+            // Revisit expiry during scheduling, not only once during startup.
+            c.recover_image_imports(now_secs())?;
             c.claim_next_image_import(owner, now_secs())?
         };
         let Some(job) = job else {
