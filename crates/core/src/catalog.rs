@@ -94,7 +94,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 10;
+pub const SCHEMA_VERSION: u32 = 11;
 
 pub(crate) fn upgrade_backup(db: &Connection, destination: &Path) -> Result<()> {
     let mut options = OpenOptions::new();
@@ -151,6 +151,7 @@ impl Catalog {
             tx.execute_batch(include_str!("settings_schema.sql"))?;
             tx.execute_batch(include_str!("search_profile_schema.sql"))?;
             tx.execute_batch(include_str!("image_schema.sql"))?;
+            tx.execute_batch(include_str!("image_jobs_schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         } else {
@@ -227,6 +228,7 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             if version < 8 { tx.execute_batch(include_str!("settings_schema.sql"))?; }
             if version < 9 { tx.execute_batch(include_str!("search_profile_schema.sql"))?; }
             if version < 10 { tx.execute_batch(include_str!("image_schema.sql"))?; }
+            if version < 11 { tx.execute_batch(include_str!("image_jobs_schema.sql"))?; }
             let violations: i64 = tx.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| r.get(0))?;
             if violations != 0 { return Err(invalid("Catalog has invalid references; upgrade rolled back")); }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
@@ -260,10 +262,14 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
     pub fn has_cached_profile(&self,hash:&str)->Result<bool> {
         Ok(self.db.query_row("SELECT EXISTS(SELECT 1 FROM analyses WHERE content_hash=?1 AND analyzer=?2)",params![hash,ANALYZER],|r|r.get(0))?)
     }
-    pub fn source(&self, id: &str) -> Result<Source> {
-        let mut source = self.db.query_row("SELECT id,name,root,generation,available,scope FROM sources WHERE id=?1", [id], |r| Ok(Source {
+    /// O(1) worker context without materializing a potentially large file-membership list.
+    pub fn source_header(&self, id: &str) -> Result<Source> {
+        self.db.query_row("SELECT id,name,root,generation,available,scope FROM sources WHERE id=?1", [id], |r| Ok(Source {
             id:r.get(0)?,name:r.get(1)?,root:r.get(2)?,generation:r.get(3)?,available:r.get(4)?,scope:r.get(5)?,files:vec![]
-        })).optional()?.ok_or_else(|| invalid("Source not found"))?;
+        })).optional()?.ok_or_else(|| invalid("Source not found"))
+    }
+    pub fn source(&self, id: &str) -> Result<Source> {
+        let mut source = self.source_header(id)?;
         source.files = self.source_files(&source.id, source.available)?;
         Ok(source)
     }
@@ -322,8 +328,12 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
     }
 
     pub fn publish(&mut self, source: &Source, id: &str, hash: &str, profile: &Profile) -> Result<()> {
+        self.publish_when(source,id,hash,profile,|_|Ok(()))
+    }
+    pub(crate) fn publish_when(&mut self,source:&Source,id:&str,hash:&str,profile:&Profile,fence:impl FnOnce(&rusqlite::Connection)->Result<()>)->Result<()> {
         validate_profile(profile)?;
-        let tx = self.db.transaction()?;
+        let tx = self.db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        fence(&tx)?;
         let valid: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sounds s JOIN sources f ON f.id=s.source_id WHERE s.id=?1 AND s.source_id=?2 AND s.content_hash=?3 AND f.generation=?4)",params![id,source.id,hash,source.generation],|r| r.get(0))?;
         if !valid { return Err(invalid("Media or source changed during analysis")); }
         tx.execute("INSERT INTO analyses(content_hash,analyzer,profile) VALUES(?1,?2,?3) ON CONFLICT(content_hash,analyzer) DO UPDATE SET profile=excluded.profile",params![hash,ANALYZER,serde_json::to_string(profile)?])?;

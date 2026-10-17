@@ -103,8 +103,12 @@ export async function inventory(root, allowInternalLinks = false) {
   }
   await walk(root); return entries.sort((a, b) => a.path.localeCompare(b.path));
 }
-export async function stageResources(media, bridge, target, stage) {
+export async function stageResources(media, bridge, target, stage, images = null) {
   binaryArchitecture(bridge, target);
+  if (images) {
+    binaryArchitecture(images.worker, target);
+    if (!Buffer.isBuffer(images.notices) || images.notices.length < 1 || images.notices.length > 2 * 1024 * 1024) fail('Image worker notices missing or oversized');
+  }
   // Stage is caller-owned and must be new; never reuse a directory containing stale inputs.
   await mkdir(stage, { recursive: false });
   const suffix = targets[target].platform === 'win32' ? '.exe' : '';
@@ -113,6 +117,7 @@ export async function stageResources(media, bridge, target, stage) {
     [`media/ffmpeg${suffix}`, media.files.ffmpeg.data], [`media/ffprobe${suffix}`, media.files.ffprobe.data],
     [`mcp/soundshelf-mcp${suffix}`, bridge], ['notices/FFMPEG.txt', media.files.notices.data],
     ['notices/MEDIA-PROVENANCE.json', Buffer.from(JSON.stringify({ version: media.entry.version, license: media.entry.license, sourceUrl: media.entry.sourceUrl, buildInstructions: media.entry.buildInstructions, configuration: media.entry.configuration }, null, 2))],
+    ...(images ? [[`images/creativeshelf-image-worker${suffix}`, images.worker], ['notices/IMAGE-ANALYSIS.txt', images.notices]] : []),
   ]) {
     const full = resolve(stage, path); await mkdir(dirname(full), { recursive: true });
     await writeFile(full, data, { flag: 'wx', mode: path.startsWith('notices/') ? 0o644 : 0o755 });
@@ -129,7 +134,7 @@ export async function inspectPackage(root, expectedResources, verifySignedBinary
     if (matches[0].sha256 !== expected.sha256) {
       // Code signing changes executable bytes. Only an independently verified publisher
       // signature can authorize that difference; text/provenance must match exactly.
-      if (!/^(media\/(ffmpeg|ffprobe)(\.exe)?|mcp\/soundshelf-mcp(\.exe)?)$/.test(expected.path) || !verifySignedBinary) fail(`Packaged resource changed: ${expected.path}`);
+      if (!/^(media\/(ffmpeg|ffprobe)(\.exe)?|mcp\/soundshelf-mcp(\.exe)?|images\/creativeshelf-image-worker(\.exe)?)$/.test(expected.path) || !verifySignedBinary) fail(`Packaged resource changed: ${expected.path}`);
       await verifySignedBinary(resolve(root, matches[0].path));
       matches[0].preSigningSha256 = expected.sha256;
     }

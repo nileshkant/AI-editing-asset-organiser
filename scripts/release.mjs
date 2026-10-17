@@ -11,6 +11,8 @@ function run(command, args) {
 try {
   const action = process.argv[2];
   if (!['check', 'build', 'inspect', 'local', 'inspect-local'].includes(action)) throw new Error('Use release.mjs check|build|inspect|local|inspect-local; inspection requires extracted app directory and artifact path.');
+  const imageDevelopment = process.env.CREATIVESHELF_IMAGE_DEVELOPMENT === '1';
+  if (imageDevelopment && action === 'build') throw new Error('Image development packaging is local-only until SS-048 mixed persistence ships');
   const target = hostTarget(), suffix = process.platform === 'win32' ? '.exe' : '';
   if (action === 'inspect' || action === 'inspect-local') {
     const stage = JSON.parse(await readFile('release-reports/stage.json', 'utf8'));
@@ -22,7 +24,7 @@ try {
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 1024 * 1024 * 1024) throw new Error('Invalid installer artifact');
     if (!local) verifyArtifact(artifact, app, settings);
     const report = await inspectPackage(app, stage.entries, async path => { binaryArchitecture(await readFile(path), target); verifyResource(path, settings); });
-    const resourcePattern = /\/(media\/(ffmpeg|ffprobe)(\.exe)?|mcp\/soundshelf-mcp(\.exe)?)$/;
+    const resourcePattern = /\/(media\/(ffmpeg|ffprobe)(\.exe)?|mcp\/soundshelf-mcp(\.exe)?|images\/creativeshelf-image-worker(\.exe)?)$/;
     for (const entry of report.entries.filter(e => resourcePattern.test('/' + e.path))) {
       const path = resolve(app, entry.path); binaryArchitecture(await readFile(path), target);
       if (!local && process.platform !== 'linux') verifyResource(path, settings);
@@ -61,7 +63,15 @@ try {
       run(process.execPath, ['scripts/cargo.mjs', 'build', '-p', 'soundshelf-agent', '--bin', 'soundshelf-mcp', '--release', '--locked', '--target', target]);
       const bridge = await readFile(`target/${target}/release/soundshelf-mcp${suffix}`);
       const stageDirectory = resolve(local ? 'src-tauri/release-assets-local' : 'src-tauri/release-assets');
-      const stage = await stageResources(media, bridge, target, stageDirectory);
+      let images = null;
+      if (imageDevelopment) {
+        run(process.execPath, ['scripts/cargo.mjs', 'build', '-p', 'soundshelf-core', '--bin', 'creativeshelf-image-worker', '--release', '--locked', '--target', target]);
+        const licenseRoot = 'docs/licenses/image-analysis';
+        const names = (await readdir(licenseRoot)).filter(n => /\.(txt|md)$/.test(n)).sort();
+        const notices = Buffer.concat(await Promise.all(names.map(async n => Buffer.from(`\n=== ${n} ===\n${await readFile(resolve(licenseRoot,n),'utf8')}\n`))));
+        images = { worker: await readFile(`target/${target}/release/creativeshelf-image-worker${suffix}`), notices };
+      }
+      const stage = await stageResources(media, bridge, target, stageDirectory, images);
       if (!local) for (const name of [`media/ffmpeg${suffix}`, `media/ffprobe${suffix}`, `mcp/soundshelf-mcp${suffix}`]) signResource(resolve(stageDirectory, name), settings);
       stage.entries = await inventory(stageDirectory); stage.bytes = stage.entries.reduce((n, e) => n + e.bytes, 0);
       await mkdir('release-reports', { recursive: true });
@@ -77,7 +87,7 @@ try {
       const commit = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' });
       if (commit.status !== 0) throw new Error('Release commit unavailable');
       await writeFile('release-reports/stage.json', JSON.stringify({ ...stage, resources: undefined, purpose: local ? 'local-development-only' : 'signed-release-candidate', workspaceDirty: Boolean(dirty.stdout.trim()), target, commit: commit.stdout.trim(), cargoLockSha256: sha(await readFile('Cargo.lock')), npmLockSha256: sha(await readFile('package-lock.json')) }, null, 2));
-      run(process.execPath, ['scripts/desktop.mjs', 'build', '--target', target, '--config', 'src-tauri/tauri.staged.conf.json', ...(local ? ['--no-sign'] : [])]);
+      run(process.execPath, ['scripts/desktop.mjs', 'build', '--target', target, '--config', 'src-tauri/tauri.staged.conf.json', ...(local ? ['--no-sign'] : []), ...(imageDevelopment ? ['--features', 'image-development'] : [])]);
       if (process.platform === 'linux') {
         for (const directory of ['appimage', 'deb']) for (const name of await readdir(`target/${target}/release/bundle/${directory}`)) if (/\.(AppImage|deb)$/.test(name)) signLinuxArtifact(resolve(`target/${target}/release/bundle/${directory}`, name), settings);
       }

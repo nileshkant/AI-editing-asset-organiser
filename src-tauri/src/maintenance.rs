@@ -1,4 +1,5 @@
 use crate::service::AppState;
+use tauri::Emitter;
 use soundshelf_core::maintenance::Preferences;
 use tauri_plugin_dialog::DialogExt;
 #[derive(serde::Serialize)]
@@ -102,6 +103,7 @@ pub async fn database_restore(
     let progress = state.progress.clone();
     let imports = state.catalog_imports.clone();
     let roots = state.catalog_roots.clone();
+    let image_previews = state.image_imports.previews.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let picked = app
             .dialog()
@@ -123,6 +125,8 @@ pub async fn database_restore(
                     .restore_database(&path, &rollback)
             })
             .map_err(|e| e.to_string())?;
+        image_previews.invalidate().map_err(|e|e.to_string())?;
+        let _=app.emit("image-import-reset",());
         progress.lock().map_err(|e| e.to_string())?.clear();
         imports.lock().map_err(|e| e.to_string())?.clear();
         roots.lock().map_err(|e| e.to_string())?.clear();

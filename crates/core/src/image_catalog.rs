@@ -180,6 +180,9 @@ impl Catalog {
         relative: &str,
         content_hash: Option<&str>,
     ) -> Result<ImageAsset> {
+        self.register_image_when(source,relative,content_hash,|_|Ok(()))
+    }
+    pub(crate) fn register_image_when(&mut self,source:&Source,relative:&str,content_hash:Option<&str>,fence:impl FnOnce(&Connection)->Result<()>)->Result<ImageAsset>{
         if let Some(h) = content_hash {
             hash(h)?;
         }
@@ -187,6 +190,7 @@ impl Catalog {
             .db
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         check_source(&tx, source, relative)?;
+        fence(&tx)?;
         let existing: Option<(String, String)> = tx
             .query_row(
                 "SELECT id,kind FROM asset_registry WHERE source_id=?1 AND relative_path=?2",
@@ -330,10 +334,17 @@ impl Catalog {
         expected_version: &str,
         profile: &ImageProfile,
     ) -> Result<ImageAsset> {
+        self.publish_image_when(source,id,expected_version,profile,|_|Ok(()))
+    }
+
+    /// A shared transaction for worker ownership/cancellation fences and publication.
+    /// The fence may update only bounded job metadata; it performs no file work.
+    pub(crate) fn publish_image_when(
+        &mut self,source:&Source,id:&str,expected_version:&str,profile:&ImageProfile,
+        fence:impl FnOnce(&Connection)->Result<()>,
+    )->Result<ImageAsset>{
         hash(expected_version)?;
-        let tx = self
-            .db
-            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let tx = self.db.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let mut asset = load(&tx, id)?;
         if asset.header.source_id != source.id {
             return Err(invalid("Image outside selected source"));
@@ -358,15 +369,16 @@ impl Catalog {
             }
         }
         tx.execute(
-            "INSERT OR IGNORE INTO image_analyses VALUES(?1,?2,?3)",
+            "INSERT OR IGNORE INTO image_analyses(content_hash,analyzer_version,profile) VALUES(?1,?2,?3)",
             params![
                 expected_version,
                 profile.analyzer_version,
                 serde_json::to_string(profile)?
             ],
         )?;
+        fence(&tx)?;
         tx.execute(
-            "UPDATE image_assets SET analyzer_version=?2,technical_state='ready' WHERE id=?1",
+            "UPDATE image_assets SET analyzer_version=?2,technical_state='ready',availability='available' WHERE id=?1",
             params![id, profile.analyzer_version],
         )?;
         let result = load(&tx, id)?;
@@ -529,7 +541,8 @@ impl Catalog {
         Ok(self.db.query_row("SELECT EXISTS(SELECT 1 FROM asset_registry WHERE source_id=?1 AND kind IN ('image','element'))",[source_id],|r|r.get(0))?)
     }
     pub fn require_audio_only_source(&self, source_id: &str) -> Result<()> {
-        if self.source_has_images(source_id)? {
+        let importing:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM image_source_identity WHERE source_id=?1) OR EXISTS(SELECT 1 FROM image_import_jobs j WHERE j.source_id=?1 AND (j.state IN ('queued','running') OR EXISTS(SELECT 1 FROM image_import_items i WHERE i.job_id=j.id AND i.media_kind='image' AND i.state IN ('pending','running'))))",[source_id],|r|r.get(0))?;
+        if self.source_has_images(source_id)? || importing {
             return Err(invalid(
                 "Image metadata requires mixed catalog support; audio-only operation is blocked",
             ));

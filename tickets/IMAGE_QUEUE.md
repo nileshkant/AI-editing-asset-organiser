@@ -1,7 +1,7 @@
 # Image phase — strict execution queue
 
 Date: 16 October 2026
-Status: 39 tickets; SS-040–042 merged, SS-043 implemented pending its PR; SS-044–078 not-started
+Status: 39 tickets; SS-040–042 merged, SS-043 in review in PR #43; SS-044–078 not-started
 Current stop: finish publishing roadmap and SS-043 PRs, then stop. The user explicitly deferred SS-044 on 17 October 2026.
 Parent: [SS-032](SS-032.md)
 Specification: [Image phase plan](../docs/IMAGE_ASSET_PHASE_PLAN.md)
@@ -52,7 +52,7 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 1. [SS-040: Image contracts and compatibility fixtures](SS-040.md) — complete; [PR #39](https://github.com/nileshkant/AI-editing-asset-organiser/pull/39); predecessor: verified merged foundation.
 2. [SS-041: Additive asset identity and image schema migration](SS-041.md) — complete; [PR #40](https://github.com/nileshkant/AI-editing-asset-organiser/pull/40), merged; predecessor: SS-040.
 3. [SS-042: Bounded image decoding and technical analysis](SS-042.md) — complete; [PR #41](https://github.com/nileshkant/AI-editing-asset-organiser/pull/41), merged; predecessor: SS-041.
-4. [SS-043: Durable image import jobs and scoped selection](SS-043.md) — partial; implementation committed; own PR follows this separate roadmap PR; predecessor: SS-042.
+4. [SS-043: Durable image import jobs and scoped selection](SS-043.md) — in-review; [PR #43](https://github.com/nileshkant/AI-editing-asset-organiser/pull/43), merge after roadmap [PR #42](https://github.com/nileshkant/AI-editing-asset-organiser/pull/42); predecessor: SS-042.
 5. [SS-044: Versioned thumbnails and secure preview cache](SS-044.md) — not-started; predecessor: SS-043.
 6. [SS-045: Image gallery and inspection workspace](SS-045.md) — not-started; predecessor: SS-044.
 7. [SS-046: Image annotations and reversible bulk tagging](SS-046.md) — not-started; predecessor: SS-045.

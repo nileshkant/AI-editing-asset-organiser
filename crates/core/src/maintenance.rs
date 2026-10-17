@@ -102,6 +102,7 @@ impl Catalog {
             return Err(invalid("Backup contains invalid references"));
         }
         crate::image_catalog::validate_image_database(&source)?;
+        crate::image_jobs::validate_database(&source).map_err(|_|invalid("Backup image import metadata is inconsistent"))?;
         // Search metadata is derived: a valid SQLite file must also agree with
         // its authoritative profiles before it can replace the live catalog.
         let stale: i64 = source.query_row(
@@ -110,7 +111,7 @@ impl Catalog {
         )?;
         if stale != 0 { return Err(invalid("Backup search metadata is inconsistent")); }
         let active: i64 = self.db.query_row(
-            "SELECT count(*) FROM jobs WHERE state IN ('queued','running')",
+            "SELECT (SELECT count(*) FROM jobs WHERE state IN ('queued','running'))+(SELECT count(*) FROM image_import_jobs WHERE state IN ('queued','running'))",
             [],
             |r| r.get(0),
         )?;
@@ -123,6 +124,8 @@ impl Catalog {
             copy.run_to_completion(128, Duration::from_millis(5), None)?;
         }
         self.db.execute("UPDATE jobs SET state='cancelled',lease_owner=NULL,lease_until=NULL,status='Cancelled by database restore' WHERE state IN ('queued','running')",[])?;
+        self.db.execute("UPDATE image_import_items SET state='pending' WHERE state='running' AND job_id IN (SELECT id FROM image_import_jobs WHERE state IN ('queued','running'))",[])?;
+        self.db.execute("UPDATE image_import_jobs SET state='cancelled',lease_owner=NULL,lease_until=NULL,error_code='CANCELLED',sequence=sequence+1 WHERE state IN ('queued','running')",[])?;
         // Retain saved revisions: newer source snapshots cause a visible conflict
         // instead of overwriting post-backup source annotations in the background.
         self.db.execute("UPDATE source_catalog_state SET dirty=dirty+1,last_error='Restored backup: source metadata needs review; newer snapshots are protected by revision checks'",[])?;

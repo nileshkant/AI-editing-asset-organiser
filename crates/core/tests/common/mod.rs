@@ -8,8 +8,18 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
         images, 0,
         "Only empty image storage can be removed from legacy test fixtures"
     );
+    assert_eq!(db.query_row("SELECT count(*) FROM image_import_jobs", [], |r| r.get::<_,i64>(0)).unwrap(), 0,
+        "Only empty image import storage can be removed from legacy fixtures");
     db.execute_batch(
         "
+      DROP TRIGGER image_import_audio_conflict;
+      DROP TRIGGER audio_import_image_conflict_insert;
+      DROP TRIGGER audio_import_image_conflict_update;
+      DROP TABLE image_analysis_warnings;
+      DROP TABLE image_source_identity;
+      DROP TABLE image_import_items;
+      DROP TABLE image_import_jobs;
+      DROP TABLE image_import_budget;
       DROP TRIGGER registry_sound_insert;
       DROP TRIGGER registry_sound_update;
       DROP TRIGGER registry_sound_delete;

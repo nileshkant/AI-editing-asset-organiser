@@ -223,7 +223,7 @@ impl Catalog {
         if let Some(id)=source_id {
             self.require_audio_only_source(id)?;
         } else {
-            let images:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM image_assets)",[],|r|r.get(0))?;
+            let images:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM image_source_identity) OR EXISTS(SELECT 1 FROM image_assets) OR EXISTS(SELECT 1 FROM image_import_jobs WHERE state IN ('queued','running')) OR EXISTS(SELECT 1 FROM image_import_items WHERE media_kind='image' AND state IN ('pending','running'))",[],|r|r.get(0))?;
             if images { return Err(invalid("Image metadata requires mixed catalog support; audio-only portable export is blocked")); }
         }
         let sounds=if let Some(id)=source_id { self.scoped_sounds(&[id.to_owned()])? } else { self.all_sounds()? };
