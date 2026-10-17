@@ -4,6 +4,8 @@ import { call } from './api';
 import { usePlayback } from './hooks/usePlayback';
 import { useAudioSearch } from './hooks/useAudioSearch';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useImageImports } from './hooks/useImageImports';
+import { ImageImports } from './components/views/ImageImports';
 import { useDragDrop } from './hooks/useDragDrop';
 import { Sidebar } from './components/layout/Sidebar';
 import { PageHeader } from './components/layout/PageHeader';
@@ -28,7 +30,9 @@ export function App() {
   // Custom hooks
   const search = useAudioSearch(page);
   const playback = usePlayback(selected, search.results.items);
-  const { dropping } = useDragDrop(search.importPath, setError);
+  const openImports = useCallback(() => setPage('imports'), []);
+  const imageImports = useImageImports(setError, openImports);
+  const { dropping } = useDragDrop(search.importPath, setError, { ready: imageImports.available, enabled: imageImports.enabled });
 
   const guard = useCallback(
     async <T,>(task: () => Promise<T>): Promise<T | undefined> => {
@@ -46,7 +50,12 @@ export function App() {
   const closeDetails = useCallback(() => {
     ++selectionId.current;
     setSelected(null);
-    requestAnimationFrame(() => document.querySelectorAll<HTMLButtonElement>('.sound-select')[focusedIndex]?.focus());
+    const previousFocus = document.activeElement;
+    requestAnimationFrame(() => {
+      // A newer keyboard action (for example / to search) owns its focus.
+      if (document.activeElement === previousFocus || document.activeElement === document.body)
+        document.querySelectorAll<HTMLButtonElement>('.sound-select')[focusedIndex]?.focus();
+    });
   }, [focusedIndex]);
 
   const select = useCallback(
@@ -153,7 +162,7 @@ export function App() {
       />
 
       <main id="workspace" tabIndex={-1}>
-        <PageHeader page={page} onAddFolder={search.addFolder} onAddFiles={search.addFiles} />
+        <PageHeader page={page} onAddFolder={page === 'imports' && imageImports.enabled ? () => void imageImports.choose(true) : search.addFolder} onAddFiles={page === 'imports' && imageImports.enabled ? () => void imageImports.choose(false) : search.addFiles} />
 
         {(error || search.error || playback.error) && (
           <div className="error" role="alert">
@@ -363,11 +372,14 @@ export function App() {
         )}
 
         {page === 'imports' && (
-          <ImportsView
+          <div className="imports-workspace">
+          <ImageImports controller={imageImports} />
+          {(search.jobs.length > 0 || (!imageImports.enabled && imageImports.jobs.length === 0)) && <ImportsView
             jobs={search.jobs}
             roots={search.roots}
             onCancelImport={() => void handleCancelImport()}
-          />
+          />}
+          </div>
         )}
 
         {page === 'settings' && (

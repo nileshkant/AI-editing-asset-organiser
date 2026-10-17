@@ -129,3 +129,15 @@ export function exportClip(destinationId: string, clipId: string, expectedRevisi
 export function cancelExport(destinationId: string): Promise<void> {
   return call('cancel_export', { destinationId });
 }
+
+// Opaque preview IDs authorize only selections approved by native OS adapters.
+export const imageImportCapabilities = () => call<import('./types').ImageImportCapabilities>('image_import_capabilities');
+export const chooseMediaImport = (folders: boolean) => call<string[]>('choose_media_import', { folders });
+export const previewMediaImport = (requestId: string, paths: string[], mode: import('./types').ImageImportMode) => call<import('./types').MediaImportPreview>('preview_media_import', { requestId, paths, mode });
+export const cancelMediaPreview = (requestId: string, previewId: string | null) => call<void>('cancel_media_preview', { requestId, previewId });
+export const confirmMediaImport = (previewId: string) => call<import('./types').ImageImportJob[]>('confirm_media_import', { previewId });
+export const imageImportJobs = (after: string | null = null) => call<import('./types').ImageImportJob[]>('image_import_jobs', { after });
+export const imageImportItems = (id: string, after: string | null = null) => call<import('./types').ImageImportItemPage>('image_import_items', { id, after });
+export const cancelImageImport = (job: import('./types').ImageImportJob) => call<import('./types').ImageImportJob>('cancel_image_import', { id: job.id, sourceGeneration: job.source_generation });
+export const retryImageImport = (job: import('./types').ImageImportJob) => call<import('./types').ImageImportJob>('retry_image_import', { id: job.id, sourceGeneration: job.source_generation });
+export const importedImages = (sourceId: string, after: string | null = null) => call<import('./types').ImportedImagePage>('imported_images', { sourceId, after });

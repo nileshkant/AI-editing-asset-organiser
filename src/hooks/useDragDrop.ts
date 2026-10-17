@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
-export function useDragDrop(importPath: (path: string) => Promise<void>, setError: (e: string) => void) {
+export function useDragDrop(importPath: (path: string) => Promise<void>, setError: (e: string) => void, imageMode?: { ready: boolean; enabled: boolean }) {
   const [dropping, setDropping] = useState(false);
 
   useEffect(() => {
@@ -15,6 +15,7 @@ export function useDragDrop(importPath: (path: string) => Promise<void>, setErro
         const payload = event.payload;
         setDropping(payload.type === "over" || payload.type === "enter");
         if (payload.type === "drop") {
+          if (imageMode && (!imageMode.ready || imageMode.enabled)) return;
           const paths = payload.paths;
           void (async () => {
              if (paths.length > 256) {setError("Drop up to 256 paths at a time");return;}
@@ -36,7 +37,7 @@ export function useDragDrop(importPath: (path: string) => Promise<void>, setErro
       disposed = true;
       unlisten?.();
     };
-  }, [importPath, setError]);
+  }, [importPath, setError, imageMode?.ready, imageMode?.enabled]);
 
   return { dropping };
 }

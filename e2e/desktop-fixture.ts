@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test';
 
 /** Renderer contract fixture only. Native media is verified in Rust/FFmpeg tests. */
-export async function installDesktopFixture(page: Page) {
-  await page.addInitScript(() => {
+export async function installDesktopFixture(page: Page, images = false) {
+  await page.addInitScript((images: boolean) => {
     const profile = {
       duration: 10, sample_rate: 48000, channels: 2, frames: 480000,
       peak: 0.7, rms: 0.2, description: 'Measured stereo recording', tags: ['stereo', 'transient'],
@@ -17,6 +17,7 @@ export async function installDesktopFixture(page: Page) {
       root: '/Volumes/Production/Audio/Field recordings with a long folder name/Session 2026/Originals',
       generation: 0, available: true, scope: 'folder', files: [] };
     let playback = { sound_id: null as string | null, state: 'stopped', position_seconds: 0, duration_seconds: 0, volume: 1, peak: 0, error: null };
+    let mediaJob: any = null;
     const calls: { command: string; args: any }[] = [];
     Object.assign(window, {
       isTauri: true,
@@ -31,6 +32,14 @@ export async function installDesktopFixture(page: Page) {
             case 'plugin:event|listen': return 1;
             case 'plugin:event|unlisten': return;
             case 'app_info': return { version: '0.1.0-test', data_directory: '/disposable-test-data', desktop: true, media_tools: true };
+            case 'image_import_capabilities': return { enabled: images, reference_in_place: true, production_images: false };
+            case 'image_import_jobs': return mediaJob ? [mediaJob] : [];
+            case 'choose_media_import': return ['/素材/' + 'long-folder-'.repeat(30)];
+            case 'preview_media_import': return { id: 'native-preview', request_id: args.requestId, mode: args.mode, scopes: [{ root: '/素材/' + 'long-folder-'.repeat(30), recursive: args.mode === 'mixed', files: args.mode === 'images' ? ['chosen.png'] : [] }], images: 2, audio: 0, unsupported: 1, inaccessible: 0, complete: true, issues: [], reference_in_place: true, expires_at: Date.now() / 1000 + 300 };
+            case 'cancel_media_preview': return;
+            case 'confirm_media_import': mediaJob = { id: 'image-job', source_id: 'source', source_generation: '0', sequence: '10', mode: 'mixed', state: 'failed', phase: 'complete', discovery_complete: true, history_truncated: false, total: 2, completed: 2, ready: 1, reused: 0, failed: 1, unsupported: 0, current: '', error_code: 'DECODE_FAILED' }; return [mediaJob];
+            case 'image_import_items': return { items: [{ job_id: 'image-job', relative_path: 'chosen.png', media_kind: 'image', state: 'ready', asset_id: 'image-one', content_hash: 'a'.repeat(64), error_code: null, attempts: 1, warnings: ['assumed_srgb'] }, { job_id: 'image-job', relative_path: 'corrupt.png', media_kind: 'image', state: 'failed', asset_id: null, content_hash: null, error_code: 'DECODE_FAILED', attempts: 1, warnings: [] }], next_after: null };
+            case 'imported_images': return { items: [{ header: { id: 'image-one', kind: 'image', source_id: 'source', relative_path: 'chosen.png', content_hash: 'a'.repeat(64), technical_state: 'ready', availability: 'available', enrichment_state: 'disabled' }, width: 640, height: 480, annotation_revision: 1 }], next_after: null };
             case 'jobs': return [];
             case 'sources': return [source];
             case 'search_sounds': {
@@ -61,5 +70,5 @@ export async function installDesktopFixture(page: Page) {
         },
       },
     });
-  });
+  }, images);
 }

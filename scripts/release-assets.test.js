@@ -77,3 +77,18 @@ it('does not follow package symlinks or approve linked input files', async () =>
 it('rejects foreign target even with otherwise approved bytes', async () => {
   await expect(approvedMedia(await fixture(), 'aarch64-unknown-linux-gnu', root)).rejects.toThrow('Unsupported');
 });
+it('stages an opt-in image helper and immutable notices with exact package verification', async () => {
+  const media = await approvedMedia(await fixture(), target, root);
+  const stage = join(root, 'image-stage');
+  await expect(stageResources(media, macho(), target, stage, { worker: macho(0x1000007), notices: Buffer.from('notice') })).rejects.toThrow('target-specific');
+  const result = await stageResources(media, macho(), target, stage, { worker: macho(), notices: Buffer.from('retained image decoder notices') });
+  expect(result.entries).toHaveLength(7);
+  expect(Object.values(result.resources)).toContain('images/creativeshelf-image-worker');
+  expect(Object.values(result.resources)).toContain('notices/IMAGE-ANALYSIS.txt');
+  await inspectPackage(stage, result.entries);
+  await writeFile(join(stage, 'images/creativeshelf-image-worker'), Buffer.concat([macho(), Buffer.from('signed bytes')]));
+  await expect(inspectPackage(stage, result.entries)).rejects.toThrow('changed');
+  let verified = 0; await inspectPackage(stage, result.entries, async () => { verified++; }); expect(verified).toBe(1);
+  await writeFile(join(stage, 'notices/IMAGE-ANALYSIS.txt'), 'changed');
+  await expect(inspectPackage(stage, result.entries, async () => {})).rejects.toThrow('changed');
+});

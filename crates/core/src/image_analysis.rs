@@ -106,7 +106,7 @@ impl ImageSelection {
         c.validate_source_entry(source_id, relative)
             .map_err(|_| AnalysisError::PermissionDenied)?;
         let source = c
-            .source(source_id)
+            .source_header(source_id)
             .map_err(|_| AnalysisError::SourceUnavailable)?;
         if !source.available {
             return Err(AnalysisError::SourceUnavailable);
@@ -238,6 +238,9 @@ impl VerifiedImageAnalysis {
         &self.analysis
     }
     pub fn publish(self, c: &mut Catalog) -> Result<crate::image_contracts::ImageAsset> {
+        self.publish_when(c,|_|Ok(()))
+    }
+    pub(crate) fn publish_when(self,c:&mut Catalog,fence:impl FnOnce(&rusqlite::Connection)->crate::Result<()>)->Result<crate::image_contracts::ImageAsset>{
         let current = c
             .image(&self.request.asset_id, Some(&self.request.expected))
             .map_err(|_| AnalysisError::SourceChanged)?;
@@ -246,11 +249,12 @@ impl VerifiedImageAnalysis {
         {
             return Err(AnalysisError::SourceChanged);
         }
-        c.publish_image(
+        c.publish_image_when(
             &self.request.selection.source,
             &self.request.asset_id,
             &self.request.expected,
             &self.analysis.profile,
+            fence,
         )
         .map_err(|_| AnalysisError::SourceChanged)
     }

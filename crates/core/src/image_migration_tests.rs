@@ -157,7 +157,7 @@ fn populated_v9_upgrade_preserves_audio_clips_memberships_jobs_preferences_and_b
     let backup = fs::read_dir(dir.path())
         .unwrap()
         .map(|e| e.unwrap().path())
-        .find(|p| p.to_string_lossy().contains("pre-v10-"))
+        .find(|p| p.to_string_lossy().contains(&format!("pre-v{}-", SCHEMA_VERSION)))
         .unwrap();
     let backup = Connection::open(&backup).unwrap();
     assert_eq!(original_version(&backup), 9);
@@ -229,7 +229,7 @@ fn migration_midpoint_failure_rolls_back_backfill_triggers_and_version() {
         .unwrap()
         .file_name()
         .to_string_lossy()
-        .contains("pre-v10-")));
+        .contains(&format!("pre-v{}-", SCHEMA_VERSION))));
 }
 
 #[test]

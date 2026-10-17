@@ -42,3 +42,9 @@ mod image_migration_tests;
 
 pub mod image_analysis;
 mod image_decode;
+
+pub mod image_jobs;
+
+pub mod image_import_preview;
+
+pub mod image_import;

@@ -28,3 +28,6 @@ png = "=0.18.1"
 [features]
 # Compiles an explicit narrow-binary integration fixture only in the media build job.
 packaged-media-qualification = []
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }

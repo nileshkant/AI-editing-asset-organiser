@@ -93,3 +93,14 @@
 .mcp-reference p, .mcp-reference li { white-space: pre-line; }
 .settings-card ol { padding-left: 24px; line-height: 1.65; }
 .settings-card ol li { margin: 12px 0; }
+
+.image-import-controls, .imports-workspace > .job-row { margin: 1rem; }
+.image-import-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .75rem; }
+.image-import-dialog { max-width: min(44rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; }
+.image-import-dialog .path-text, .image-import-items .path-text { overflow-wrap: anywhere; white-space: normal; }
+.image-import-items { padding-inline-start: 1.25rem; }
+.image-import-items li { margin-block: .5rem; }
+.image-import-controls select { max-width: 100%; margin-inline-start: .5rem; }
+
+.imports-workspace { flex: 1; min-height: 0; overflow: auto; }
+.job-heading .import-error { color: var(--danger); }

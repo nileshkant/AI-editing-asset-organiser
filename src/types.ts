@@ -213,3 +213,28 @@ export type ExportResult = {
   sound_id: string | null;
   warning: string | null;
 };
+
+export type ImageImportMode = 'images' | 'mixed';
+export type ImageImportError = 'INVALID_ARGUMENT' | 'PERMISSION_DENIED' | 'SOURCE_CHANGED' | 'SOURCE_UNAVAILABLE' | 'FILE_MISSING' | 'SOURCE_CONFLICT' | 'EXISTING_CATALOG' | 'SOURCE_OVERLAP' | 'QUEUE_FULL' | 'LIMIT_EXCEEDED' | 'NOT_FOUND' | 'LEASE_LOST' | 'CANCELLED' | 'DISCOVERY_INCOMPLETE' | 'DECODE_FAILED' | 'WRONG_ASSET_KIND' | 'INACCESSIBLE' | 'UNSUPPORTED_ANIMATION' | 'UNSUPPORTED_COLOR_PROFILE' | 'AUDIO_DECODE_FAILED' | 'WORKER_UNAVAILABLE' | 'BUSY' | 'TIMED_OUT' | 'UNSUPPORTED_FORMAT' | 'FILTERED_MEDIA' | 'NO_ELIGIBLE_FILES' | 'INTERNAL';
+export type ImageImportJob = {
+  id: string; source_id: string; source_generation: string; sequence: string;
+  mode: ImageImportMode; state: 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
+  phase: 'discovery' | 'analysis' | 'complete'; discovery_complete: boolean; history_truncated: boolean;
+  total: number; completed: number; ready: number; reused: number; failed: number; unsupported: number;
+  current: string; error_code: ImageImportError | null;
+};
+export type MediaImportPreview = {
+  id: string; request_id: string; mode: ImageImportMode;
+  scopes: { root: string; recursive: boolean; files: string[] }[];
+  images: number; audio: number; unsupported: number; inaccessible: number; complete: boolean;
+  issues: { path: string; code: ImageImportError }[]; reference_in_place: boolean; expires_at: number;
+};
+export type ImageImportItem = {
+  job_id: string; relative_path: string; media_kind: 'audio' | 'image' | 'unsupported';
+  state: 'pending' | 'running' | 'ready' | 'failed' | 'unsupported'; asset_id: string | null;
+  content_hash: string | null; error_code: ImageImportError | null; attempts: number;
+  warnings: ('extension_mismatch' | 'assumed_srgb' | 'high_bit_depth_display8')[];
+};
+export type ImageImportItemPage = { items: ImageImportItem[]; next_after: string | null };
+export type ImportedImagePage = { items: { header: import('./contracts/imageV1').ImageHeader; width: number | null; height: number | null; annotation_revision: number }[]; next_after: string | null };
+export type ImageImportCapabilities = { enabled: boolean; reference_in_place: boolean; production_images: boolean };
