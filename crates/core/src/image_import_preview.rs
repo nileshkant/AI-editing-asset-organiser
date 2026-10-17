@@ -861,6 +861,13 @@ impl MediaImportPreviews {
                 if folder_stamps.len() > 131072 {
                     return Err(E::LimitExceeded);
                 }
+                image_jobs::prune_budget(
+                    &tx,
+                    0,
+                    folder_stamps
+                        .len()
+                        .saturating_sub(serde_json::to_vec(&job.folder_stamps)?.len()),
+                )?;
                 tx.execute(
                     "UPDATE image_import_jobs SET root_stamp=?2,folder_stamps=?3 WHERE id=?1",
                     params![job.id, stamp, folder_stamps],

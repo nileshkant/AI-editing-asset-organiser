@@ -408,7 +408,7 @@ pub(crate) fn enqueue_selection_on(
     load_job(db, &id)
 }
 /// Evict only bounded transient terminal history. Asset records/annotations remain.
-fn prune_budget(db: &Connection, rows: usize, bytes: usize) -> Result<()> {
+pub(crate) fn prune_budget(db: &Connection, rows: usize, bytes: usize) -> Result<()> {
     for _ in 0..128 {
         let (stored_rows, stored_bytes): (i64, i64) = db.query_row(
             "SELECT rows,bytes FROM image_import_budget WHERE id=1",
@@ -501,6 +501,13 @@ impl Catalog {
             old.mode,
             old.paths,
             old.folders,
+        )?;
+        prune_budget(
+            &tx,
+            0,
+            serde_json::to_vec(&old.folder_stamps)?
+                .len()
+                .saturating_sub(2),
         )?;
         tx.execute(
             "UPDATE image_import_jobs SET root_stamp=?2,folder_stamps=?3 WHERE id=?1",

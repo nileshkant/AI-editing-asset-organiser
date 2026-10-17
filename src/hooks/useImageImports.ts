@@ -41,7 +41,7 @@ export function useImageImports(onError: (message: string) => void, onOpen: () =
       if (batch.length < 50) break;
       const next = batch.at(-1)?.id; if (!next || next === after) break; after = next;
     }
-    if (alive.current && revision === databaseEpoch.current) setJobs(old => all.reduce(mergeImageJob, old));
+    if (alive.current && revision === databaseEpoch.current) setJobs(old => { const retained = new Set(all.map(j => j.id)); return all.reduce(mergeImageJob, old.filter(j => retained.has(j.id))); });
   }, []);
   useEffect(() => {
     alive.current = true;
@@ -88,12 +88,12 @@ export function useImageImports(onError: (message: string) => void, onOpen: () =
     pending.current = true; setConfirming(true); setPreviewError('');
     try {
       const created = await api.confirmMediaImport(preview.id);
-      if (alive.current) { setJobs(old => created.reduce(mergeImageJob, old)); setPreview(null); request.current = null; currentPreview.current = null; }
+      if (alive.current) { ++databaseEpoch.current; setJobs(old => created.reduce(mergeImageJob, old)); setPreview(null); request.current = null; currentPreview.current = null; }
     } catch (e) { if (alive.current) setPreviewError(String(e)); }
     finally { pending.current = false; if (alive.current) setConfirming(false); }
   }, [preview]);
   const action = useCallback(async (job: ImageImportJob, retry: boolean) => {
-    try { const result = await (retry ? api.retryImageImport(job) : api.cancelImageImport(job)); if (alive.current) setJobs(old => mergeImageJob(old, result)); } catch (e) { if (alive.current) onError(String(e)); }
+    try { const result = await (retry ? api.retryImageImport(job) : api.cancelImageImport(job)); if (alive.current) { ++databaseEpoch.current; setJobs(old => mergeImageJob(old, result)); } } catch (e) { if (alive.current) onError(String(e)); }
   }, [onError]);
   return { returnFocus, enabled, available, jobs, mode, setMode, preview, preparing, confirming, previewError, choose, close, confirm, action };
 }

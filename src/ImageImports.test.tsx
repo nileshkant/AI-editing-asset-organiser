@@ -15,7 +15,7 @@ const preview: MediaImportPreview = { id: 'preview', request_id: 'request', mode
 let backendJobs: ImageImportJob[];
 beforeEach(() => {
   listeners.clear(); invoke.mockReset(); unlisten.mockReset(); backendJobs = [];
-  invoke.mockImplementation((command: string) => Promise.resolve(command === 'image_import_capabilities' ? { enabled: true } : command === 'image_import_jobs' ? backendJobs : command === 'choose_media_import' ? ['/素材 long folder/chosen.png'] : command === 'preview_media_import' ? preview : command === 'confirm_media_import' ? [job] : command === 'image_import_items' ? { items: [], next_after: null } : command === 'imported_images' ? { items: [], next_after: null } : null));
+  invoke.mockImplementation((command: string) => { if (command === 'confirm_media_import') backendJobs = [job]; return Promise.resolve(command === 'image_import_capabilities' ? { enabled: true } : command === 'image_import_jobs' ? backendJobs : command === 'choose_media_import' ? ['/素材 long folder/chosen.png'] : command === 'preview_media_import' ? preview : command === 'confirm_media_import' ? [job] : command === 'image_import_items' ? { items: [], next_after: null } : command === 'imported_images' ? { items: [], next_after: null } : null); });
 });
 afterEach(cleanup);
 function Harness() { const c = useImageImports(vi.fn(), vi.fn()); return <ImageImports controller={c} />; }
@@ -48,6 +48,7 @@ describe('gated native media imports', () => {
     backendJobs = [job]; const { result } = renderHook(() => useImageImports(vi.fn(), vi.fn())); await waitFor(() => expect(result.current.jobs).toHaveLength(1));
     backendJobs = [{ ...job, sequence: '4', state: 'failed', error_code: 'DECODE_FAILED' }]; await act(async () => listeners.get('image-import-progress')?.({ payload: backendJobs[0] })); await waitFor(() => expect(result.current.jobs[0].state).toBe('failed'));
     backendJobs = [{ ...job, sequence: '1', state: 'cancelled' }]; await act(async () => listeners.get('image-import-reset')?.({ payload: null })); await waitFor(() => expect(result.current.jobs[0].sequence).toBe('1'));
+    backendJobs = []; await act(async () => listeners.get('image-import-progress')?.({ payload: job })); await waitFor(() => expect(result.current.jobs).toHaveLength(0));
   });
   it('keeps metadata and cancellation usable with image development disabled', async () => {
     backendJobs = [job]; invoke.mockImplementation((command: string) => Promise.resolve(command === 'image_import_capabilities' ? { enabled: false } : command === 'image_import_jobs' ? backendJobs : command === 'cancel_image_import' ? { ...job, sequence: '4', state: 'cancelled' } : null));
