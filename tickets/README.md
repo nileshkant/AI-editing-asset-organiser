@@ -4,6 +4,36 @@ This backlog is the implementation contract. A ticket's acceptance checkboxes
 indicate verified behavior, not aspirational completion. The full product plan
 is in `docs/PRODUCT_PLAN.md`.
 
+## Image phase: current feature-development sequence
+
+The 16 October 2026 image roadmap is expanded into **39 ordered implementation
+tickets, SS-040 through SS-078**, under the SS-032 tracking umbrella.
+Start at [SS-040](SS-040.md) and follow the
+[canonical image queue](IMAGE_QUEUE.md) and
+[mandatory technical/PR contract](IMAGE_CONTRACT.md).
+
+For this phase: **one ticket → one PR → passing checks → next dependent PR**.
+Every ticket after SS-040 depends on its immediate predecessor. The user
+authorized starting the next ticket before merge on 17 October 2026. Stack
+dependent PRs against their predecessor branches and merge in ticket order.
+Do not skip a blocked ticket or implement later work in the same PR.
+Record a blocker and stop; any new prerequisite requires an explicit queue
+amendment before implementation. These rules override the older skip-blocked
+workflow below for image work.
+
+SS-040, SS-041 and SS-042 are merged in main through
+[PR #39](https://github.com/nileshkant/AI-editing-asset-organiser/pull/39),
+[PR #40](https://github.com/nileshkant/AI-editing-asset-organiser/pull/40) and
+[PR #41](https://github.com/nileshkant/AI-editing-asset-organiser/pull/41).
+The separately committed roadmap/tickets PR merges next, followed by SS-043's
+own implementation PR. The user requested stopping after those two PRs on
+17 October 2026; do not begin SS-044 until a new instruction resumes development.
+Their detailed R requirements, T scenarios, and A acceptance criteria are
+implementation contracts, not claims of completed work. All 26 IMG roadmap
+workstreams are mapped in IMAGE_QUEUE.md.
+The old audio queue and qualification tickets remain historical/baseline work;
+they are not silently completed or duplicated by this expansion.
+
 ## Workflow
 
 1. Start a feature branch from its prerequisite branch or merged main.
@@ -47,7 +77,8 @@ blocker and move to the next unblocked ticket without changing the queue.
 
 ## Audio v1 execution queue
 
-This is the canonical implementation order. The 2026-10-02 scope review is in
+This is the retained audio v1 order; image feature work follows IMAGE_QUEUE.md.
+The 2026-10-02 scope review is in
 `docs/reviews/V1-SCOPE-REVIEW.md`. Resolve the current MCP review first, then the
 new source-catalog requirement before advancing to editor integrations.
 
@@ -97,10 +128,16 @@ SS-016/017 acceptance evidence becomes a release gate for that build.
 
 ## Upcoming asset types — outside audio v1
 
-- [SS-032: Image assets and reusable elements](SS-032.md) | not-started | upcoming
+- [SS-032: Image assets and reusable elements](SS-032.md) | not-started | umbrella for SS-040–078; see [ordered image queue](IMAGE_QUEUE.md)
 - [SS-033: Remotion Studio presets](SS-033.md) | not-started | upcoming
 
-## Progress snapshot
+## Historical audio-ticket progress snapshot
+
+The following counts cover SS-001–039 only and predate the image expansion.
+Some labels lag merge history; verify review/installed evidence before updating.
+The image queue adds 39 tickets separately (three complete, one implementation pending PR, 35 not-started;
+78 total ticket files);
+the umbrella is not an additional implementation PR.
 
 - Complete: 23 of 39 tickets.
 - In review: 2 of 39 tickets.
