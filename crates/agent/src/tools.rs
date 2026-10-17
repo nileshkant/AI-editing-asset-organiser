@@ -32,6 +32,20 @@ fn authorization(context: &RequestContext<RoleServer>) -> Option<Authorization> 
         .filter(|a| a.live.load(Ordering::Acquire))
         .cloned()
 }
+#[cfg(test)]
+mod ss040_contract_surface {
+    #[test]
+    fn audio_tool_surface_is_unchanged_and_images_are_not_advertised() {
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../fixtures/contracts/baseline-inventory.json"
+        )).unwrap();
+        let mut names: Vec<String> = super::definitions().iter().map(|t| t.name.to_string()).collect();
+        names.sort();
+        assert_eq!(serde_json::json!(names), expected["mcp_methods"]);
+        assert!(!names.iter().any(|n| n.starts_with("images.") || n.starts_with("elements.")));
+    }
+}
+
 fn response(value: Value, error: bool) -> CallToolResponse {
     let mut result = if error {
         CallToolResult::error(vec![ContentBlock::text(value.to_string())])
