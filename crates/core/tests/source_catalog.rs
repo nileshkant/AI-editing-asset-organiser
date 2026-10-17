@@ -119,7 +119,10 @@ fn portable_relocation_same_library_edits_and_missing_pruning_without_decoders()
         .unwrap()
         .catalog
         .sounds
-        .is_empty());
+        .is_empty(),
+        "Import errors: {:?}; snapshot states: {:?}",
+        p.errors,
+        target.lock().unwrap().snapshot_states().unwrap());
 }
 #[test]
 fn malformed_catalog_and_symlink_escape_fail_without_database_mutation() {

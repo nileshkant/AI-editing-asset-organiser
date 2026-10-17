@@ -39,3 +39,6 @@ pub mod image_catalog;
 
 #[cfg(test)]
 mod image_migration_tests;
+
+pub mod image_analysis;
+mod image_decode;

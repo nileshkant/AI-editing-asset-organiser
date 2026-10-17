@@ -25,3 +25,42 @@ Verified contracts:
 ## Release gates
 
 Passing local unit tests is not production qualification. Native playback, device changes, long-file memory, clean-machine installation, OS permissions, security, model capability checks, accessibility and signed updates must pass on each advertised platform. Windows/Linux cannot be marked tested from a macOS run.
+
+## 2026-10-17: Still-image decoder and color isolation (SS-042)
+
+Use pinned `image = 0.25.10` with only jpeg/png/webp features, `moxcms = 0.9.1`
+with default features disabled for explicit scalar RGB/gray ICC transforms,
+`flate2 = 1.1.10` with the Rust backend for bounded metadata expansion, and
+`crc32fast = 1.5.2` for PNG structure validation. Cargo.lock pins the transitive
+PNG 0.18.1, image-webp 0.2.4 and zune-jpeg 0.5.15 decoders. Image itself also
+requires moxcms 0.8.1; this is a separate transitive instance, not our explicit
+ICC adapter. Dependency license texts are retained under docs/licenses/image-analysis.
+No native codec/color library or Python runtime ships for this feature.
+
+The upstream [ImageDecoder interface](https://docs.rs/image/0.25.10/image/trait.ImageDecoder.html)
+provides full decode and metadata operations. Its [resource limits](https://docs.rs/image/0.25.10/image/struct.Limits.html)
+do not promise a strict allocation cap for every backend. Therefore callers
+must not decode inside the desktop process. Our one-shot worker uses a global
+Rust allocation budget, named size/pixel/metadata/output bounds, and a parent
+watchdog that kills/reaps on deadline or cancellation. It reads only the already
+opened file through stdin and returns bounded JSON, never paths or pixel arrays.
+A crash/abort leaves the app's catalog and original bytes intact. These are
+resource/fault isolation measures; the process is not an OS security sandbox.
+
+The [moxcms implementation](https://github.com/awxkee/moxcms) supplies pure Rust
+ICC parsing/transforms. We admit RGB/gray matrix/TRC profiles supported by this
+feature set, convert display pixels to sRGB, preserve straight alpha, and reject
+unsupported profiles rather than produce misleading colors. CMYK/lossless JPEG,
+LUT-only ICC, unsupported PNG transfer/primary metadata, animation and other
+formats fail explicitly. Untagged images use a visible assumed-sRGB warning;
+16-bit originals retain measured depth/alpha while display quantizes to RGBA8
+with a warning. Raw bytes never change. See IMAGE_ANALYSIS.md for exact policy.
+
+Measured on local macOS arm64 debug builds: admitted 4096×4096 RGBA8 and rotated
+RGBA16 fixtures completed full decode with allocator peaks 134,357,671 and
+201,597,641 bytes respectively. Separate OS measurements recorded maximum RSS
+142,491,648 and 276,987,904 bytes. These are individual fixture measurements,
+not universal memory/latency claims. The enforced Rust heap limit is 512 MiB;
+stack, mappings and allocator overhead are additional. Platform support requires
+the real worker fixtures on each advertised target. The existing CI matrix runs
+them on macOS, Windows and Linux; installed packaging remains a later gate.
