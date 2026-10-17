@@ -373,8 +373,8 @@ export function App() {
 
         {page === 'imports' && (
           <div className="imports-workspace">
-          <ImageImports controller={imageImports} />
-          {(search.jobs.length > 0 || (!imageImports.enabled && imageImports.jobs.length === 0)) && <ImportsView
+          <ImageImports controller={imageImports} sources={search.roots} />
+          {(search.jobs.length > 0 || (!imageImports.enabled && !imageImports.metadataPresent && imageImports.jobs.length === 0)) && <ImportsView
             jobs={search.jobs}
             roots={search.roots}
             onCancelImport={() => void handleCancelImport()}

@@ -4,7 +4,9 @@ Production image capability remains disabled until SS-048. This ticket adds an
 explicit `image-development` Cargo feature to the desktop package for disposable
 internal libraries. It does not enable image MCP, uploads, models, a gallery,
 previews, export, or filesystem watching. Technically ready image metadata is
-browsable under Imports without any AI configuration.
+browsable under Imports without any AI configuration. The source-scoped metadata
+list is independent of expiring job history and remains available for retained
+image records when new development imports are disabled.
 
 ## Development workflow
 

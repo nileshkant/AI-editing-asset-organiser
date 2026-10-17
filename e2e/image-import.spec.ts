@@ -18,7 +18,7 @@ for (const zoom of [1, 2]) {
     await page.screenshot({ path: info.outputPath(`image-preview-${zoom}.png`) });
     await page.keyboard.press('Escape'); await expect(dialog).not.toBeVisible(); await expect(choose).toBeFocused();
     await choose.click(); await page.getByRole('button', { name: 'Confirm import' }).click();
-    await page.getByRole('button', { name: 'Browse files' }).click(); await expect(page.getByText('chosen.png', { exact: true })).toBeVisible(); await expect(page.getByText('corrupt.png', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Browse files' }).click(); await expect(page.getByRole('article').getByText('chosen.png', { exact: true })).toBeVisible(); await expect(page.getByRole('article').getByText('corrupt.png', { exact: true })).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
     await page.screenshot({ path: info.outputPath(`image-results-${zoom}.png`) });
     const calls = await page.evaluate(() => (window as any).__fixtureCalls as { command: string }[]);

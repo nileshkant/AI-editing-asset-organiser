@@ -127,6 +127,7 @@ pub struct ImportCapabilities {
     enabled: bool,
     reference_in_place: bool,
     production_images: bool,
+    metadata_present: bool,
 }
 #[tauri::command]
 pub fn image_import_capabilities(state: tauri::State<AppState>) -> ImportCapabilities {
@@ -134,6 +135,18 @@ pub fn image_import_capabilities(state: tauri::State<AppState>) -> ImportCapabil
         enabled: state.image_imports.enabled,
         reference_in_place: true,
         production_images: soundshelf_core::image_catalog::IMAGE_CAPABILITY_ENABLED,
+        metadata_present: state
+            .catalog
+            .lock()
+            .ok()
+            .and_then(|c| {
+                c.db_connection()
+                    .query_row("SELECT EXISTS(SELECT 1 FROM image_assets)", [], |r| {
+                        r.get::<_, bool>(0)
+                    })
+                    .ok()
+            })
+            .unwrap_or(false),
     }
 }
 #[tauri::command]

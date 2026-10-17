@@ -21,6 +21,7 @@ export const importTerminal = (job: ImageImportJob) => ['complete', 'failed', 'c
 
 export function useImageImports(onError: (message: string) => void, onOpen: () => void) {
   const [enabled, setEnabled] = useState(false);
+  const [metadataPresent, setMetadataPresent] = useState(false);
   const [available, setAvailable] = useState(false);
   const [jobs, setJobs] = useState<ImageImportJob[]>([]);
   const [mode, setMode] = useState<ImageImportMode>('mixed');
@@ -47,7 +48,7 @@ export function useImageImports(onError: (message: string) => void, onOpen: () =
     alive.current = true;
     if (!isTauri()) { setAvailable(true); return () => { alive.current = false; }; }
     let disposed = false, busy = false;
-    void api.imageImportCapabilities().then(cap => { if (!disposed) { setEnabled(!!cap?.enabled); setAvailable(true); } }).catch(() => { if (!disposed) setAvailable(true); });
+    void api.imageImportCapabilities().then(cap => { if (!disposed) { setEnabled(!!cap?.enabled); setMetadataPresent(!!cap?.metadata_present); setAvailable(true); } }).catch(() => { if (!disposed) setAvailable(true); });
     const poll = () => { if (busy) return; busy = true; void refresh().catch(() => {}).finally(() => { busy = false; }); };
     poll(); const timer = setInterval(poll, 1000);
     const subscription = listen<ImageImportJob>('image-import-progress', event => { if (!disposed && validImageJob(event.payload)) void refresh().catch(() => {}); }).catch(() => undefined);
@@ -95,6 +96,6 @@ export function useImageImports(onError: (message: string) => void, onOpen: () =
   const action = useCallback(async (job: ImageImportJob, retry: boolean) => {
     try { const result = await (retry ? api.retryImageImport(job) : api.cancelImageImport(job)); if (alive.current) { ++databaseEpoch.current; setJobs(old => mergeImageJob(old, result)); } } catch (e) { if (alive.current) onError(String(e)); }
   }, [onError]);
-  return { returnFocus, enabled, available, jobs, mode, setMode, preview, preparing, confirming, previewError, choose, close, confirm, action };
+  return { returnFocus, enabled, metadataPresent, available, jobs, mode, setMode, preview, preparing, confirming, previewError, choose, close, confirm, action };
 }
 export type ImageImportsController = ReturnType<typeof useImageImports>;

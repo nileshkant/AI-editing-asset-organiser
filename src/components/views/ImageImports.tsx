@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { imageImportItems, importedImages } from '../../api';
-import type { ImageImportItemPage, ImageImportJob, ImportedImagePage } from '../../types';
+import type { ImageImportItemPage, ImageImportJob, ImportedImagePage, Source } from '../../types';
 import type { ImageImportsController } from '../../hooks/useImageImports';
 import { importTerminal } from '../../hooks/useImageImports';
 
@@ -74,12 +74,38 @@ function Preview({ controller: c }: { controller: ImageImportsController }) {
     <div className="modal-actions"><button disabled={c.confirming} onClick={c.close}>Cancel</button><button className="primary" disabled={!c.preview || c.preparing || c.confirming || c.preview.images + c.preview.audio === 0 || c.preview.expires_at * 1000 <= Date.now()} onClick={() => void c.confirm()}>{c.confirming ? 'Starting import…' : 'Confirm import'}</button></div>
   </dialog>;
 }
-export function ImageImports({ controller: c }: { controller: ImageImportsController }) {
+function ImageMetadataBrowser({ sources, jobs }: { sources: Source[]; jobs: ImageImportJob[] }) {
+  const [preferred, setPreferred] = useState(''), [page, setPage] = useState<ImportedImagePage | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const epoch = useRef(0);
+  const sourceId = sources.some(s => s.id === preferred) ? preferred : sources[0]?.id || '';
+  const revision = jobs.filter(j => j.source_id === sourceId).map(j => `${j.id}:${j.sequence}`).join(',');
+  useEffect(() => {
+    const current = ++epoch.current; setPage(null); setError('');
+    if (!sourceId) { setBusy(false); return; }
+    setBusy(true);
+    void importedImages(sourceId).then(result => { if (epoch.current === current) setPage(result); }).catch(e => { if (epoch.current === current) setError(String(e)); }).finally(() => { if (epoch.current === current) setBusy(false); });
+    return () => { ++epoch.current; };
+  }, [sourceId, revision]);
+  return <section className="image-import-controls" aria-label="Imported image library">
+    <h2>Imported images</h2><p>Library records remain available after older import statuses expire.</p>
+    <label>Image source <select value={sourceId} disabled={!sources.length} onChange={event => setPreferred(event.target.value)}>{!sources.length && <option value="">No sources yet</option>}{sources.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select></label>
+    {error && <p role="alert">{error}</p>}
+    <ul className="image-import-items">{page?.items.map(image => <li key={image.header.id}><strong className="path-text">{image.header.relative_path}</strong> · {image.header.technical_state} · {image.header.availability}{image.width && image.height ? ` · ${image.width} × ${image.height}` : ''}</li>)}</ul>
+    {page && !page.items.length && <p>No images in this source.</p>}
+    {busy && <p role="status">Loading images…</p>}
+    {page?.next_after && <button disabled={busy} onClick={() => {
+      const current = epoch.current; setBusy(true);
+      void importedImages(sourceId, page.next_after).then(next => { if (epoch.current === current) setPage(old => ({ items: [...(old?.items || []), ...next.items], next_after: next.next_after })); }).catch(e => { if (epoch.current === current) setError(String(e)); }).finally(() => { if (epoch.current === current) setBusy(false); });
+    }}>More images</button>}
+  </section>;
+}
+export function ImageImports({ controller: c, sources = [] }: { controller: ImageImportsController; sources?: Source[] }) {
   return <>
     {c.enabled && <section className="image-import-controls" aria-label="Media import">
       <h2>Import images and audio</h2><label>Include <select value={c.mode} onChange={event => c.setMode(event.target.value as 'images' | 'mixed')} disabled={c.preparing || c.confirming}><option value="mixed">Images and audio</option><option value="images">Images only</option></select></label>
       <div className="image-import-actions"><button disabled={c.preparing || c.confirming} onClick={() => void c.choose(false)}>Choose media files</button><button disabled={c.preparing || c.confirming} onClick={() => void c.choose(true)}>Choose media folders</button></div>
     </section>}
+    {(c.enabled || c.metadataPresent) && <ImageMetadataBrowser sources={sources} jobs={c.jobs} />}
     {c.jobs.map(job => <ImportJob key={job.id} job={job} controller={c} />)}
     {(c.preparing || c.preview || c.previewError) && <Preview controller={c} />}
   </>;

@@ -237,4 +237,4 @@ export type ImageImportItem = {
 };
 export type ImageImportItemPage = { items: ImageImportItem[]; next_after: string | null };
 export type ImportedImagePage = { items: { header: import('./contracts/imageV1').ImageHeader; width: number | null; height: number | null; annotation_revision: number }[]; next_after: string | null };
-export type ImageImportCapabilities = { enabled: boolean; reference_in_place: boolean; production_images: boolean };
+export type ImageImportCapabilities = { enabled: boolean; reference_in_place: boolean; production_images: boolean; metadata_present: boolean };

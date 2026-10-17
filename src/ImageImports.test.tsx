@@ -58,3 +58,8 @@ describe('gated native media imports', () => {
     const legacyImport = vi.fn(); const { result } = renderHook(() => useDragDrop(legacyImport, vi.fn(), { ready: true, enabled: true })); await waitFor(() => expect(rawDrop).toBeDefined()); await act(async () => rawDrop?.({ payload: { type: 'over', paths: [] } })); expect(result.current.dropping).toBe(true); await act(async () => rawDrop?.({ payload: { type: 'drop', paths: ['/not-approved.png'] } })); expect(legacyImport).not.toHaveBeenCalled(); expect(result.current.dropping).toBe(false);
   });
 });
+it('browses durable image metadata after import history eviction with new imports disabled', async () => {
+  invoke.mockImplementation((command: string) => Promise.resolve(command === 'image_import_capabilities' ? { enabled: false, metadata_present: true } : command === 'image_import_jobs' ? [] : command === 'imported_images' ? { items: [{ header: { id: 'image', relative_path: 'retained.png', technical_state: 'ready', availability: 'offline' }, width: 640, height: 480 }], next_after: null } : null));
+  function Retained() { const c = useImageImports(vi.fn(), vi.fn()); return <ImageImports controller={c} sources={[{ id: 'source', name: 'Retained images', root: '/source', generation: 0, available: false, scope: 'folder', files: [] }]} />; }
+  render(<Retained />); expect(await screen.findByText('retained.png')).toBeVisible(); expect(screen.getByRole('region', { name: 'Imported image library' })).toHaveTextContent('ready · offline · 640 × 480'); expect(screen.queryByText('Choose media files')).not.toBeInTheDocument(); expect(screen.queryByText('Browse files')).not.toBeInTheDocument();
+});
