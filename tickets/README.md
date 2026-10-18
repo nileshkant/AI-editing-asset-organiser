@@ -125,6 +125,7 @@ SS-016/017 acceptance evidence becomes a release gate for that build.
 ## Platform qualification follow-up
 
 - [SS-034: Linux GTK dependency audit remediation](SS-034.md) | partial | Linux release gate
+- [SS-079: Free direct-download public beta release](SS-079.md) | in-review | release distribution
 
 ## Upcoming asset types — outside audio v1
 

@@ -33,6 +33,53 @@ GUI static: Linux WebKitGTK/audio dependencies require clean offline qualificati
 The minimal-media CI workflow builds and exercises the exact tools on all three
 native hosts, preserving binaries, notices, locks and corresponding source.
 
+## Direct-download releases
+
+`.github/workflows/unsigned-release.yml` builds, inspects and publishes installers
+to GitHub Releases from a pushed tag. No paid certificates are used.
+
+| Tag | Release | Notes file | Linux GPG signature |
+|---|---|---|---|
+| `vX.Y.Z-alpha.N` | prerelease, "unsigned tester preview" | `docs/UNSIGNED_TESTER_RELEASE.md` | when provisioned |
+| `vX.Y.Z-beta.N`, `vX.Y.Z-rc.N` | Latest, "public beta"/"release candidate" | `docs/RELEASE_NOTES.md` | required |
+| `vX.Y.Z` | Latest | `docs/RELEASE_NOTES.md` | required |
+
+macOS is ad-hoc signed (no Developer ID or notarization, so Gatekeeper asks once).
+Windows is unsigned until a free SignPath Foundation certificate is approved.
+Linux AppImage, deb and checksum list get detached `.asc` signatures. Public
+releases fail closed unless every one verifies against `release/linux-release-key.asc`.
+
+### One-time Linux signing key
+
+Install GnuPG first (macOS: `brew install gnupg`). Create a dedicated signing-only
+key, separate from personal keys and without subkeys, so its fingerprint matches
+the signature check:
+
+```
+gpg --quick-gen-key "CreativeShelf Releases <YOUR-EMAIL>" ed25519 sign 3y
+gpg --armor --export "CreativeShelf Releases" > release/linux-release-key.asc
+gpg --armor --export-secret-keys "CreativeShelf Releases" | pbcopy
+```
+
+Leave the passphrase empty when prompted: the key is protected by GitHub's encrypted secret store
+instead. Save the copied private key as the repository secret `LINUX_GPG_PRIVATE_KEY`
+(Settings → Secrets and variables → Actions). Commit only the public
+`release/linux-release-key.asc`. Back up the private key offline. Rotating it means
+publishing a new public key and announcing the change in the next release.
+
+### Publishing
+
+1. Merge the release changes to main and confirm CI passes.
+2. Tag the exact commit, for example `git tag v0.9.0-beta.1 && git push origin v0.9.0-beta.1`.
+3. The workflow publishes DMG, setup.exe, AppImage, deb, Linux signatures and key,
+   checksums, inspection reports, provenance and the FFmpeg source.
+
+### Free Windows signing (SignPath Foundation)
+
+Apply at https://signpath.org with the public repository. Once approved, add their
+signing action to the Windows job before inspection, then update the notes files
+and `SECURITY.md` to drop the SmartScreen step.
+
 ## Signed candidates
 
 1. Use a clean checkout of the candidate commit with checked-in dependency locks.

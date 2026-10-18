@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CreativeShelf</title>
+<meta name="description" content="A free, open-source library for your sound effects and audio files. Works offline; your files never leave your computer.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 10v4M7 7v10M11 4v16M15 8v8M19 10v4' stroke='%23b8f56a' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root {
+  --bg: #f6f6f3; --surface: #ffffff; --border: #e3e3de; --text: #17171a; --muted: #5d5d66;
+  --accent: #4d7c0f; --accent-strong: #b8f56a; --accent-text: #17200f; --shadow: 0 24px 60px rgba(20, 20, 30, .14);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #111114; --surface: #1a1a1f; --border: #2a2a31; --text: #e9e9ec; --muted: #a0a0aa; --accent: #b8f56a; --shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--accent); }
+main { max-width: 1040px; margin: 0 auto; padding: 0 16px 64px; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text); text-decoration: none; }
+.brand svg { width: 26px; height: 26px; }
+nav a { color: var(--muted); text-decoration: none; margin-left: 20px; font-size: 15px; }
+nav a:hover { color: var(--text); }
+.hero { text-align: center; padding: 56px 0 40px; }
+h1 { font-size: clamp(34px, 6vw, 56px); line-height: 1.08; margin: 0 0 16px; letter-spacing: -.02em; }
+.lede { font-size: clamp(17px, 2.2vw, 20px); color: var(--muted); max-width: 640px; margin: 0 auto 32px; }
+.download { display: inline-flex; align-items: center; gap: 10px; background: var(--accent-strong); color: var(--accent-text); font-weight: 700; font-size: 17px; padding: 14px 26px; border-radius: 12px; text-decoration: none; }
+.download:hover { filter: brightness(1.05); }
+.download:focus-visible, .files a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.meta { color: var(--muted); font-size: 14px; margin-top: 12px; }
+.shot { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--border); box-shadow: var(--shadow); margin: 8px 0 64px; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 64px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; }
+.card p { margin: 0; color: var(--muted); font-size: 15px; }
+h2 { font-size: 26px; margin: 0 0 16px; }
+.files { display: grid; gap: 10px; margin-bottom: 24px; }
+.files a { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; color: var(--text); text-decoration: none; }
+.files a:hover { border-color: var(--accent); }
+.files span { color: var(--muted); font-size: 14px; }
+details { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+summary { cursor: pointer; font-weight: 600; }
+details ol, details p { color: var(--muted); margin: 10px 0 0; }
+footer { border-top: 1px solid var(--border); margin-top: 64px; padding-top: 24px; color: var(--muted); font-size: 14px; }
+@media (max-width: 560px) { nav a:not(:last-child) { display: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="brand" href="./">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4M7 7v10M11 4v16M15 8v8M19 10v4" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="color: var(--accent)"/></svg>
+      CreativeShelf
+    </a>
+    <nav>
+      <a href="#download">Download</a>
+      <a href="#first-launch">First launch</a>
+      <a id="source-link" href="https://github.com/nileshkant/AI-editing-asset-organiser">Source code</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1>Every sound you own,<br>one search away.</h1>
+    <p class="lede">A free, open-source library for your sound effects and audio files. Point it at your folders, then search, preview, tag and clip, all offline on your own computer.</p>
+    <a class="download" id="primary" href="https://github.com/nileshkant/AI-editing-asset-organiser/releases/latest">Download CreativeShelf</a>
+    <p class="meta" id="primary-meta">Free for Mac, Windows and Linux · Open source (MIT)</p>
+  </section>
+
+  <img class="shot" src="screenshot.png" width="1280" height="820" alt="The CreativeShelf library: a searchable list of sounds with play and favorite buttons, a sources sidebar and a playback bar.">
+
+  <section class="features" aria-label="Features">
+    <div class="card"><h3>Find sounds instantly</h3><p>Typo-tolerant search across names, tags and descriptions, with no internet needed.</p></div>
+    <div class="card"><h3>Preview and clip</h3><p>Play with a waveform, mark the part you need and export a clip ready for your editor.</p></div>
+    <div class="card"><h3>Your files stay yours</h3><p>No account, no uploads, no telemetry. Originals are never modified.</p></div>
+    <div class="card"><h3>Works with AI agents</h3><p>Optional local MCP access lets your AI tools search and tag your library, with scoped permissions.</p></div>
+  </section>
+
+  <section id="download">
+    <h2>Download</h2>
+    <div class="files" id="files">
+      <a href="https://github.com/nileshkant/AI-editing-asset-organiser/releases/latest">All downloads <span>GitHub Releases</span></a>
+    </div>
+    <p class="meta">Mac builds need Apple Silicon (M1 or newer) and macOS 14.2+. Linux downloads are GPG-signed; checksums for every file are listed on the release page.</p>
+  </section>
+
+  <section id="first-launch">
+    <h2>First launch</h2>
+    <p class="meta">CreativeShelf is an independent app distributed directly, not through an app store, so your computer asks you to confirm it once.</p>
+    <details open>
+      <summary>Mac</summary>
+      <ol>
+        <li>Open the downloaded <code>.dmg</code> and drag CreativeShelf into Applications.</li>
+        <li>Open CreativeShelf. If macOS says it can't verify the app, click <strong>Done</strong>.</li>
+        <li>Go to <strong>System Settings → Privacy &amp; Security</strong>, scroll down and click <strong>Open Anyway</strong>, then confirm.</li>
+      </ol>
+    </details>
+    <details>
+      <summary>Windows</summary>
+      <ol>
+        <li>Run the <code>-setup.exe</code> installer.</li>
+        <li>If "Windows protected your PC" appears, click <strong>More info → Run anyway</strong>.</li>
+      </ol>
+    </details>
+    <details>
+      <summary>Linux</summary>
+      <p>Make the <code>.AppImage</code> executable and run it, or install the <code>.deb</code> with <code>sudo apt install ./CreativeShelf_*_amd64.deb</code>. Verify with <code>gpg --verify FILE.asc FILE</code> using the release key from the release page.</p>
+    </details>
+  </section>
+
+  <footer>
+    CreativeShelf is free software under the MIT License. Bundled FFmpeg tools are LGPL, with their source attached to every release.
+    <a id="security-link" href="https://github.com/nileshkant/AI-editing-asset-organiser/blob/main/SECURITY.md">Security</a>
+  </footer>
+</main>
+<script>
+// Fill the download buttons from the newest GitHub release; the static links above still work if this fails.
+const repo = 'nileshkant/AI-editing-asset-organiser';
+const platforms = [
+  { os: 'mac', label: 'Mac (Apple Silicon)', match: name => name.endsWith('.dmg') },
+  { os: 'windows', label: 'Windows (64-bit)', match: name => name.endsWith('-setup.exe') },
+  { os: 'linux', label: 'Linux AppImage', match: name => name.endsWith('.AppImage') },
+  { os: 'linux', label: 'Linux .deb (Debian/Ubuntu)', match: name => name.endsWith('.deb') }
+];
+function visitorOs() {
+  const platform = (navigator.userAgentData?.platform || navigator.platform || navigator.userAgent).toLowerCase();
+  if (platform.includes('mac')) return 'mac';
+  if (platform.includes('win')) return 'windows';
+  if (platform.includes('linux') && !/android/.test(navigator.userAgent.toLowerCase())) return 'linux';
+  return null;
+}
+function megabytes(bytes) { return `${Math.round(bytes / 1048576)} MB`; }
+fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
+  .then(response => response.ok ? response.json() : Promise.reject(new Error(String(response.status))))
+  .then(release => {
+    const found = platforms.map(p => ({ ...p, asset: release.assets.find(a => p.match(a.name)) })).filter(p => p.asset);
+    if (!found.length) return;
+    const list = document.getElementById('files');
+    list.replaceChildren(...found.map(p => {
+      const link = document.createElement('a');
+      link.href = p.asset.browser_download_url;
+      link.textContent = p.label + ' ';
+      const detail = document.createElement('span');
+      detail.textContent = `${p.asset.name} · ${megabytes(p.asset.size)}`;
+      link.append(detail);
+      return link;
+    }));
+    const mine = found.find(p => p.os === visitorOs());
+    const primary = document.getElementById('primary');
+    if (mine) {
+      primary.href = mine.asset.browser_download_url;
+      primary.textContent = `Download for ${mine.label}`;
+    } else {
+      primary.href = '#download';
+    }
+    document.getElementById('primary-meta').textContent = `${release.name || release.tag_name} · Free and open source (MIT)`;
+  })
+  .catch(() => {});
+</script>
+</body>
+</html>

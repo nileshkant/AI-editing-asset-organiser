@@ -14,7 +14,7 @@ async function inspect(stage, files={}) {
  const r=spawnSync(process.execPath,[script,'inspect',join(root,'app'),join(root,'installer.bin')],{cwd:root,encoding:'utf8'});
  return {status:r.status,error:r.stderr};
 }
-function stage(){return {purpose:'unsigned-tester-prerelease',target:hostTarget(),workspaceDirty:false,entries:[]};}
+function stage(){return {purpose:'direct-download-release',target:hostTarget(),workspaceDirty:false,entries:[]};}
 it('cannot repurpose signed or local evidence as an unsigned public preview',async()=>{
  for(const purpose of ['signed-release-candidate','local-development-only']){
   const s=stage();s.purpose=purpose;expect(await inspect(s)).toEqual({status:1,error:expect.stringContaining('provenance mismatch')});
