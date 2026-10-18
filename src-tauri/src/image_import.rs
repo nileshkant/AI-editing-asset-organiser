@@ -351,6 +351,9 @@ mod tests {
     use super::*;
     #[test]
     fn image_import_native_state_uses_trusted_worker_and_persists_cancel_before_shutdown() {
+        let _serial = crate::service::NATIVE_IMAGE_TESTS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir().join(format!("ss043-native-{}", uuid::Uuid::new_v4()));
         let resources = dir.join("resources");
         let images = resources.join("images");

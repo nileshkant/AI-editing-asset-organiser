@@ -25,6 +25,11 @@ struct Work {
     job_id: String,
 }
 
+/// Native image tests share the process-wide single analysis-worker slot, so two
+/// AppStates analyzing at once would see BUSY. Serialize those tests.
+#[cfg(all(test, feature = "image-development"))]
+pub static NATIVE_IMAGE_TESTS: Mutex<()> = Mutex::new(());
+
 pub struct AppState {
     pub image_imports: Arc<crate::image_import::ImageImports>,
     pub image_previews: Arc<crate::image_preview::ImagePreviews>,
@@ -329,6 +334,7 @@ impl AppState {
 
     pub fn shutdown(&self) {
         self.image_imports.shutdown();
+        self.image_previews.shutdown();
         self.agent.stop();
         self.exports.shutdown();
         self.player.stop();

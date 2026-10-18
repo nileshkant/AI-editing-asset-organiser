@@ -11,11 +11,13 @@ use soundshelf_core::{
 use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
+    thread::JoinHandle,
 };
 pub struct ImagePreviews {
     cache: Arc<PreviewCache>,
     /// Present only when the trusted image worker is enabled for this build.
     service: Option<Arc<PreviewService>>,
+    refresher: Mutex<Option<JoinHandle<()>>>,
 }
 impl ImagePreviews {
     pub fn new(data: &Path, catalog: &Arc<Mutex<Catalog>>, worker: Option<PathBuf>) -> Self {
@@ -29,26 +31,50 @@ impl ImagePreviews {
             quota,
         ));
         let service = worker.map(|w| Arc::new(PreviewService::new(catalog.clone(), cache.clone(), w)));
-        let previews = Self { cache, service };
+        let previews = Self {
+            cache,
+            service,
+            refresher: Mutex::new(None),
+        };
         previews.refresh(catalog);
         previews
     }
     /// Reload the quota and drop previews of content no record references, in the
     /// background. Used at startup and after a database restore. The quota is
     /// applied under the catalog lock, serializing it with a user quota change.
+    /// The thread holds only a weak catalog reference and is joined at shutdown,
+    /// so it never keeps the database open after the app closes it.
     pub fn refresh(&self, catalog: &Arc<Mutex<Catalog>>) {
         let cache = self.cache.clone();
-        let catalog = catalog.clone();
-        std::thread::spawn(move || {
+        let catalog = Arc::downgrade(catalog);
+        let handle = std::thread::spawn(move || {
             cache.status(); // index the cache directory before taking the catalog lock
+            let Some(catalog) = catalog.upgrade() else {
+                return;
+            };
             let digests = catalog.lock().ok().and_then(|c| {
                 let _ = cache.set_quota(c.image_preview_quota().ok()?);
                 c.image_content_digests().ok()
             });
+            drop(catalog);
             if let Some(digests) = digests {
                 cache.prune(&digests);
             }
         });
+        let previous = self
+            .refresher
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.replace(handle));
+        if let Some(previous) = previous {
+            let _ = previous.join();
+        }
+    }
+    pub fn shutdown(&self) {
+        let handle = self.refresher.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(handle) = handle {
+            let _ = handle.join();
+        }
     }
     fn status(&self) -> PreviewCacheStatus {
         match &self.service {
@@ -145,6 +171,9 @@ mod tests {
     use std::sync::atomic::AtomicBool;
     #[test]
     fn app_state_serves_versioned_previews_from_the_owned_data_cache() {
+        let _serial = crate::service::NATIVE_IMAGE_TESTS
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         let dir = std::env::temp_dir().join(format!("ss044-native-{}", uuid::Uuid::new_v4()));
         let images = dir.join("resources").join("images");
         std::fs::create_dir_all(&images).unwrap();
