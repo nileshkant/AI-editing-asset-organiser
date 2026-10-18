@@ -30,7 +30,7 @@ it.skipIf(!gpgAvailable)('signs with a documented signing-only key and verifies 
   for(const name of ['a.AppImage','a.deb',target,'provenance.json']) await writeFile(join(out,name),name);
   const sign=spawnSync(process.execPath,[resolve('scripts/sign-linux-release.mjs'),out],{env:{...env,LINUX_SIGNING_FINGERPRINT:fingerprint},encoding:'utf8'});
   expect(sign.stderr).toBe(''); expect(sign.status).toBe(0);
-  expect((await readdir(out)).filter(n=>n.endsWith('.asc')).sort()).toEqual(['a.AppImage.asc','a.deb.asc',target+'.asc']);
+  expect((await readdir(out)).filter(n=>n.endsWith('.asc')).sort()).toEqual([target+'.asc','a.AppImage.asc','a.deb.asc']);
   await writeFile(join(out,'a.deb'),'tampered');
   expect(gpg(['--verify',join(out,'a.deb.asc'),join(out,'a.deb')]).status).not.toBe(0);
  } finally { await rm(root,{recursive:true,force:true}); }
