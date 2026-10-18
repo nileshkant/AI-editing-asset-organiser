@@ -104,3 +104,10 @@
 
 .imports-workspace { flex: 1; min-height: 0; overflow: auto; }
 .job-heading .import-error { color: var(--danger); }
+/* SS-044 previews: bounded boxes; checkerboard is a UI background, never image data. */
+.image-import-item-preview { display: flex; align-items: center; gap: .75rem; }
+.image-preview { flex: none; inline-size: 7rem; margin: 0; display: flex; flex-direction: column; align-items: center; gap: .25rem; color: var(--text-muted); text-align: center; }
+.image-preview-frame { inline-size: 4rem; block-size: 4rem; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-input); }
+.image-preview img { max-inline-size: 100%; max-block-size: 100%; inline-size: auto; block-size: auto; object-fit: contain; }
+.image-preview img.checkerboard { background-color: #c8c8c8; background-image: linear-gradient(45deg, #8a8a8a 25%, transparent 25%, transparent 75%, #8a8a8a 75%), linear-gradient(45deg, #8a8a8a 25%, transparent 25%, transparent 75%, #8a8a8a 75%); background-size: 12px 12px; background-position: 0 0, 6px 6px; }
+.image-preview figcaption, .image-preview small { font-size: .75rem; line-height: 1.25; color: var(--warning); }

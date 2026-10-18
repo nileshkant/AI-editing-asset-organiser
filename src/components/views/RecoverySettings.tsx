@@ -27,7 +27,7 @@ export function RecoverySettings({onError}: {onError: (error: string) => void}) 
       <label className="settings-check"><input type="checkbox" disabled={busy} checked={resources.preferences.imports_paused} onChange={e=>save({...resources.preferences,imports_paused:e.target.checked})}/>Pause queued imports</label>
     </>}
     <h2>Backup and diagnostics</h2>
-    <p className="muted">Database backup includes catalog, annotations, clip history, jobs and preferences. It excludes audio, waveform cache, exported clips and temporary MCP credentials. Keep source folders separately.</p>
+    <p className="muted">Database backup includes catalog, annotations, clip history, jobs and preferences. It excludes audio, waveform and image preview caches, exported clips and temporary MCP credentials. Keep source folders separately.</p>
     <div className="settings-actions">
     <button disabled={busy} onClick={()=>void run(async()=>{const path=await call<string | null>('database_backup');if(path)setMessage(`Database backup saved to ${path}`);})}>Back up database</button>
     <button disabled={busy} onClick={()=>setConfirm('restore')}>Restore database</button>

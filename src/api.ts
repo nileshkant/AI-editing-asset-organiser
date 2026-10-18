@@ -141,3 +141,30 @@ export const imageImportItems = (id: string, after: string | null = null) => cal
 export const cancelImageImport = (job: import('./types').ImageImportJob) => call<import('./types').ImageImportJob>('cancel_image_import', { id: job.id, sourceGeneration: job.source_generation });
 export const retryImageImport = (job: import('./types').ImageImportJob) => call<import('./types').ImageImportJob>('retry_image_import', { id: job.id, sourceGeneration: job.source_generation });
 export const importedImages = (sourceId: string, after: string | null = null) => call<import('./types').ImportedImagePage>('imported_images', { sourceId, after });
+
+type PreviewTarget = { assetId: string; version: string; tier: import('./types').ImagePreviewTier; tile: [number, number] | null };
+/**
+ * Parses the SS-044 binary preview envelope (`CSPV`, u32 LE metadata length,
+ * metadata JSON, encoded image) and rejects a reply for any other asset/version/tier.
+ */
+export function parsePreviewEnvelope(raw: unknown, expected: PreviewTarget): { meta: import('./types').ImagePreviewMeta; blob: Blob } {
+  const bytes = raw instanceof ArrayBuffer ? new Uint8Array(raw) : raw instanceof Uint8Array ? raw : Array.isArray(raw) ? Uint8Array.from(raw as number[]) : null;
+  if (!bytes || bytes.length < 9 || String.fromCharCode(...bytes.subarray(0, 4)) !== 'CSPV') throw new Error('INVALID_DATA');
+  const length = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(4, true);
+  if (length > 16384 || 8 + length >= bytes.length) throw new Error('INVALID_DATA');
+  let meta: import('./types').ImagePreviewMeta;
+  try { meta = JSON.parse(new TextDecoder().decode(bytes.subarray(8, 8 + length))); } catch { throw new Error('INVALID_DATA'); }
+  const dimension = (n: unknown) => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 32768;
+  const tile = expected.tile ? `${expected.tile[0]},${expected.tile[1]}` : null;
+  if (!meta || meta.asset_id !== expected.assetId || meta.version !== expected.version || meta.tier !== expected.tier ||
+    (meta.tile ? `${meta.tile[0]},${meta.tile[1]}` : null) !== tile || !['image/png', 'image/jpeg'].includes(meta.mime) ||
+    ![meta.width, meta.height, meta.source_width, meta.source_height].every(dimension) ||
+    typeof meta.original_available !== 'boolean' || meta.offline_reference !== !meta.original_available) throw new Error('INVALID_DATA');
+  return { meta, blob: new Blob([bytes.slice(8 + length)], { type: meta.mime }) };
+}
+/** Requests a preview by asset ID and content version only; no paths cross IPC. */
+export async function imagePreview(requestId: string, assetId: string, version: string, tier: import('./types').ImagePreviewTier, tile: [number, number] | null = null) {
+  const raw = await call<unknown>('image_preview', { requestId, assetId, version, tier, tile });
+  return parsePreviewEnvelope(raw, { assetId, version, tier, tile });
+}
+export const cancelImagePreview = (requestId: string) => call<boolean>('cancel_image_preview', { requestId });

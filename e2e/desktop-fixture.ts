@@ -18,6 +18,13 @@ export async function installDesktopFixture(page: Page, images = false) {
       generation: 0, available: true, scope: 'folder', files: [] };
     let playback = { sound_id: null as string | null, state: 'stopped', position_seconds: 0, duration_seconds: 0, volume: 1, peak: 0, error: null };
     let mediaJob: any = null;
+    // Synthetic 16x12 RGBA PNG (opaque red | transparent and half-alpha blue) in the SS-044 envelope.
+    const previewPng = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAABAAAAAMCAYAAABr5z2BAAAAIklEQVR4nGO4Y6PxHx/WiLrDgA8zjBpAHwMa8OFRA6hgAABstnLwKEaeUAAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+    const previewEnvelope = (meta: object) => {
+      const json = new TextEncoder().encode(JSON.stringify(meta)), out = new Uint8Array(8 + json.length + previewPng.length);
+      out.set([0x43, 0x53, 0x50, 0x56]); new DataView(out.buffer).setUint32(4, json.length, true); out.set(json, 8); out.set(previewPng, 8 + json.length);
+      return out.buffer;
+    };
     const calls: { command: string; args: any }[] = [];
     Object.assign(window, {
       isTauri: true,
@@ -39,7 +46,13 @@ export async function installDesktopFixture(page: Page, images = false) {
             case 'cancel_media_preview': return;
             case 'confirm_media_import': mediaJob = { id: 'image-job', source_id: 'source', source_generation: '0', sequence: '10', mode: 'mixed', state: 'failed', phase: 'complete', discovery_complete: true, history_truncated: false, total: 2, completed: 2, ready: 1, reused: 0, failed: 1, unsupported: 0, current: '', error_code: 'DECODE_FAILED' }; return [mediaJob];
             case 'image_import_items': return { items: [{ job_id: 'image-job', relative_path: 'chosen.png', media_kind: 'image', state: 'ready', asset_id: 'image-one', content_hash: 'a'.repeat(64), error_code: null, attempts: 1, warnings: ['assumed_srgb'] }, { job_id: 'image-job', relative_path: 'corrupt.png', media_kind: 'image', state: 'failed', asset_id: null, content_hash: null, error_code: 'DECODE_FAILED', attempts: 1, warnings: [] }], next_after: null };
-            case 'imported_images': return { items: [{ header: { id: 'image-one', kind: 'image', source_id: 'source', relative_path: 'chosen.png', content_hash: 'a'.repeat(64), technical_state: 'ready', availability: 'available', enrichment_state: 'disabled' }, width: 640, height: 480, annotation_revision: 1 }], next_after: null };
+            case 'imported_images': return { items: [{ header: { id: 'image-one', kind: 'image', source_id: 'source', relative_path: 'chosen.png', content_hash: 'a'.repeat(64), technical_state: 'ready', availability: 'available', enrichment_state: 'disabled' }, width: 640, height: 480, annotation_revision: 1 },
+              { header: { id: 'image-two', kind: 'image', source_id: 'source', relative_path: 'offline-' + '長い名前-'.repeat(12) + '.png', content_hash: 'b'.repeat(64), technical_state: 'ready', availability: 'offline', enrichment_state: 'disabled' }, width: 640, height: 480, annotation_revision: 1 }], next_after: null };
+            case 'image_preview': { const offline = args.assetId === 'image-two';
+              return previewEnvelope({ asset_id: args.assetId, version: args.version, tier: args.tier, tile: args.tile, width: 16, height: 12, source_width: 640, source_height: 480, mime: 'image/png', transparency: true, cache: 'hit', original_available: !offline, offline_reference: offline, preview_version: 'creativeshelf-preview-v1' }); }
+            case 'cancel_image_preview': return false;
+            case 'image_preview_cache_status': return images ? { enabled: true, entries: 6, bytes: 48_000, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 9, misses: 3, generated: 2, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 1, stale_rejected: 0, offline_served: 1 } }
+              : { enabled: false, entries: 0, bytes: 0, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 0, misses: 0, generated: 0, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 0, stale_rejected: 0, offline_served: 0 } };
             case 'jobs': return [];
             case 'sources': return [source];
             case 'search_sounds': {

@@ -4,7 +4,9 @@ This adds a core analysis service and a dedicated `creativeshelf-image-worker`
 executable. Image capability remains disabled. No picker, import job, gallery,
 thumbnail, AI tagger or image MCP endpoint is enabled. SS-043 owns import jobs,
 worker resource packaging/lifecycle integration and scoped selection in the app.
-SS-044 owns cached previews. Originals are read-only throughout this service.
+SS-044 owns cached previews (see [IMAGE_PREVIEWS.md](IMAGE_PREVIEWS.md)); its
+`preview` worker mode reuses this exact decode pipeline. Originals are read-only
+throughout this service.
 
 ## Call sequence and ownership
 
@@ -61,7 +63,8 @@ reads are independently killable by the watchdog.
 - Decoder deadline: 30 seconds maximum (callers can shorten it), including parent
   hash checkpoints. Watchdog polls at 10 ms, kills and reaps the process on
   cancellation/deadline. The worker slot and watchdog are released on completion.
-- Worker stdout: 16 KiB maximum. Stderr is discarded; no unbounded diagnostic or
+- Worker stdout: 16 KiB maximum for analysis (SS-044 preview mode: 16 KiB header
+  plus at most 4 MiB per encoded preview). Stderr is discarded; no unbounded diagnostic or
   image text reaches logs. Replies contain metadata, pixel hash and four corners,
   not a full pixel array. The worker performs no media writes.
 

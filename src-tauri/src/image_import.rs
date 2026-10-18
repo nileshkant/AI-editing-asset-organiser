@@ -23,6 +23,8 @@ type Sink = Arc<dyn Fn(ImageImportJob) + Send + Sync>;
 pub struct ImageImports {
     pub previews: Arc<MediaImportPreviews>,
     pub enabled: bool,
+    /// The trusted packaged worker, shared with SS-044 previews when enabled.
+    pub helper: Option<PathBuf>,
     stop: Arc<AtomicBool>,
     worker: Mutex<Option<thread::JoinHandle<()>>>,
     sink: Arc<Mutex<Option<Sink>>>,
@@ -49,6 +51,7 @@ impl ImageImports {
             cfg!(feature = "image-development") && worker.is_absolute() && worker.is_file();
         let stop = Arc::new(AtomicBool::new(false));
         let sink = Arc::new(Mutex::new(None::<Sink>));
+        let trusted = enabled.then(|| worker.clone());
         let handle = if enabled {
             let stop = stop.clone();
             let sink = sink.clone();
@@ -88,6 +91,7 @@ impl ImageImports {
         Self {
             previews: Arc::new(MediaImportPreviews::default()),
             enabled,
+            helper: trusted,
             stop,
             worker: Mutex::new(handle),
             sink,

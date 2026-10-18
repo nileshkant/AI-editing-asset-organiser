@@ -242,3 +242,10 @@ uncommitted roadmap/tickets in a separate PR ahead of it, and then stopping.
 This current hold overrides automatic continuation after green checks. Keep
 SS-044–078 not-started until a new user instruction resumes work. Earlier PRs
 #39–41 are merged; the two remaining PRs must base on that merged state.
+
+## Resumed — 18 October 2026
+
+PRs #42 and #43 merged on 17 October 2026. After the SS-079 release candidate,
+the user instructed work on the next queued ticket, which resumes the queue at
+SS-044 from reviewed main. The 17 October workflow amendment applies again: the
+next ticket may start once the current ticket's PR checks pass, before merge.

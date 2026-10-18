@@ -21,6 +21,25 @@ for (const zoom of [1, 2]) {
     await page.getByRole('button', { name: 'Browse files' }).click(); await expect(page.getByRole('article').getByText('chosen.png', { exact: true })).toBeVisible(); await expect(page.getByRole('article').getByText('corrupt.png', { exact: true })).toBeVisible();
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
     await page.screenshot({ path: info.outputPath(`image-results-${zoom}.png`) });
+    // SS-044: real Chromium decodes the envelope's PNG from an owned blob URL.
+    const library = page.getByRole('region', { name: 'Imported image library' });
+    const thumb = library.getByRole('img', { name: 'chosen.png, 640 × 480, transparent' });
+    await expect(thumb).toBeVisible();
+    expect(await thumb.evaluate((img: HTMLImageElement) => [img.naturalWidth, img.naturalHeight, img.src.startsWith('blob:')])).toEqual([16, 12, true]);
+    await expect(thumb).toHaveClass(/checkerboard/);
+    await expect(library.getByText('Offline reference · original unavailable, export disabled')).toBeVisible();
+    expect(await library.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    expect((await new AxeBuilder({ page }).include('[aria-label="Imported image library"]').withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+    await page.screenshot({ path: info.outputPath(`image-thumbnails-${zoom}.png`) });
+    await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    await page.getByRole('tab', { name: 'Audio & recovery' }).click();
+    const previews = page.getByRole('region', { name: 'Image previews' });
+    await expect(previews).toContainText('6 previews');
+    await expect(previews).not.toContainText('/Volumes');
+    await previews.getByRole('button', { name: 'Clear image previews' }).click();
+    await expect(previews.getByRole('group', { name: 'Confirm preview cache clear' })).toBeVisible();
+    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+    await page.screenshot({ path: info.outputPath(`image-preview-settings-${zoom}.png`) });
     const calls = await page.evaluate(() => (window as any).__fixtureCalls as { command: string }[]);
     expect(calls.some(c => /upload|model_download|provider/.test(c.command))).toBe(false);
   });
