@@ -230,6 +230,8 @@ mod tests {
         let status = format!("{:?}", state.image_previews.status());
         assert!(!status.contains(root.to_str().unwrap()) && !status.contains(&id));
         assert_eq!(std::fs::read(root.join("native.webp")).unwrap(), bytes);
+        // Release every catalog handle before deleting (Windows refuses open files).
+        drop((preview, service));
         state.shutdown();
         drop(state);
         std::fs::remove_dir_all(dir).unwrap();
