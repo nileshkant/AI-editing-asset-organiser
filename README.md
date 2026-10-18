@@ -1,10 +1,37 @@
 # CreativeShelf
 
-A local-first creative asset library. Version 1 supports audio; image assets and Remotion presets are future work. Tauri 2 hosts a React interface and a Rust service layer. User recordings are never part of this repository.
+A free, open-source library for your sound effects and audio files. Point it at your folders, then search, preview, tag, favorite and clip sounds, all on your own computer. Image assets and Remotion presets are in development.
+
+![CreativeShelf library](site/screenshot.png)
+
+## Download
+
+**[Download the latest release](https://github.com/nileshkant/AI-editing-asset-organiser/releases/latest)**, or visit the [CreativeShelf website](https://nileshkant.github.io/AI-editing-asset-organiser/).
+
+| Your computer | File |
+|---|---|
+| Mac with Apple Silicon (M1 or newer), macOS 14.2+ | `.dmg` |
+| Windows 10/11, 64-bit | `-setup.exe` |
+| Linux, 64-bit | `.AppImage` or `.deb` (GPG-signed) |
+
+CreativeShelf is distributed directly, not through an app store, so the first launch needs one confirmation:
+
+- **Mac:** open the app once, click **Done** on the warning, then choose **System Settings → Privacy & Security → Open Anyway**.
+- **Windows:** if "Windows protected your PC" appears, click **More info → Run anyway**.
+
+The [release notes](docs/RELEASE_NOTES.md) explain each step and how to verify downloads.
+
+## Privacy
+
+- Works offline. No account, no telemetry, no uploads.
+- Your audio stays in the folders you choose and is never modified.
+- Agent access (MCP) is off by default and only listens on your own computer when enabled.
+
+Report security issues privately as described in [SECURITY.md](SECURITY.md).
 
 ## Delivery status
 
-Under active development. No production release has been qualified yet. See `tickets/README.md` for the incremental delivery backlog and `docs/reviews/` for test and review evidence. A checked-in feature is not necessarily a release-qualified feature.
+Public beta. Audio is supported; image work continues in the ticket queue. See `tickets/README.md` for the incremental delivery backlog and `docs/reviews/` for test and review evidence. A checked-in feature is not necessarily a release-qualified feature.
 
 ## Principles
 

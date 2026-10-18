@@ -1,7 +1,9 @@
-name: Unsigned tester release
+name: Direct-download release
+# vX.Y.Z-alpha.N: tester prerelease. vX.Y.Z-beta.N, -rc.N and vX.Y.Z: public
+# releases shown as Latest. Public Linux downloads must carry a GPG signature.
 on:
   push:
-    tags: ['v*-alpha.*']
+    tags: ['v*']
   workflow_dispatch:
 permissions:
   contents: read
@@ -64,10 +66,25 @@ jobs:
           $env:SOUNDSHELF_FFMPEG = $generator.FullName
           $env:SOUNDSHELF_FFPROBE = Join-Path $generator.DirectoryName 'ffprobe.exe'
           cargo test --workspace --locked -- --include-ignored
-      - name: Build unsigned tester installer
+      - name: Build direct-download installer
         run: node scripts/unsigned-release.mjs build
       - name: Inspect actual installer contents and collect hashes
         run: node scripts/collect-unsigned-release.mjs
+      - name: Sign Linux downloads
+        if: runner.os == 'Linux'
+        env:
+          LINUX_GPG_PRIVATE_KEY: ${{ secrets.LINUX_GPG_PRIVATE_KEY }}
+          SIGNING_REQUIRED: ${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-alpha.') }}
+        run: |
+          if [ -z "$LINUX_GPG_PRIVATE_KEY" ]; then
+            if [ "$SIGNING_REQUIRED" = true ]; then echo '::error::LINUX_GPG_PRIVATE_KEY is required for beta and stable releases (docs/RELEASE.md)'; exit 1; fi
+            echo 'No Linux signing key provisioned; this tester build stays unsigned.'; exit 0
+          fi
+          test -f release/linux-release-key.asc || { echo '::error::Publish release/linux-release-key.asc before signing'; exit 1; }
+          LINUX_SIGNING_FINGERPRINT="$(gpg --batch --show-keys --with-colons release/linux-release-key.asc | awk -F: '$1=="fpr"{print $10; exit}')"
+          export LINUX_SIGNING_FINGERPRINT
+          printf '%s\n' "$LINUX_GPG_PRIVATE_KEY" | gpg --batch --import
+          node scripts/sign-linux-release.mjs unsigned-release
       - uses: actions/upload-artifact@v4
         with:
           name: unsigned-${{ matrix.os }}
@@ -98,8 +115,26 @@ jobs:
         run: |
           for checksum in SHA256SUMS-*.txt; do sha256sum -c "$checksum"; done
           sha256sum ffmpeg-9.0.2.tar.xz > SHA256SUMS-media-source.txt
-      - name: Publish explicitly unsigned prerelease
+      - name: Verify Linux signatures against the published key
+        if: ${{ !contains(github.ref_name, '-alpha.') }}
+        working-directory: release-downloads
+        run: |
+          gpg --batch --import ../release/linux-release-key.asc
+          fingerprint="$(gpg --batch --show-keys --with-colons ../release/linux-release-key.asc | awk -F: '$1=="fpr"{print $10; exit}')"
+          for file in *.AppImage *.deb SHA256SUMS-x86_64-unknown-linux-gnu.txt; do
+            gpg --batch --status-fd 1 --verify "$file.asc" "$file" | grep -q "^\[GNUPG:\] VALIDSIG $fingerprint " || { echo "::error::$file is not signed by the published Linux release key"; exit 1; }
+          done
+          cp ../release/linux-release-key.asc creativeshelf-linux-release-key.asc
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" release-downloads/* --verify-tag --prerelease --title "CreativeShelf $RELEASE_TAG — unsigned tester preview" --notes-file docs/UNSIGNED_TESTER_RELEASE.md
+        run: |
+          case "$RELEASE_TAG" in
+            *-alpha.*) kind=--prerelease; title="CreativeShelf $RELEASE_TAG — unsigned tester preview"; notes=docs/UNSIGNED_TESTER_RELEASE.md ;;
+            *-beta.*) kind=--latest; title="CreativeShelf $RELEASE_TAG — public beta"; notes=docs/RELEASE_NOTES.md ;;
+            *-rc.*) kind=--latest; title="CreativeShelf $RELEASE_TAG — release candidate"; notes=docs/RELEASE_NOTES.md ;;
+            *) kind=--latest; title="CreativeShelf $RELEASE_TAG"; notes=docs/RELEASE_NOTES.md ;;
+          esac
+          extra=(); [ "$kind" = --latest ] && extra=(--generate-notes)
+          gh release create "$RELEASE_TAG" release-downloads/* --verify-tag "$kind" --title "$title" --notes-file "$notes" "${extra[@]}"

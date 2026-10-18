@@ -25,7 +25,7 @@ try {
  const action=process.argv[2];
  if (action==='build') {
   const dirty=run('git',['status','--porcelain']);
-  if(dirty.trim()) throw new Error('Unsigned tester builds require a clean committed checkout');
+  if(dirty.trim()) throw new Error('Direct-download builds require a clean committed checkout');
   const lock=await readLock('.release-input/media-lock.json');
   const source=JSON.parse(await readFile('release/ffmpeg-source.json','utf8'));
   if(lock.targets[target].sourceSha256!==source.sha256) throw new Error('Media source lock mismatch');
@@ -42,9 +42,9 @@ try {
   if(process.platform==='win32') bundle.windows={allowDowngrades:false,webviewInstallMode:{type:'offlineInstaller'}};
   stage.entries=await inventory('src-tauri/release-assets'); stage.bytes=stage.entries.reduce((n,e)=>n+e.bytes,0);
   await mkdir('release-reports',{recursive:true});
-  await writeFile('release-reports/stage.json',JSON.stringify({...stage,resources:undefined,target,purpose:'unsigned-tester-prerelease',workspaceDirty:false,commit:run('git',['rev-parse','HEAD']).trim(),cargoLockSha256:sha(await readFile('Cargo.lock')),npmLockSha256:sha(await readFile('package-lock.json'))},null,2));
+  await writeFile('release-reports/stage.json',JSON.stringify({...stage,resources:undefined,target,purpose:'direct-download-release',workspaceDirty:false,commit:run('git',['rev-parse','HEAD']).trim(),cargoLockSha256:sha(await readFile('Cargo.lock')),npmLockSha256:sha(await readFile('package-lock.json'))},null,2));
   const version=(process.env.GITHUB_REF_NAME?.startsWith('v') ? process.env.GITHUB_REF_NAME.slice(1) : '0.1.0-alpha.1');
-  if(!/^\d+\.\d+\.\d+-alpha\.\d+$/.test(version)) throw new Error('Invalid preview version');
+  if(!/^\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?$/.test(version)) throw new Error('Invalid release version');
   await writeFile('src-tauri/tauri.staged.conf.json',JSON.stringify({version,bundle},null,2));
   run(process.execPath,['scripts/desktop.mjs','build','--target',target,'--config','src-tauri/tauri.staged.conf.json',...(process.platform==='darwin'?[]:['--no-sign'])],{stdio:'inherit'});
   if (process.platform === 'linux') {
@@ -72,7 +72,7 @@ try {
  } else if(action==='inspect') {
   const app=resolve(process.argv[3]),artifact=resolve(process.argv[4]);
   const stage=JSON.parse(await readFile('release-reports/stage.json','utf8'));
-  if(stage.purpose!=='unsigned-tester-prerelease'||stage.target!==target||stage.workspaceDirty) throw new Error('Unsigned tester provenance mismatch');
+  if(stage.purpose!=='direct-download-release'||stage.target!==target||stage.workspaceDirty) throw new Error('Direct-download provenance mismatch');
   const report=await inspectPackage(app,stage.entries,process.platform==='darwin'?async path=>{
    const expected=stage.entries.find(e=>path.endsWith('/'+e.path));
    run('codesign',['--verify','--strict',path]);
@@ -89,7 +89,7 @@ try {
 
   const data=await readFile(artifact);
   report.artifact={name:artifact.split(/[\\/]/).pop(),bytes:data.length,sha256:sha(data)};
-  Object.assign(report,{target,commit:stage.commit,purpose:stage.purpose,signature:{verified:false,method:process.platform==='darwin'?'ad-hoc only; no Developer ID or notarization':'unsigned'},installedQualification:'Automated content checks only; physical audio, live clients and long-session qualification pending'});
+  Object.assign(report,{target,commit:stage.commit,purpose:stage.purpose,signature:{verified:false,method:process.platform==='darwin'?'ad-hoc only; no Developer ID or notarization':process.platform==='linux'?'no embedded signature; beta and stable releases add a detached GPG signature after inspection':'unsigned'},installedQualification:'Automated content checks only; physical audio, live clients and long-session qualification pending'});
   await mkdir('release-reports/unsigned',{recursive:true});
   await writeFile(`release-reports/unsigned/${report.artifact.name}.json`,JSON.stringify(report,null,2));
  } else throw new Error('Use unsigned-release.mjs build|inspect EXTRACTED_APP INSTALLER');
