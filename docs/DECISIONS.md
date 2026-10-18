@@ -64,3 +64,28 @@ not universal memory/latency claims. The enforced Rust heap limit is 512 MiB;
 stack, mappings and allocator overhead are additional. Platform support requires
 the real worker fixtures on each advertised target. The existing CI matrix runs
 them on macOS, Windows and Linux; installed packaging remains a later gate.
+
+## SS-044 preview delivery and cache (18 October 2026)
+
+Previews are delivered as a binary IPC response (`CSPV` envelope). The renderer
+makes blob URLs it owns and revokes. We considered a custom URI scheme serving
+cache files. It was rejected because a URL handler is a second authorization
+surface that the CSP and every future caller would need to scope correctly, and
+the ticket forbids filesystem protocol expansion. Commands keep authorization,
+cancellation and stale fencing in one core service. The CSP adds only `blob:`.
+
+Thumbnails, inspect previews and tiles come from the SS-042 worker in a new
+`preview` mode, not from in-process decoding. The worker's allocation budget and
+watchdog are the reason decoding was isolated in the first place. Arguments are
+fixed tier names and small integers, never paths. The three thumbnail tiers share
+one decode. Transparent sources resample premultiplied (16-bit) to avoid hidden-RGB
+edge bleed; a real-worker regression fails under straight-alpha resampling.
+
+The cache is a content-addressed directory of self-verifying records rather than
+catalog tables. It is disposable derived data: putting it in SQLite would add
+migration, backup and portable-format obligations and grow user backups for no
+recovery value. A namespace hash of preview version, analyzer and color policy
+invalidates old preprocessing wholesale. The quota lives in its own
+`app_settings` key because `Preferences` rejects unknown fields and would break
+older binaries. The SS-040 ceilings (2,048 px, 4 MiB) are enforced per output;
+inspect steps down to a smaller size rather than raise them.

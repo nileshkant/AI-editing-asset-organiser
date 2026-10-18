@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod service;
 mod image_import;
+mod image_preview;
 mod agent;
 mod catalog_transfer;
 mod maintenance;
@@ -369,7 +370,7 @@ fn main() {
         .setup(|app|{let path=if cfg!(debug_assertions){std::env::var_os("SOUNDSHELF_DATA_DIR").map(PathBuf::from).or_else(||app.path().app_data_dir().ok()).unwrap_or_else(fallback_data_directory)}else{app.path().app_data_dir().unwrap_or_else(|_|fallback_data_directory())};let resources=app.path().resource_dir().unwrap_or_else(|_|fallback_resource_directory());let state=AppState::new(path,resources)?;state.image_imports.set_events(app.handle().clone());app.manage(state);Ok(())})
         .on_window_event(|window,event|{if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop{paths,..})=event{image_import::native_drop(window,paths.clone());}})
         .invoke_handler(tauri::generate_handler![
-            image_import::image_import_capabilities,image_import::choose_media_import,image_import::preview_media_import,image_import::cancel_media_preview,image_import::confirm_media_import,image_import::image_import_jobs,image_import::image_import_items,image_import::cancel_image_import,image_import::retry_image_import,image_import::imported_images,
+            image_import::image_import_capabilities,image_import::choose_media_import,image_import::preview_media_import,image_import::cancel_media_preview,image_import::confirm_media_import,image_import::image_import_jobs,image_import::image_import_items,image_import::cancel_image_import,image_import::retry_image_import,image_import::imported_images,image_preview::image_preview,image_preview::cancel_image_preview,image_preview::image_preview_cache_status,image_preview::set_image_preview_cache_quota,image_preview::clear_image_preview_cache,
             app_info,
             agent::mcp_status, agent::mcp_start, agent::mcp_stop, agent::mcp_pair, agent::mcp_revoke, agent::mcp_rotate, agent::mcp_approve_destination, agent::mcp_bridge_location,
             maintenance::resource_settings,maintenance::save_resource_settings,maintenance::database_backup,maintenance::database_restore,maintenance::purge_waveform_cache,maintenance::support_report,

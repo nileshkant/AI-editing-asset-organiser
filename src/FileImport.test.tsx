@@ -1,5 +1,6 @@
 vi.mock('./components/views/RecoverySettings', () => ({ RecoverySettings: () => null }));
 vi.mock('./components/views/McpSettings', () => ({ McpSettings: () => null }));
+vi.mock('./components/views/ImagePreviewSettings', () => ({ ImagePreviewSettings: () => null }));
 import { render, screen, fireEvent, waitFor, act, renderHook, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SettingsView } from './components/views/SettingsView';

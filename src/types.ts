@@ -238,3 +238,16 @@ export type ImageImportItem = {
 export type ImageImportItemPage = { items: ImageImportItem[]; next_after: string | null };
 export type ImportedImagePage = { items: { header: import('./contracts/imageV1').ImageHeader; width: number | null; height: number | null; annotation_revision: number }[]; next_after: string | null };
 export type ImageImportCapabilities = { enabled: boolean; reference_in_place: boolean; production_images: boolean; metadata_present: boolean };
+export type ImagePreviewTier = 'small' | 'medium' | 'large' | 'inspect' | 'tile';
+export type ImagePreviewError = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'STALE_VERSION' | 'NOT_READY' | 'ORIGINAL_UNAVAILABLE' | 'SOURCE_CHANGED' | 'CANCELLED' | 'BUSY' | 'TIMED_OUT' | 'LIMIT_EXCEEDED' | 'INVALID_DATA' | 'UNSUPPORTED' | 'PERMISSION_DENIED' | 'WORKER_UNAVAILABLE' | 'WORKER_FAILED' | 'INTERNAL';
+/** SS-044 preview metadata. A cached preview never proves the original is available. */
+export type ImagePreviewMeta = {
+  asset_id: string; version: string; tier: ImagePreviewTier; tile: [number, number] | null;
+  width: number; height: number; source_width: number; source_height: number;
+  mime: 'image/png' | 'image/jpeg'; transparency: boolean; cache: 'hit' | 'generated' | 'uncached';
+  original_available: boolean; offline_reference: boolean; preview_version: string;
+};
+export type ImagePreviewCacheStatus = {
+  enabled: boolean; entries: number; bytes: number; quota_bytes: number; active: number; waiting: number;
+  counters: { hits: number; misses: number; generated: number; coalesced: number; evicted: number; repaired: number; write_failures: number; cancelled: number; stale_rejected: number; offline_served: number };
+};

@@ -25,8 +25,14 @@ struct Work {
     job_id: String,
 }
 
+/// Native image tests share the process-wide single analysis-worker slot, so two
+/// AppStates analyzing at once would see BUSY. Serialize those tests.
+#[cfg(all(test, feature = "image-development"))]
+pub static NATIVE_IMAGE_TESTS: Mutex<()> = Mutex::new(());
+
 pub struct AppState {
     pub image_imports: Arc<crate::image_import::ImageImports>,
+    pub image_previews: Arc<crate::image_preview::ImagePreviews>,
     pub agent: Arc<soundshelf_agent::Agent>,
     pub agent_library: Arc<soundshelf_core::agent::AgentLibrary>,
     pub data_directory: PathBuf,
@@ -221,8 +227,10 @@ impl AppState {
         let exports = Arc::new(ExportService::new(data_directory.join("export-journal"))?);
         let agent_library=Arc::new(soundshelf_core::agent::AgentLibrary::new(catalog.clone(),exports.clone(),tools.clone()));
         let image_imports=Arc::new(crate::image_import::ImageImports::new(catalog.clone(),&resources,tools.clone()));
+        let image_previews=Arc::new(crate::image_preview::ImagePreviews::new(&data_directory,&catalog,image_imports.helper.clone()));
         let state = Self {
             image_imports,
+            image_previews,
             agent: Arc::new(soundshelf_agent::Agent::persistent(data_directory.join("runtime/mcp.json"), data_directory.join("mcp-access.sqlite"), Some(agent_library.clone()))),
             agent_library,
             data_directory,
@@ -326,6 +334,7 @@ impl AppState {
 
     pub fn shutdown(&self) {
         self.image_imports.shutdown();
+        self.image_previews.shutdown();
         self.agent.stop();
         self.exports.shutdown();
         self.player.stop();

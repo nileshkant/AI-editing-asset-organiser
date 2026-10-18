@@ -120,6 +120,17 @@ impl ImageSelection {
         contained(Path::new(&self.source.root), &self.relative)
             .map_err(|_| AnalysisError::SourceUnavailable)
     }
+    /// Resolve containment now and open the exact member read-only for a worker's stdin.
+    pub(crate) fn open(&self) -> Result<File> {
+        let input = File::open(self.path()?).map_err(|_| AnalysisError::SourceUnavailable)?;
+        let meta = input
+            .metadata()
+            .map_err(|_| AnalysisError::SourceUnavailable)?;
+        if !meta.is_file() || meta.len() == 0 || meta.len() > MAX_ENCODED {
+            return Err(AnalysisError::LimitExceeded);
+        }
+        Ok(input)
+    }
     /// Bounded streaming hash for discovery before metadata registration.
     pub fn hash(&self, cancel: &AtomicBool) -> Result<String> {
         hash_path(&self.path()?, cancel, Instant::now() + DEADLINE)
@@ -174,14 +185,7 @@ impl ImageAnalysisRequest {
             }
         }
         let _slot = Slot;
-        let path = self.selection.path()?;
-        let input = File::open(&path).map_err(|_| AnalysisError::SourceUnavailable)?;
-        let before = input
-            .metadata()
-            .map_err(|_| AnalysisError::SourceUnavailable)?;
-        if !before.is_file() || before.len() == 0 || before.len() > MAX_ENCODED {
-            return Err(AnalysisError::LimitExceeded);
-        }
+        let input = self.selection.open()?;
         let mut analysis = supervise(worker, input, cancel.clone(), end)?;
         if analysis.content_hash != self.expected {
             return Err(AnalysisError::SourceChanged);
@@ -305,12 +309,38 @@ fn supervise(
     cancel: Arc<AtomicBool>,
     end: Instant,
 ) -> Result<ImageAnalysis> {
+    let bytes = run_worker(worker, input, cancel, end, &[], MAX_REPLY)?;
+    let reply: WorkerReply =
+        serde_json::from_slice(&bytes).map_err(|_| AnalysisError::InvalidData)?;
+    let analysis = reply.result?;
+    if analysis.profile.analyzer_version != ANALYZER
+        || analysis.profile.encoded_bytes > MAX_ENCODED
+        || analysis.warnings.len() > 8
+        || analysis.content_hash.len() != 64
+        || analysis.display_rgba_hash.len() != 64
+        || analysis.peak_heap_bytes > WORKER_HEAP as u64
+    {
+        return Err(AnalysisError::InvalidData);
+    }
+    Ok(analysis)
+}
+/// Spawn the trusted worker with fixed non-path arguments, supervise it and
+/// return at most `cap` stdout bytes. Cancellation/deadline kill and reap it.
+pub(crate) fn run_worker(
+    worker: &Path,
+    input: File,
+    cancel: Arc<AtomicBool>,
+    end: Instant,
+    args: &[&str],
+    cap: u64,
+) -> Result<Vec<u8>> {
     if !worker.is_absolute() || !worker.is_file() {
         return Err(AnalysisError::WorkerUnavailable);
     }
     let mut command = Command::new(worker);
     crate::media::configure_background_process(&mut command);
     let mut child = command
+        .args(args)
         .stdin(Stdio::from(input))
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -352,8 +382,8 @@ fn supervise(
             AnalysisError::WorkerFailed
         })?;
     let mut bytes = Vec::new();
-    let read = stdout.by_ref().take(MAX_REPLY + 1).read_to_end(&mut bytes);
-    if read.is_err() || bytes.len() as u64 > MAX_REPLY {
+    let read = stdout.by_ref().take(cap + 1).read_to_end(&mut bytes);
+    if read.is_err() || bytes.len() as u64 > cap {
         if let Ok(mut p) = process.lock() {
             let _ = p.kill();
         }
@@ -380,31 +410,23 @@ fn supervise(
     if status.code() == Some(78) {
         return Err(AnalysisError::LimitExceeded);
     }
-    if bytes.len() as u64 > MAX_REPLY {
+    if bytes.len() as u64 > cap {
         return Err(AnalysisError::LimitExceeded);
     }
     if !status.success() || read.is_err() {
         return Err(AnalysisError::WorkerFailed);
     }
-    let reply: WorkerReply =
-        serde_json::from_slice(&bytes).map_err(|_| AnalysisError::InvalidData)?;
-    let analysis = reply.result?;
-    if analysis.profile.analyzer_version != ANALYZER
-        || analysis.profile.encoded_bytes > MAX_ENCODED
-        || analysis.warnings.len() > 8
-        || analysis.content_hash.len() != 64
-        || analysis.display_rgba_hash.len() != 64
-        || analysis.peak_heap_bytes > WORKER_HEAP as u64
-    {
-        return Err(AnalysisError::InvalidData);
-    }
-    Ok(analysis)
+    Ok(bytes)
 }
 
 /// Internal entry point for the dedicated heap-budgeted binary. Never call from
 /// the desktop process; abort/OOM isolation relies on the separate executable.
 #[doc(hidden)]
 pub fn worker_main(peak: impl Fn() -> usize + std::panic::RefUnwindSafe) {
+    let args: Vec<String> = std::env::args().skip(1).take(5).collect();
+    if !args.is_empty() {
+        return crate::image_preview_render::worker_main(&args, peak);
+    }
     let result = std::panic::catch_unwind(|| {
         let mut bytes = Vec::new();
         std::io::stdin()

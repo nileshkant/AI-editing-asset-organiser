@@ -6,6 +6,7 @@ import { McpGuide } from './McpGuide';
 import { FolderCatalogs } from './FolderCatalogs';
 import { RecoverySettings } from './RecoverySettings';
 import { CatalogData } from './CatalogData';
+import { ImagePreviewSettings } from './ImagePreviewSettings';
 import type { AppInfo, Source } from '../../types';
 
 interface SettingsViewProps {
@@ -140,7 +141,7 @@ export const SettingsView = memo(function SettingsView({
       {/* Keep panes mounted: category changes must not discard import previews,
           in-flight recovery state or credentials that are only shown once. */}
       <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} /></div></section>
-      <section {...panelProps(2)}><div className="settings-card"><RecoverySettings onError={onError} /></div></section>
+      <section {...panelProps(2)}><div className="settings-card"><RecoverySettings onError={onError} /></div><ImagePreviewSettings onError={onError} /></section>
       <section {...panelProps(3)}><div className="settings-card"><McpSettings roots={roots} onError={onError} /></div></section>
       <section {...panelProps(4)}>
       <div className="settings-card">

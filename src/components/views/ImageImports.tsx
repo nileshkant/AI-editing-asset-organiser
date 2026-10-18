@@ -3,6 +3,7 @@ import { imageImportItems, importedImages } from '../../api';
 import type { ImageImportItemPage, ImageImportJob, ImportedImagePage, Source } from '../../types';
 import type { ImageImportsController } from '../../hooks/useImageImports';
 import { importTerminal } from '../../hooks/useImageImports';
+import { ImagePreview } from '../image/ImagePreview';
 
 function ItemDetails({ job }: { job: ImageImportJob }) {
   const [page, setPage] = useState<ImageImportItemPage | null>(null), [images, setImages] = useState<ImportedImagePage['items']>([]), [error, setError] = useState(''), [busy, setBusy] = useState(false);
@@ -74,7 +75,7 @@ function Preview({ controller: c }: { controller: ImageImportsController }) {
     <div className="modal-actions"><button disabled={c.confirming} onClick={c.close}>Cancel</button><button className="primary" disabled={!c.preview || c.preparing || c.confirming || c.preview.images + c.preview.audio === 0 || c.preview.expires_at * 1000 <= Date.now()} onClick={() => void c.confirm()}>{c.confirming ? 'Starting import…' : 'Confirm import'}</button></div>
   </dialog>;
 }
-function ImageMetadataBrowser({ sources, jobs }: { sources: Source[]; jobs: ImageImportJob[] }) {
+function ImageMetadataBrowser({ sources, jobs, previews }: { sources: Source[]; jobs: ImageImportJob[]; previews: boolean }) {
   const [preferred, setPreferred] = useState(''), [page, setPage] = useState<ImportedImagePage | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const epoch = useRef(0);
   const sourceId = sources.some(s => s.id === preferred) ? preferred : sources[0]?.id || '';
@@ -90,7 +91,9 @@ function ImageMetadataBrowser({ sources, jobs }: { sources: Source[]; jobs: Imag
     <h2>Imported images</h2><p>Library records remain available after older import statuses expire.</p>
     <label>Image source <select value={sourceId} disabled={!sources.length} onChange={event => setPreferred(event.target.value)}>{!sources.length && <option value="">No sources yet</option>}{sources.map(s => <option value={s.id} key={s.id}>{s.name}</option>)}</select></label>
     {error && <p role="alert">{error}</p>}
-    <ul className="image-import-items">{page?.items.map(image => <li key={image.header.id}><strong className="path-text">{image.header.relative_path}</strong> · {image.header.technical_state} · {image.header.availability}{image.width && image.height ? ` · ${image.width} × ${image.height}` : ''}</li>)}</ul>
+    <ul className="image-import-items">{page?.items.map(image => <li key={image.header.id} className={previews ? 'image-import-item-preview' : undefined}>
+      {previews && image.header.technical_state === 'ready' && image.header.content_hash && <ImagePreview assetId={image.header.id} version={image.header.content_hash} tier="small" label={image.header.relative_path} />}
+      <span><strong className="path-text">{image.header.relative_path}</strong> · {image.header.technical_state} · {image.header.availability}{image.width && image.height ? ` · ${image.width} × ${image.height}` : ''}</span></li>)}</ul>
     {page && !page.items.length && <p>No images in this source.</p>}
     {busy && <p role="status">Loading images…</p>}
     {page?.next_after && <button disabled={busy} onClick={() => {
@@ -105,7 +108,7 @@ export function ImageImports({ controller: c, sources = [] }: { controller: Imag
       <h2>Import images and audio</h2><label>Include <select value={c.mode} onChange={event => c.setMode(event.target.value as 'images' | 'mixed')} disabled={c.preparing || c.confirming}><option value="mixed">Images and audio</option><option value="images">Images only</option></select></label>
       <div className="image-import-actions"><button disabled={c.preparing || c.confirming} onClick={() => void c.choose(false)}>Choose media files</button><button disabled={c.preparing || c.confirming} onClick={() => void c.choose(true)}>Choose media folders</button></div>
     </section>}
-    {(c.enabled || c.metadataPresent) && <ImageMetadataBrowser sources={sources} jobs={c.jobs} />}
+    {(c.enabled || c.metadataPresent) && <ImageMetadataBrowser sources={sources} jobs={c.jobs} previews={c.enabled} />}
     {c.jobs.map(job => <ImportJob key={job.id} job={job} controller={c} />)}
     {(c.preparing || c.preview || c.previewError) && <Preview controller={c} />}
   </>;

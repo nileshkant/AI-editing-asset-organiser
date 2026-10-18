@@ -618,6 +618,10 @@ fn webp_decode_container<'a>(bytes: &'a [u8], h: &Header) -> Result<Cow<'a, [u8]
     Ok(Cow::Owned(result))
 }
 pub(crate) fn decode(bytes: &[u8]) -> Result<ImageAnalysis> {
+    decode_display(bytes).map(|(analysis, _)| analysis)
+}
+/// Same verified pipeline, also returning canonical oriented sRGB straight-alpha pixels.
+pub(crate) fn decode_display(bytes: &[u8]) -> Result<(ImageAnalysis, image::RgbaImage)> {
     if bytes.is_empty() || bytes.len() as u64 > MAX_ENCODED {
         return Err(E::LimitExceeded);
     }
@@ -713,7 +717,10 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<ImageAnalysis> {
     display.apply_orientation(
         image::metadata::Orientation::from_exif(orientation).ok_or(E::InvalidData)?,
     );
-    let rgba = display.as_rgba8().ok_or(E::InvalidData)?;
+    let rgba = match display {
+        DynamicImage::ImageRgba8(i) => i,
+        _ => return Err(E::InvalidData),
+    };
     let (w, v) = rgba.dimensions();
     let corners = [
         rgba.get_pixel(0, 0).0,
@@ -728,7 +735,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<ImageAnalysis> {
         a = b;
         b = n;
     }
-    Ok(ImageAnalysis {
+    let analysis = ImageAnalysis {
         content_hash: blake3::hash(bytes).to_hex().to_string(),
         profile: ImageProfile {
             raw_width: h.width,
@@ -758,5 +765,6 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<ImageAnalysis> {
         display_rgba_hash: blake3::hash(rgba.as_raw()).to_hex().to_string(),
         display_corners: corners,
         peak_heap_bytes: 0,
-    })
+    };
+    Ok((analysis, rgba))
 }

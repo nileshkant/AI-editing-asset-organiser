@@ -52,8 +52,8 @@ jobs:
           $env:SOUNDSHELF_FFPROBE = Join-Path $ffmpegBinary.DirectoryName 'ffprobe.exe'
           if (-not (Test-Path -LiteralPath $env:SOUNDSHELF_FFPROBE -PathType Leaf)) { throw 'FFprobe binary not found beside FFmpeg' }
           cargo test --workspace --locked -- --include-ignored
-      - name: Gated native image import lifecycle
-        run: cargo test -p soundshelf --features image-development --locked image_import
+      - name: Gated native image import and preview lifecycle
+        run: cargo test -p soundshelf --features image-development --locked image_
       - name: Optimized GTK out-pointer regression (Linux)
         if: runner.os == 'Linux'
         run: cargo test -p soundshelf --release --locked gtk_variant -- --nocapture
