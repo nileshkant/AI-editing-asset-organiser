@@ -26,6 +26,7 @@ published with credit to the reporter, unless you'd rather stay anonymous.
 ## Verifying downloads
 
 Every release publishes SHA-256 checksums. Linux downloads also carry detached
-GPG signatures made with the key in [`release/linux-release-key.asc`](release/linux-release-key.asc).
+GPG signatures made with the key in [`release/linux-release-key.asc`](release/linux-release-key.asc),
+fingerprint `2FB8 3BE9 E38E 1AA7 2E2D  A3D7 08C4 C1F4 239D 6311`.
 macOS builds are ad-hoc signed (not notarized) and Windows builds are not yet
 publisher-signed; both rely on the published checksums.

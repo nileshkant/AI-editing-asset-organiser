@@ -35,7 +35,7 @@ After this, CreativeShelf opens normally. [Apple's guide](https://support.apple.
 
 ## Check your download (optional)
 
-Each `SHA256SUMS-*.txt` file lists the expected fingerprints of the downloads. Linux files are also signed with the CreativeShelf release key (`creativeshelf-linux-release-key.asc`, which is also kept in the repository at `release/linux-release-key.asc`):
+Each `SHA256SUMS-*.txt` file lists the expected fingerprints of the downloads. Linux files are also signed with the CreativeShelf release key (`creativeshelf-linux-release-key.asc`, which is also kept in the repository at `release/linux-release-key.asc`). Its fingerprint is `2FB8 3BE9 E38E 1AA7 2E2D  A3D7 08C4 C1F4 239D 6311`:
 
 ```
 gpg --import creativeshelf-linux-release-key.asc
