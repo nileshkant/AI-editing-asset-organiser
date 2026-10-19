@@ -54,7 +54,7 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 3. [SS-042: Bounded image decoding and technical analysis](SS-042.md) — complete; [PR #41](https://github.com/nileshkant/AI-editing-asset-organiser/pull/41), merged; predecessor: SS-041.
 4. [SS-043: Durable image import jobs and scoped selection](SS-043.md) — complete; [PR #43](https://github.com/nileshkant/AI-editing-asset-organiser/pull/43), merged after roadmap [PR #42](https://github.com/nileshkant/AI-editing-asset-organiser/pull/42); predecessor: SS-042.
 5. [SS-044: Versioned thumbnails and secure preview cache](SS-044.md) — complete; [PR #46](https://github.com/nileshkant/AI-editing-asset-organiser/pull/46) merged as 6f02e4b, see [review](../docs/reviews/SS-044.md); predecessor: SS-043 (merged).
-6. [SS-045: Image gallery and inspection workspace](SS-045.md) — in-review; PR pending, see [review](../docs/reviews/SS-045.md); predecessor: SS-044 (merged).
+6. [SS-045: Image gallery and inspection workspace](SS-045.md) — in-review; [PR #47](https://github.com/nileshkant/AI-editing-asset-organiser/pull/47), see [review](../docs/reviews/SS-045.md); predecessor: SS-044 (merged).
 7. [SS-046: Image annotations and reversible bulk tagging](SS-046.md) — not-started; predecessor: SS-045.
 8. [SS-047: Image relinking refresh and opt-in folder watching](SS-047.md) — not-started; predecessor: SS-046.
 9. [SS-048: Mixed image catalogs backup and restore](SS-048.md) — not-started; predecessor: SS-047.
