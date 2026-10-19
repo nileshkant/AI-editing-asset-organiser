@@ -27,7 +27,8 @@ jobs:
         run: brew install ffmpeg
       - name: Windows media fixture tools
         if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
+        shell: pwsh
+        run: ./scripts/windows-fixture-ffmpeg.ps1
       - run: npm ci
       - name: Verify GTK backport source integrity
         run: node scripts/verify-glib-patch.mjs
@@ -44,13 +45,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Use the actual binaries: killing a Chocolatey shim leaves its child alive.
-          $mediaTools = Join-Path $env:ChocolateyInstall 'lib\ffmpeg\tools'
-          $ffmpegBinary = Get-ChildItem -LiteralPath $mediaTools -Filter ffmpeg.exe -Recurse -File -ErrorAction Stop | Select-Object -First 1
-          if (-not $ffmpegBinary) { throw 'FFmpeg binary not found in the installed package' }
-          $env:SOUNDSHELF_FFMPEG = $ffmpegBinary.FullName
-          $env:SOUNDSHELF_FFPROBE = Join-Path $ffmpegBinary.DirectoryName 'ffprobe.exe'
-          if (-not (Test-Path -LiteralPath $env:SOUNDSHELF_FFPROBE -PathType Leaf)) { throw 'FFprobe binary not found beside FFmpeg' }
+          # Real binaries resolved by scripts/windows-fixture-ffmpeg.ps1, never Chocolatey shims.
+          $env:SOUNDSHELF_FFMPEG = Join-Path $env:FIXTURE_FFMPEG_DIR 'ffmpeg.exe'
+          $env:SOUNDSHELF_FFPROBE = Join-Path $env:FIXTURE_FFMPEG_DIR 'ffprobe.exe'
           cargo test --workspace --locked -- --include-ignored
       - name: Gated native image import and preview lifecycle
         run: cargo test -p soundshelf --features image-development --locked image_
