@@ -50,4 +50,6 @@ pub mod image_import_preview;
 pub mod image_import;
 
 pub mod image_preview;
+
+pub mod image_gallery;
 mod image_preview_render;

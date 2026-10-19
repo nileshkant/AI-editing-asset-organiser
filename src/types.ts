@@ -167,7 +167,7 @@ export type WaveformResponse = {
 /**
  * Application page routing.
  */
-export type Page = 'library' | 'favorites' | 'imports' | 'settings';
+export type Page = 'library' | 'favorites' | 'images' | 'imports' | 'settings';
 
 /**
  * Non-destructive clip recipe using source sample frame boundaries.
@@ -250,4 +250,12 @@ export type ImagePreviewMeta = {
 export type ImagePreviewCacheStatus = {
   enabled: boolean; entries: number; bytes: number; quota_bytes: number; active: number; waiting: number;
   counters: { hits: number; misses: number; generated: number; coalesced: number; evicted: number; repaired: number; write_failures: number; cancelled: number; stale_rejected: number; offline_served: number };
+};
+export type ImageSummary = ImportedImagePage['items'][number];
+export type GallerySort = 'name_asc' | 'name_desc';
+/** SS-045 window: a live observation in a deterministic order (sort, then asset ID). */
+export type GalleryPage = { items: ImageSummary[]; offset: number; total: number };
+export type ImageDetails = {
+  header: ImageSummary['header']; profile: import('./contracts/imageV1').ImageProfile | null; source_name: string; source_available: boolean;
+  tags: string[]; caption: string | null; annotation_revision: number;
 };

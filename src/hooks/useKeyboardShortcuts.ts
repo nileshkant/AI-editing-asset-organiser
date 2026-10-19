@@ -52,7 +52,8 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
           s.setRelink(null);
           return;
         }
-        if (s.selected) {
+        // The image view owns Escape; hidden audio details stay open for return.
+        if (s.selected && s.page !== 'images') {
           s.setSelected(null);
           s.setAnnouncement("Details closed");
           return;
@@ -68,7 +69,7 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
         return;
       }
       if (isInput) return;
-      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey && s.page !== 'images') {
         e.preventDefault();
         s.searchInputRef.current?.focus();
         return;
@@ -80,7 +81,7 @@ export function useKeyboardShortcuts(config: KeyboardShortcutsConfig) {
       const rowNavigation = target?.closest('.sound-select') &&
         ['ArrowDown', 'ArrowUp', 'Home', 'End', 'j', 'k'].includes(e.key);
       if (interactive && !rowNavigation) return;
-      if (target?.closest('.inspector, .waveform-workstation')) return;
+      if (target?.closest('.inspector, .waveform-workstation, .image-viewer')) return;
       if (e.code === "Space") {
         e.preventDefault();
         void s.togglePlay();

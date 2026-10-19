@@ -94,7 +94,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 11;
+pub const SCHEMA_VERSION: u32 = 12;
 
 pub(crate) fn upgrade_backup(db: &Connection, destination: &Path) -> Result<()> {
     let mut options = OpenOptions::new();
@@ -152,6 +152,7 @@ impl Catalog {
             tx.execute_batch(include_str!("search_profile_schema.sql"))?;
             tx.execute_batch(include_str!("image_schema.sql"))?;
             tx.execute_batch(include_str!("image_jobs_schema.sql"))?;
+            tx.execute_batch(include_str!("gallery_schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         } else {
@@ -229,6 +230,7 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             if version < 9 { tx.execute_batch(include_str!("search_profile_schema.sql"))?; }
             if version < 10 { tx.execute_batch(include_str!("image_schema.sql"))?; }
             if version < 11 { tx.execute_batch(include_str!("image_jobs_schema.sql"))?; }
+            if version < 12 { tx.execute_batch(include_str!("gallery_schema.sql"))?; }
             let violations: i64 = tx.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| r.get(0))?;
             if violations != 0 { return Err(invalid("Catalog has invalid references; upgrade rolled back")); }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;

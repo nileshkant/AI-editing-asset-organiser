@@ -1,8 +1,8 @@
 import type { Page } from '@playwright/test';
 
 /** Renderer contract fixture only. Native media is verified in Rust/FFmpeg tests. */
-export async function installDesktopFixture(page: Page, images = false) {
-  await page.addInitScript((images: boolean) => {
+export async function installDesktopFixture(page: Page, images = false, galleryTotal = 240) {
+  await page.addInitScript(([images, galleryTotal]: [boolean, number]) => {
     const profile = {
       duration: 10, sample_rate: 48000, channels: 2, frames: 480000,
       peak: 0.7, rms: 0.2, description: 'Measured stereo recording', tags: ['stereo', 'transient'],
@@ -26,6 +26,12 @@ export async function installDesktopFixture(page: Page, images = false) {
       return out.buffer;
     };
     const calls: { command: string; args: any }[] = [];
+    // Deterministic synthetic image library for SS-045 (metadata only).
+    const pad = (n: number, w: number) => String(n).padStart(w, '0');
+    const galleryItem = (i: number) => ({ header: { id: `00000000-0000-4000-8000-${pad(i, 12)}`, kind: 'image', source_id: 'source',
+      relative_path: `shoot/${i === 3 ? '長い名前-'.repeat(10) : ''}image-${pad(i, 6)}.png`, content_hash: (i.toString(16) + 'a'.repeat(64)).slice(0, 64),
+      technical_state: i % 37 === 5 ? 'pending' : 'ready', availability: i % 50 === 7 ? 'offline' : 'available', enrichment_state: 'disabled' },
+      width: 4000, height: 3000, annotation_revision: 1 });
     Object.assign(window, {
       isTauri: true,
       __fixtureCalls: calls,
@@ -51,6 +57,14 @@ export async function installDesktopFixture(page: Page, images = false) {
             case 'image_preview': { const offline = args.assetId === 'image-two';
               return previewEnvelope({ asset_id: args.assetId, version: args.version, tier: args.tier, tile: args.tile, width: 16, height: 12, source_width: 640, source_height: 480, mime: 'image/png', transparency: true, cache: 'hit', original_available: !offline, offline_reference: offline, preview_version: 'creativeshelf-preview-v1' }); }
             case 'cancel_image_preview': return false;
+            case 'image_gallery_page': {
+              const total = images ? galleryTotal : 0, end = Math.min(total, args.offset + args.limit), items = [];
+              for (let i = args.offset; i < end; ++i) items.push(galleryItem(args.sort === 'name_desc' ? total - 1 - i : i));
+              return { items, offset: args.offset, total };
+            }
+            case 'image_details': { const i = parseInt(args.id.slice(-12), 10), item = galleryItem(i);
+              return { header: item.header, profile: item.header.technical_state === 'ready' ? { raw_width: 3000, raw_height: 4000, orientation: 6, width: 4000, height: 3000, format: 'png', encoded_bytes: 9_437_184, bit_depth: 8, source_color_profile: null, alpha_channel: true, transparency: 'partial', analyzer_version: 'creativeshelf-still-v1-image02510-mox091' } : null,
+                source_name: source.name, source_available: true, tags: i === 3 ? ['very-long-tag-'.repeat(6), 'thumbnail'] : ['thumbnail'], caption: null, annotation_revision: 1 }; }
             case 'image_preview_cache_status': return images ? { enabled: true, entries: 6, bytes: 48_000, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 9, misses: 3, generated: 2, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 1, stale_rejected: 0, offline_served: 1 } }
               : { enabled: false, entries: 0, bytes: 0, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 0, misses: 0, generated: 0, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 0, stale_rejected: 0, offline_served: 0 } };
             case 'jobs': return [];
@@ -83,5 +97,5 @@ export async function installDesktopFixture(page: Page, images = false) {
         },
       },
     });
-  }, images);
+  }, [images, galleryTotal] as [boolean, number]);
 }

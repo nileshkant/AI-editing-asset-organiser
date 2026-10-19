@@ -19,7 +19,7 @@ export const PageHeader = memo(function PageHeader({
   return (
     <header className="page-header">
       <div>
-        <p className="eyebrow">YOUR AUDIO WORKSPACE</p>
+        <p className="eyebrow">{page === 'images' ? 'YOUR IMAGE LIBRARY' : 'YOUR AUDIO WORKSPACE'}</p>
         <h1>{title}</h1>
       </div>
       <div className="header-actions">

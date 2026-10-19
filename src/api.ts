@@ -168,3 +168,7 @@ export async function imagePreview(requestId: string, assetId: string, version: 
   return parsePreviewEnvelope(raw, { assetId, version, tier, tile });
 }
 export const cancelImagePreview = (requestId: string) => call<boolean>('cancel_image_preview', { requestId });
+/** Gallery window; `sourceId` null means every registered source. */
+export const imageGalleryPage = (sourceId: string | null, sort: import('./types').GallerySort, offset: number, limit: number) =>
+  call<import('./types').GalleryPage>('image_gallery_page', { sourceId, sort, offset, limit });
+export const imageDetails = (id: string) => call<import('./types').ImageDetails>('image_details', { id });
