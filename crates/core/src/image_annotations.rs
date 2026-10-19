@@ -1129,7 +1129,7 @@ mod tests {
         f.c.edit_image_annotations(&a, 1, &add(&["bg", "x"])).unwrap();
         f.c.edit_image_annotations(&b, 1, &add(&["x", "Background", "BG"])).unwrap();
         // An audio sound with the same tag.
-        std::fs::write(f.source.root.clone() + "/s.wav", b"riff").unwrap();
+        std::fs::write(std::path::Path::new(&f.source.root).join("s.wav"), b"riff").unwrap();
         let sound = f.c.register(&f.source, "s.wav", &"b".repeat(64)).unwrap();
         f.c.annotate(&sound, &tags(&["bg"]), "", false).unwrap();
         f.c.db.execute("INSERT INTO image_tag_aliases VALUES('backdrop','backdrop','bg',0)", []).unwrap();

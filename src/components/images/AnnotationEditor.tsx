@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Star, X } from 'lucide-react';
 import { editImageAnnotations, undoImageAnnotationAction } from '../../api';
 import type { AnnotationPatch, ImageDetails } from '../../types';
@@ -20,15 +20,16 @@ export function AnnotationEditor({ details: d, name, onChanged }: Props) {
   const [undo, setUndo] = useState<{ id: string; label: string } | null>(null);
   const id = d.header.id, editable = d.header.availability === 'available' && d.source_available;
   // A reload after someone else's change replaces the draft only when it was not edited here.
-  const [base, setBase] = useState(d.comment);
-  useEffect(() => { if (notes === base) setNotes(d.comment); setBase(d.comment); }, [d.comment]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Adjusted during render (not in an effect), so a deferred effect can never
+  // overwrite text typed after mount with a stale value.
+  const [seen, setSeen] = useState(d.comment);
+  if (seen !== d.comment) { setSeen(d.comment); if (notes === seen) setNotes(d.comment); }
   const apply = async (patch: AnnotationPatch, label: string) => {
     setBusy(true); setError(''); setStatus('');
     try {
       const r = await editImageAnnotations(id, d.annotation_revision, patch);
       setStatus(r.action_id ? `${label}.` : 'No change.');
       setUndo(r.action_id ? { id: r.action_id, label } : null);
-      if (patch.comment !== undefined) setBase(patch.comment);
       onChanged();
       return true;
     } catch (e) {

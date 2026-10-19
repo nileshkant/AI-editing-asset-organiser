@@ -54,6 +54,16 @@ describe('annotation editor', () => {
     expect(onChanged).toHaveBeenCalledTimes(1);
     expect(calls('edit_image_annotations')).toHaveLength(1);
   });
+  it('takes reloaded notes into an untouched field but never replaces a draft', () => {
+    const { rerender } = render(<AnnotationEditor details={details({ comment: 'first' })} name="hero.png" onChanged={vi.fn()} />);
+    const notes = screen.getByLabelText('Notes');
+    rerender(<AnnotationEditor details={details({ comment: 'from elsewhere', annotation_revision: 4 })} name="hero.png" onChanged={vi.fn()} />);
+    expect(notes).toHaveValue('from elsewhere');
+    fireEvent.change(notes, { target: { value: 'my draft' } });
+    rerender(<AnnotationEditor details={details({ comment: 'newer still', annotation_revision: 5 })} name="hero.png" onChanged={vi.fn()} />);
+    expect(notes).toHaveValue('my draft');
+    expect(screen.getByRole('button', { name: 'Save notes' })).toBeEnabled();
+  });
   it('is read only while the original is offline', () => {
     render(<AnnotationEditor details={details({ source_available: false })} name="hero.png" onChanged={vi.fn()} />);
     expect(screen.getByText('Read only while the original is unavailable.')).toBeInTheDocument();
