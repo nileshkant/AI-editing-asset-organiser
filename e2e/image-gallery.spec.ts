@@ -89,32 +89,41 @@ test('a 100,000-image library stays windowed while scrolling', async ({ page }, 
   await installDesktopFixture(page, true, 100_000); await page.goto('/');
   await openImages(page);
   await expect(page.getByText('100,000 images')).toBeVisible();
+  // Let the first screen settle so its own thumbnails are not counted as scroll work.
+  await expect(page.getByRole('gridcell', { name: /image-000001\.png/ }).locator('img')).toBeVisible();
+  const previewIds = async () => (await calls(page)).filter(c => c.command === 'image_preview').map(c => c.args.assetId as string);
+  const baseline = (await previewIds()).length;
   const scroller = page.locator('.image-grid-scroller');
-  const frames = await scroller.evaluate(async el => {
-    const deltas: number[] = [];
+  const { frames, during } = await scroller.evaluate(async el => {
+    const count = () => (window as any).__fixtureCalls.filter((c: any) => c.command === 'image_preview').length as number;
+    const deltas: number[] = [], before = count();
     let last = performance.now();
     for (let i = 1; i <= 40; ++i) {
       el.scrollTop = (el.scrollHeight - el.clientHeight) * (i / 40);
       await new Promise(r => requestAnimationFrame(r));
       const now = performance.now(); deltas.push(now - last); last = now;
     }
-    return deltas;
+    return { frames: deltas, during: count() - before };
   });
-  await expect(page.getByRole('gridcell', { name: /image-099999\.png/ })).toBeVisible();
-  const during = (await calls(page)).filter(c => c.command === 'image_preview').length;
   // Once scrolling settles, the visible thumbnails (and only those) load.
   await expect(page.getByRole('gridcell', { name: /image-099999\.png/ }).locator('img')).toBeVisible();
   const cells = await page.locator('.image-cell').count();
-  const previews = (await calls(page)).filter(c => c.command === 'image_preview').length;
+  // Fixture IDs encode the same index as the file name (image-NNNNNN ↔ …0000NNNNNN).
+  const shown = new Set((await page.locator('.image-cell').evaluateAll(els => els.map(e => e.getAttribute('aria-label') ?? '')))
+    .map(l => `00000000-0000-4000-8000-${l.match(/image-(\d{6})/)![1].padStart(12, '0')}`));
+  const settled = (await previewIds()).slice(baseline);
+  const previews = settled.length;
   const windows = (await calls(page)).filter(c => c.command === 'image_gallery_page').length;
   const heap = await page.evaluate(() => (performance as any).memory?.usedJSHeapSize ?? 0);
   frames.sort((a, b) => a - b);
   const p95 = frames[Math.floor(frames.length * 0.95)];
   info.annotations.push({ type: 'SS-045 scale', description: `cells ${cells}, preview requests ${previews}, windows ${windows}, heap ${(heap / 2 ** 20).toFixed(1)} MiB, frame p95 ${p95.toFixed(1)} ms` });
-  console.log(`SS-045 scale: cells ${cells}, preview requests ${previews}, windows ${windows}, heap ${(heap / 2 ** 20).toFixed(1)} MiB, frame p95 ${p95.toFixed(1)} ms, max ${frames.at(-1)!.toFixed(1)} ms`);
+  console.log(`SS-045 scale: cells ${cells}, first screen ${baseline}, during scroll ${during}, after settling ${previews}, windows ${windows}, heap ${(heap / 2 ** 20).toFixed(1)} MiB, frame p95 ${p95.toFixed(1)} ms, max ${frames.at(-1)!.toFixed(1)} ms`);
   expect(during).toBe(0);
   expect(previews).toBeGreaterThan(0);
   expect(previews).toBeLessThanOrEqual(cells);
+  // No intermediate scroll position started a load: every request after the first screen is for a final cell.
+  expect(settled.filter(id => !shown.has(id))).toEqual([]);
   expect(cells).toBeLessThanOrEqual(120);
   // Only rows that were actually shown requested windows/previews, never the library.
   expect(windows).toBeLessThan(200);
