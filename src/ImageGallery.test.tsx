@@ -135,9 +135,9 @@ describe('inspector and viewer', () => {
   });
   it('shows offline and failed states without a false ready preview, and Escape closes', async () => {
     const offline = summary(4, { availability: 'offline' });
-    invoke.mockImplementation((cmd: string) => Promise.resolve(cmd === 'image_details' ? { header: offline.header, profile: profile({ orientation: 6, raw_width: 600, raw_height: 800 }), source_name: 'Shoot', source_available: false, tags: ['hero'], caption: null, annotation_revision: 1 } : null));
+    invoke.mockImplementation((cmd: string) => Promise.resolve(cmd === 'image_details' ? { header: offline.header, profile: profile({ orientation: 6, raw_width: 600, raw_height: 800 }), source_name: 'Shoot', source_available: false, tags: ['hero'], caption: null, comment: '', favorite: false, rating: null, annotation_revision: 1 } : null));
     const onClose = vi.fn();
-    render(<ImageInspector summary={offline} background="checkerboard" setBackground={vi.fn()} onClose={onClose} onStale={vi.fn()} />);
+    render(<ImageInspector summary={offline} background="checkerboard" setBackground={vi.fn()} onClose={onClose} onStale={vi.fn()} annotationsVersion={0} onAnnotated={vi.fn()} />);
     expect(await screen.findByText('Shoot · offline')).toBeInTheDocument();
     expect(screen.getAllByText('Original offline · cached previews only, export disabled').length).toBeGreaterThan(0);
     expect(screen.getByText(/stored 600 × 800, EXIF orientation 6/)).toBeInTheDocument();
@@ -147,8 +147,8 @@ describe('inspector and viewer', () => {
     expect(onClose).toHaveBeenCalled();
     cleanup();
     const failed = summary(5, { technical_state: 'failed' });
-    invoke.mockImplementation((cmd: string) => Promise.resolve(cmd === 'image_details' ? { header: failed.header, profile: null, source_name: 'Shoot', source_available: true, tags: [], caption: null, annotation_revision: 1 } : null));
-    render(<ImageInspector summary={failed} background="checkerboard" setBackground={vi.fn()} onClose={vi.fn()} onStale={vi.fn()} />);
+    invoke.mockImplementation((cmd: string) => Promise.resolve(cmd === 'image_details' ? { header: failed.header, profile: null, source_name: 'Shoot', source_available: true, tags: [], caption: null, comment: '', favorite: false, rating: null, annotation_revision: 1 } : null));
+    render(<ImageInspector summary={failed} background="checkerboard" setBackground={vi.fn()} onClose={vi.fn()} onStale={vi.fn()} annotationsVersion={0} onAnnotated={vi.fn()} />);
     expect(await screen.findByText('Technical analysis failed; no preview is available.')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /preview/ })).not.toBeInTheDocument();
   });

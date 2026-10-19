@@ -5,6 +5,7 @@ import type { ImageDetails, ImageSummary } from '../../types';
 import type { ImageProfile } from '../../contracts/imageV1';
 import { fileName } from './ImageGrid';
 import { ImageViewer, type PreviewBackground } from './ImageViewer';
+import { AnnotationEditor } from './AnnotationEditor';
 
 export const formatBytes = (n: number) => n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KiB` : `${(n / 1024 ** 2).toFixed(1)} MiB`;
 /** Channel support and actual transparent pixels are distinct facts (SS-042). */
@@ -25,8 +26,12 @@ export function BackgroundChoice({ value, onChange }: { value: PreviewBackground
   </fieldset>;
 }
 
-type Props = { summary: ImageSummary; background: PreviewBackground; setBackground: (b: PreviewBackground) => void; onClose: () => void; onStale: () => void };
-export function ImageInspector({ summary, background, setBackground, onClose, onStale }: Props) {
+type Props = {
+  summary: ImageSummary; background: PreviewBackground; setBackground: (b: PreviewBackground) => void; onClose: () => void; onStale: () => void;
+  /** Bumped by the gallery after bulk edits, renames or undo so details reload. */
+  annotationsVersion: number; onAnnotated: () => void;
+};
+export function ImageInspector({ summary, background, setBackground, onClose, onStale, annotationsVersion, onAnnotated }: Props) {
   const [details, setDetails] = useState<ImageDetails | null>(null), [error, setError] = useState(''), [attempt, setAttempt] = useState(0);
   const id = summary.header.id;
   useEffect(() => {
@@ -34,7 +39,7 @@ export function ImageInspector({ summary, background, setBackground, onClose, on
     setError('');
     imageDetails(id).then(d => { if (live && d?.header?.id === id) setDetails(d); }).catch(e => { if (live) { setDetails(null); setError(String(e)); } });
     return () => { live = false; };
-  }, [id, summary.header.content_hash, attempt]);
+  }, [id, summary.header.content_hash, attempt, annotationsVersion]);
   const d = details?.header.id === id ? details : null, header = d?.header ?? summary.header, p = d?.profile;
   const name = fileName(header.relative_path);
   const ready = header.technical_state === 'ready' && !!header.content_hash && !!p;
@@ -62,7 +67,7 @@ export function ImageInspector({ summary, background, setBackground, onClose, on
       <dt>Availability</dt><dd>{availability[header.availability]}</dd>
       <dt>Technical analysis</dt><dd>{header.technical_state}</dd>
       <dt>AI analysis</dt><dd>{header.enrichment_state === 'disabled' ? 'Not enabled' : header.enrichment_state}</dd>
-      <dt>Tags</dt><dd>{d?.tags.length ? <ul className="image-tags">{d.tags.map(t => <li key={t}>{t}</li>)}</ul> : 'No tags'}</dd>
     </dl>
+    {d && <AnnotationEditor details={d} name={name} onChanged={() => { setAttempt(n => n + 1); onAnnotated(); }} />}
   </aside>;
 }

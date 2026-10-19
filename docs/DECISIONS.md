@@ -109,3 +109,36 @@ A virtualized grid with roving focus and a 120 ms preview settle delay keeps DOM
 nodes, preview requests and blob URLs proportional to the viewport. In a 100K
 synthetic Chromium run, a 40-step scroll to the end issued zero preview requests;
 21 followed for the settled view.
+
+## SS-046 image annotations, history and schema v13 (19 October 2026)
+
+Creator annotations stay in the SS-040 `annotations` object, the only
+user-owned slot. Technical facts live in analyses and future AI suggestions in
+evidence, so reanalysis and content replacement never rewrite them. Edits are
+explicit operations (add/remove tags, set notes/favorite/rating) rather than
+array replacement, because full-array writes silently drop another editor's
+tags. A single edit must name the revision it read; a mismatch is `CONFLICT`
+and the editor reloads. Bulk edits take revision tokens from a preview: items
+changed since are reported and left untouched, never merged blindly.
+
+A bulk edit is one SQLite transaction with its history record. Restart or a
+storage failure leaves either all of it or none; per-item outcomes cover
+validation, scope and conflicts. Undo stores compact inverses (tags added,
+tags removed with positions, previous scalar values). It restores an item only
+while the item is still at the revision the action produced, so a later edit
+always wins. History is bounded (100 actions, ≤ 1,000 items per bulk edit,
+≤ 10,000 per rename) and local: it is undo state, not asset metadata, so it is
+excluded from portable formats. The consequence: undo does not follow a catalog
+to another computer.
+
+Tags use audio's display rules plus Unicode NFC, with case-insensitive identity.
+That needed `unicode-normalization` 0.1.26 (pinned, license retained); audio
+code is unchanged. Rename and aliases apply to image tags only. Audio
+annotations have no revisions, so a combined rename could not be conflict-safe
+or reversible; the preview reports the audio count that stays unchanged.
+Aliases are library-wide, so they can only be created by a rename across all
+sources. Targets must be canonical, so aliases never chain.
+
+Schema v13 adds `image_tag_aliases` and `image_annotation_actions`. Aliases are
+durable user data that SS-048 must carry; until then they block audio-only
+portable export, like image rows. As with v12, v12 backups need the v12 binary.

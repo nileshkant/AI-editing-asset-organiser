@@ -172,3 +172,18 @@ export const cancelImagePreview = (requestId: string) => call<boolean>('cancel_i
 export const imageGalleryPage = (sourceId: string | null, sort: import('./types').GallerySort, offset: number, limit: number) =>
   call<import('./types').GalleryPage>('image_gallery_page', { sourceId, sort, offset, limit });
 export const imageDetails = (id: string) => call<import('./types').ImageDetails>('image_details', { id });
+/** SS-046: one image, from the revision the editor last read (CONFLICT otherwise). */
+export const editImageAnnotations = (id: string, expectedRevision: number, patch: import('./types').AnnotationPatch) =>
+  call<import('./types').AnnotationEditResult>('edit_image_annotations', { id, expectedRevision, patch });
+export const previewImageBulkAnnotations = (ids: string[], patch: import('./types').AnnotationPatch) =>
+  call<import('./types').BulkPreview>('preview_image_bulk_annotations', { ids, patch });
+export const applyImageBulkAnnotations = (targets: import('./types').BulkTarget[], patch: import('./types').AnnotationPatch) =>
+  call<import('./types').BulkResult>('apply_image_bulk_annotations', { targets, patch });
+export const imageAnnotationHistory = (limit = 100) => call<import('./types').AnnotationAction[]>('image_annotation_history', { limit });
+export const undoImageAnnotationAction = (actionId: string) => call<import('./types').BulkResult>('undo_image_annotation_action', { actionId });
+export const imageTags = (sourceId: string | null) => call<import('./types').TagList>('image_tags', { sourceId });
+export const previewImageTagRename = (from: string, to: string, sourceId: string | null) =>
+  call<import('./types').RenamePreview>('preview_image_tag_rename', { from, to, sourceId });
+export const renameImageTag = (from: string, to: string, sourceId: string | null, keepAlias: boolean) =>
+  call<import('./types').BulkResult>('rename_image_tag', { from, to, sourceId, keepAlias });
+export const removeImageTagAlias = (alias: string) => call<null>('remove_image_tag_alias', { alias });

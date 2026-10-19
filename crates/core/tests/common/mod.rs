@@ -10,8 +10,12 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
     );
     assert_eq!(db.query_row("SELECT count(*) FROM image_import_jobs", [], |r| r.get::<_,i64>(0)).unwrap(), 0,
         "Only empty image import storage can be removed from legacy fixtures");
+    assert_eq!(db.query_row("SELECT (SELECT count(*) FROM image_tag_aliases)+(SELECT count(*) FROM image_annotation_actions)", [], |r| r.get::<_,i64>(0)).unwrap(), 0,
+        "Only empty annotation storage can be removed from legacy fixtures");
     db.execute_batch(
         "
+      DROP TABLE image_tag_aliases;
+      DROP TABLE image_annotation_actions;
       DROP TRIGGER image_import_audio_conflict;
       DROP TRIGGER audio_import_image_conflict_insert;
       DROP TRIGGER audio_import_image_conflict_update;
