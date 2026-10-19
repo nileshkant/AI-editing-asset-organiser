@@ -4,6 +4,7 @@ import {
   FolderOpen,
   FolderPlus,
   Heart,
+  Images,
   Inbox,
   Library,
   Settings2,
@@ -19,11 +20,14 @@ interface SidebarProps {
   setSource: (id: string) => void;
   activeJobCount: number;
   onAddFolder: () => void;
+  /** Image navigation appears only when image metadata or the import flow exists. */
+  images?: boolean;
 }
 
 const NAV_ITEMS = [
   { id: 'library' as const, label: 'Library', icon: Library },
   { id: 'favorites' as const, label: 'Favorites', icon: Heart },
+  { id: 'images' as const, label: 'Images', icon: Images },
   { id: 'imports' as const, label: 'Imports', icon: Inbox },
   { id: 'settings' as const, label: 'Settings', icon: Settings2 },
 ];
@@ -36,6 +40,7 @@ export const Sidebar = memo(function Sidebar({
   setSource,
   activeJobCount,
   onAddFolder,
+  images = false,
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -45,7 +50,7 @@ export const Sidebar = memo(function Sidebar({
       </div>
 
       <nav aria-label="Main navigation">
-        {NAV_ITEMS.map((n) => (
+        {NAV_ITEMS.filter(n => n.id !== 'images' || images).map((n) => (
           <button
             key={n.id}
             aria-label={n.label}

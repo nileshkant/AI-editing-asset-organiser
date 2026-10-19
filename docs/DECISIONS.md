@@ -89,3 +89,23 @@ invalidates old preprocessing wholesale. The quota lives in its own
 `app_settings` key because `Preferences` rejects unknown fields and would break
 older binaries. The SS-040 ceilings (2,048 px, 4 MiB) are enforced per output;
 inspect steps down to a smaller size rather than raise them.
+
+## SS-045 gallery windows and schema v12 (19 October 2026)
+
+The gallery needs random access over up to 100,000 images in a user-visible
+order, so it reads offset windows rather than the SS-041 ID keyset pages. The
+contract already describes metadata lists as live observations. Selection is
+held by asset ID, so shifting offsets during an import cannot change what the
+user selected. Name order is ASCII case-folded path, then exact path, then
+ascending ID, which makes it deterministic across platforms without ICU.
+
+Without an index every window sorted the full catalog while holding the catalog
+lock (252 ms at 100K images in release). We added schema v12 with one expression
+index rather than an in-memory order cache, because there is no reliable cheap
+change signal to invalidate such a cache. The cost is the established restore
+rule: v11 database backups need the v11 binary. No data fields changed.
+
+A virtualized grid with roving focus and a 120 ms preview settle delay keeps DOM
+nodes, preview requests and blob URLs proportional to the viewport. In a 100K
+synthetic Chromium run, a 40-step scroll to the end issued zero preview requests;
+21 followed for the settled view.

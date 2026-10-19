@@ -1,0 +1,67 @@
+/* SS-045 image gallery. Checkerboard/light/dark are viewer backgrounds only. */
+.image-workspace { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; container-type: inline-size; container-name: image-workspace; }
+.image-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .75rem 30px; }
+.image-toolbar select { margin-inline-start: .4rem; max-width: 14rem; }
+.image-selection { color: var(--text-secondary); }
+.image-banner { margin: 0 30px .5rem; padding: .5rem .75rem; border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--info); }
+.image-banner.warning { color: var(--warning); }
+.image-banner button { margin-inline-start: .5rem; }
+.image-body { position: relative; }
+.image-body.with-inspector { grid-template-columns: minmax(0, 1fr) minmax(0, 420px); }
+.image-grid-scroller { overflow-y: auto; overflow-x: hidden; min-height: 0; overscroll-behavior: contain; }
+.image-grid { position: relative; }
+.image-row { position: absolute; left: 0; right: 0; }
+.image-cell { position: absolute; top: 0; display: flex; flex-direction: column; gap: 2px; padding: 0; border-radius: var(--radius-sm); cursor: pointer; outline-offset: 2px; color: var(--text-primary); }
+.image-cell:focus-visible { outline: 2px solid var(--accent); }
+.image-cell-thumb { position: relative; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--bg-input); }
+.image-cell.selected .image-cell-thumb { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.image-cell.active .image-cell-thumb { border-color: var(--info); }
+.image-cell-check { position: absolute; top: 4px; right: 4px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-weight: 700; }
+.image-cell-name, .image-cell-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8rem; }
+.image-cell-meta, .image-cell-state { color: var(--text-muted); font-size: .75rem; }
+.image-cell.placeholder .image-cell-thumb { block-size: 100%; min-block-size: 6rem; }
+.image-preview-fill { position: relative; inline-size: 100%; block-size: 100%; display: grid; place-items: center; color: var(--text-muted); text-align: center; }
+.image-preview-fill img { max-inline-size: 100%; max-block-size: 100%; inline-size: auto; block-size: auto; object-fit: contain; }
+.image-preview-fill small { padding: .25rem; font-size: .75rem; color: var(--warning); overflow-wrap: anywhere; }
+.image-preview-pending { inline-size: 40%; block-size: 40%; border-radius: var(--radius-sm); background: var(--bg-hover); }
+.image-preview-badge { position: absolute; bottom: 4px; left: 4px; padding: 0 4px; border-radius: var(--radius-sm); background: #000c; color: var(--warning); font-size: .7rem; }
+.image-inspector { display: flex; flex-direction: column; gap: .5rem; }
+.image-inspector:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.image-inspector-notice { color: var(--warning); margin: 0; }
+.image-viewer-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-block-end: .4rem; }
+.image-viewer-controls [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.image-viewer { position: relative; block-size: clamp(12rem, 40vh, 26rem); overflow: hidden; border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
+.image-viewer.zoomed { overflow: auto; cursor: grab; touch-action: none; }
+.image-viewer:focus-visible { outline: 2px solid var(--accent); }
+.image-viewer-canvas { position: relative; }
+.image-viewer-backdrop, .image-viewer-tile { position: absolute; }
+.image-viewer-backdrop { inset: 0; }
+.image-viewer-backdrop img, .image-viewer-tile img { inline-size: 100%; block-size: 100%; max-inline-size: none; max-block-size: none; object-fit: fill; }
+.image-viewer.pixelated img { image-rendering: pixelated; }
+.image-viewer img.checkerboard, .image-compare-preview img.checkerboard { background: none; }
+.bg-light { background: #f4f4f6; color: #333; }
+.bg-dark { background: #050506; }
+.bg-checkerboard { background-color: #c8c8c8; background-image: linear-gradient(45deg, #8a8a8a 25%, transparent 25%, transparent 75%, #8a8a8a 75%), linear-gradient(45deg, #8a8a8a 25%, transparent 25%, transparent 75%, #8a8a8a 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+.image-background-choice { display: flex; flex-wrap: wrap; gap: .25rem .9rem; border: 0; padding: 0; margin: 0; }
+.image-background-choice label { display: inline-flex; align-items: center; gap: .3rem; }
+.image-background-choice legend { color: var(--text-muted); font-size: .8rem; padding: 0; margin-block-end: .2rem; }
+.image-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .3rem .75rem; margin: 0; font-size: .85rem; }
+.image-facts dt { color: var(--text-muted); }
+.image-facts dd { margin: 0; overflow-wrap: anywhere; }
+.image-tags { display: flex; flex-wrap: wrap; gap: .3rem; padding: 0; margin: 0; list-style: none; }
+.image-tags li { padding: 0 .4rem; border-radius: var(--radius-sm); background: var(--tag-user-bg); color: var(--tag-user-text); overflow-wrap: anywhere; }
+.image-empty { padding: 2rem 30px; color: var(--text-secondary); }
+.image-compare-dialog { width: min(1200px, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; }
+.image-compare-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; }
+.image-compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: .75rem; margin-block-start: .75rem; }
+.image-compare-item { margin: 0; display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.image-compare-preview { block-size: clamp(10rem, 45vh, 28rem); border: 1px solid var(--border-default); border-radius: var(--radius-sm); overflow: hidden; display: grid; place-items: center; }
+.image-compare-item figcaption { display: flex; flex-direction: column; font-size: .8rem; color: var(--text-secondary); }
+/* Container width, not viewport: also correct under text/page zoom. */
+@container image-workspace (max-width: 700px) {
+  .image-toolbar, .image-empty { padding-inline: 20px; }
+  .image-banner { margin-inline: 20px; }
+  .image-body.with-inspector { grid-template-columns: minmax(0, 1fr); }
+  .image-body.with-inspector .image-grid-scroller { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .image-viewer, .image-grid-scroller { scroll-behavior: auto; } }

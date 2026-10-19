@@ -15,10 +15,14 @@ import { TransportBar } from './components/transport/TransportBar';
 import { ImportsView } from './components/views/ImportsView';
 import { SettingsView } from './components/views/SettingsView';
 import { RelinkModal } from './components/modals/RelinkModal';
+import { ImageGallery } from './components/images/ImageGallery';
+import { useImageGallery } from './hooks/useImageGallery';
 import type { Page, Sound, Source } from './types';
 
 export function App() {
   const [page, setPage] = useState<Page>('library');
+  // The image view keeps the last audio page's search, offset and selection intact.
+  const [audioPage, setAudioPage] = useState<'library' | 'favorites'>('library');
   const [selected, setSelected] = useState<Sound | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -28,10 +32,13 @@ export function App() {
   const selectionId = useRef(0);
 
   // Custom hooks
-  const search = useAudioSearch(page);
+  const search = useAudioSearch(page === 'images' ? audioPage : page);
   const playback = usePlayback(selected, search.results.items);
   const openImports = useCallback(() => setPage('imports'), []);
   const imageImports = useImageImports(setError, openImports);
+  const imagesVisible = imageImports.enabled || imageImports.metadataPresent;
+  const imageRevision = useMemo(() => imageImports.jobs.map(j => `${j.id}:${j.sequence}`).join(','), [imageImports.jobs]);
+  const gallery = useImageGallery(imageRevision, imageImports.resets);
   const { dropping } = useDragDrop(search.importPath, setError, { ready: imageImports.available, enabled: imageImports.enabled });
 
   const guard = useCallback(
@@ -147,13 +154,16 @@ export function App() {
       <Sidebar
         page={page}
         setPage={(next) => {
-          if (next !== page) {
+          // Visiting images and returning keeps the audio selection and focus.
+          if (next !== page && next !== 'images' && page !== 'images') {
             ++selectionId.current;
             setSelected(null);
             setFocusedIndex(-1);
           }
+          if (next === 'library' || next === 'favorites') setAudioPage(next);
           setPage(next);
         }}
+        images={imagesVisible}
         roots={search.roots}
         source={search.source}
         setSource={search.setSource}
@@ -162,7 +172,7 @@ export function App() {
       />
 
       <main id="workspace" tabIndex={-1}>
-        <PageHeader page={page} onAddFolder={page === 'imports' && imageImports.enabled ? () => void imageImports.choose(true) : search.addFolder} onAddFiles={page === 'imports' && imageImports.enabled ? () => void imageImports.choose(false) : search.addFiles} />
+        <PageHeader page={page} onAddFolder={(page === 'imports' || page === 'images') && imageImports.enabled ? () => void imageImports.choose(true) : search.addFolder} onAddFiles={(page === 'imports' || page === 'images') && imageImports.enabled ? () => void imageImports.choose(false) : search.addFiles} />
 
         {(error || search.error || playback.error) && (
           <div className="error" role="alert">
@@ -370,6 +380,8 @@ export function App() {
             </div>
           </>
         )}
+
+        {page === 'images' && <ImageGallery gallery={gallery} sources={search.roots} jobs={imageImports.jobs} onOpenImports={openImports} />}
 
         {page === 'imports' && (
           <div className="imports-workspace">

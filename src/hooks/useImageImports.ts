@@ -29,6 +29,8 @@ export function useImageImports(onError: (message: string) => void, onOpen: () =
   const [preparing, setPreparing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [previewError, setPreviewError] = useState('');
+  /** Increments when a restored database replaces the catalog. */
+  const [resets, setResets] = useState(0);
   const returnFocus = useRef<HTMLElement | null>(null);
   const databaseEpoch = useRef(0);
   const alive = useRef(true), epoch = useRef(0), request = useRef<string | null>(null), currentPreview = useRef<string | null>(null), pending = useRef(false);
@@ -52,7 +54,7 @@ export function useImageImports(onError: (message: string) => void, onOpen: () =
     const poll = () => { if (busy) return; busy = true; void refresh().catch(() => {}).finally(() => { busy = false; }); };
     poll(); const timer = setInterval(poll, 1000);
     const subscription = listen<ImageImportJob>('image-import-progress', event => { if (!disposed && validImageJob(event.payload)) void refresh().catch(() => {}); }).catch(() => undefined);
-    const reset = listen('image-import-reset', () => { if (!disposed) { ++databaseEpoch.current; ++epoch.current; setJobs([]); setPreview(null); setPreviewError(''); setPreparing(false); pending.current = false; request.current = null; currentPreview.current = null; void refresh().catch(() => {}); } }).catch(() => undefined);
+    const reset = listen('image-import-reset', () => { if (!disposed) { setResets(n => n + 1); ++databaseEpoch.current; ++epoch.current; setJobs([]); setPreview(null); setPreviewError(''); setPreparing(false); pending.current = false; request.current = null; currentPreview.current = null; void refresh().catch(() => {}); } }).catch(() => undefined);
     return () => { disposed = true; alive.current = false; ++epoch.current; clearInterval(timer); void subscription.then(fn => fn?.()); void reset.then(fn => fn?.()); if (request.current) void api.cancelMediaPreview(request.current, currentPreview.current).catch(() => {}); };
   }, [refresh]);
   const prepare = useCallback(async (paths: string[]) => {
@@ -96,6 +98,6 @@ export function useImageImports(onError: (message: string) => void, onOpen: () =
   const action = useCallback(async (job: ImageImportJob, retry: boolean) => {
     try { const result = await (retry ? api.retryImageImport(job) : api.cancelImageImport(job)); if (alive.current) { ++databaseEpoch.current; setJobs(old => mergeImageJob(old, result)); } } catch (e) { if (alive.current) onError(String(e)); }
   }, [onError]);
-  return { returnFocus, enabled, metadataPresent, available, jobs, mode, setMode, preview, preparing, confirming, previewError, choose, close, confirm, action };
+  return { returnFocus, resets, enabled, metadataPresent, available, jobs, mode, setMode, preview, preparing, confirming, previewError, choose, close, confirm, action };
 }
 export type ImageImportsController = ReturnType<typeof useImageImports>;

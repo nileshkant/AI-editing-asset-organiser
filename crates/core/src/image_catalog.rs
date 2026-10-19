@@ -151,7 +151,29 @@ fn version(asset: &ImageAsset, expected: Option<&str>) -> Result<()> {
     }
     Ok(())
 }
-fn scoped(source_ids: &[String]) -> Result<()> {
+/// Summary columns shared by list/gallery queries: registry `r`, assets `i`,
+/// sources `s` and the selected analysis `p`.
+pub(crate) const SUMMARY_COLUMNS: &str = "r.id,r.kind,r.source_id,r.relative_path,i.content_hash,i.technical_state,
+            CASE WHEN s.available=0 THEN 'offline' ELSE i.availability END,i.enrichment_state,
+            json_extract(p.profile,'$.width'),json_extract(p.profile,'$.height'),i.annotation_revision";
+pub(crate) fn summary(row: &rusqlite::Row<'_>) -> Result<ImageSummary> {
+    Ok(ImageSummary {
+        header: AssetHeader {
+            id: row.get(0)?,
+            kind: enumeration(row.get(1)?)?,
+            source_id: row.get(2)?,
+            relative_path: row.get(3)?,
+            content_hash: row.get(4)?,
+            technical_state: enumeration(row.get(5)?)?,
+            availability: enumeration(row.get(6)?)?,
+            enrichment_state: enumeration(row.get(7)?)?,
+        },
+        width: row.get(8)?,
+        height: row.get(9)?,
+        annotation_revision: row.get(10)?,
+    })
+}
+pub(crate) fn scoped(source_ids: &[String]) -> Result<()> {
     if source_ids.len() > MAX_SCOPES || source_ids.iter().any(|s| s.is_empty() || s.len() > 256) {
         return Err(invalid("Invalid image source scopes"));
     }
@@ -484,9 +506,7 @@ impl Catalog {
             });
         }
         let placeholders = vec!["?"; source_ids.len()].join(",");
-        let sql=format!("SELECT r.id,r.kind,r.source_id,r.relative_path,i.content_hash,i.technical_state,
-            CASE WHEN s.available=0 THEN 'offline' ELSE i.availability END,i.enrichment_state,
-            json_extract(p.profile,'$.width'),json_extract(p.profile,'$.height'),i.annotation_revision
+        let sql=format!("SELECT {SUMMARY_COLUMNS}
             FROM asset_registry r JOIN image_assets i ON i.id=r.id JOIN sources s ON s.id=r.source_id
             LEFT JOIN image_analyses p ON p.content_hash=i.content_hash AND p.analyzer_version=i.analyzer_version
             WHERE r.source_id IN ({placeholders}) AND r.id>?
@@ -506,21 +526,7 @@ impl Catalog {
                 more = true;
                 break;
             }
-            let item = ImageSummary {
-                header: AssetHeader {
-                    id: row.get(0)?,
-                    kind: enumeration(row.get(1)?)?,
-                    source_id: row.get(2)?,
-                    relative_path: row.get(3)?,
-                    content_hash: row.get(4)?,
-                    technical_state: enumeration(row.get(5)?)?,
-                    availability: enumeration(row.get(6)?)?,
-                    enrichment_state: enumeration(row.get(7)?)?,
-                },
-                width: row.get(8)?,
-                height: row.get(9)?,
-                annotation_revision: row.get(10)?,
-            };
+            let item = summary(row)?;
             let size = serde_json::to_vec(&item)?.len() + 1;
             if bytes + size > MAX_BUNDLE_BYTES {
                 more = true;

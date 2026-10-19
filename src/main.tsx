@@ -9,6 +9,7 @@ import './styles/transport.css';
 import './styles/waveform.css';
 import './styles/responsive.css';
 import './styles/settings.css';
+import './styles/images.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
