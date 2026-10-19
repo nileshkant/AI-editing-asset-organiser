@@ -5,6 +5,10 @@ import { importTerminal } from '../../hooks/useImageImports';
 import { ImageGrid } from './ImageGrid';
 import { ImageInspector } from './ImageInspector';
 import { CompareDialog, MAX_COMPARE } from './CompareDialog';
+import { BulkAnnotationDialog } from './BulkAnnotationDialog';
+import { TagManagerDialog } from './TagManagerDialog';
+import { AnnotationHistoryDialog } from './AnnotationHistoryDialog';
+import { MAX_BULK } from './annotationText';
 import type { PreviewBackground } from './ImageViewer';
 
 const SIZES = [{ label: 'Small', px: 96 }, { label: 'Medium', px: 144 }, { label: 'Large', px: 208 }];
@@ -14,6 +18,9 @@ export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props
   const [cell, setCell] = useState(144), [focusIndex, setFocusIndex] = useState(0);
   const [active, setActive] = useState<{ index: number; summary: ImageSummary } | null>(null);
   const [background, setBackground] = useState<PreviewBackground>('checkerboard'), [comparing, setComparing] = useState(false);
+  const [dialog, setDialog] = useState<'bulk' | 'tags' | 'history' | null>(null), [annotationsVersion, setAnnotationsVersion] = useState(0);
+  /** After any annotation change, reload visible windows and the open inspector. */
+  const annotated = useCallback(() => { g.refresh(); setAnnotationsVersion(n => n + 1); }, [g]);
   const total = g.total ?? 0;
   const open = useCallback((index: number, summary: ImageSummary) => {
     setActive({ index, summary });
@@ -42,6 +49,10 @@ export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props
       {selected.length > 0 && <button onClick={g.clearSelection}>Clear selection</button>}
       <button disabled={selected.length < 2 || selected.length > MAX_COMPARE} onClick={() => setComparing(true)}
         title={`Select 2–${MAX_COMPARE} images to compare`}>Compare selected</button>
+      <button disabled={!selected.length || selected.length > MAX_BULK} onClick={() => setDialog('bulk')}
+        title={`Tag, favorite or rate up to ${MAX_BULK.toLocaleString()} selected images`}>Edit selected…</button>
+      <button onClick={() => setDialog('tags')} title="Rename image tags and manage aliases">Tags…</button>
+      <button onClick={() => setDialog('history')} title="Recent annotation changes with undo">History…</button>
     </div>
     <p className="keyboard-help" id="image-grid-help">Arrow keys move · Space selects · Enter opens details · Escape closes · Ctrl or ⌘ click adds to selection</p>
     {running.length > 0 && <p className="image-banner" role="status">Importing images: {running.reduce((n, j) => n + j.completed, 0)} of {running.reduce((n, j) => n + j.total, 0)} files checked. The gallery updates as images become ready.</p>}
@@ -55,8 +66,11 @@ export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props
         : <ImageGrid version={g.version} total={total} cell={cell} item={g.item} ensure={g.ensure} focusIndex={focusIndex} setFocusIndex={setFocusIndex}
             selected={g.selected} activeId={active?.summary.header.id ?? null} onOpen={open} onToggle={g.toggle} onStale={g.refresh} busy={g.total === null} />}
       {active && <ImageInspector key={active.summary.header.id} summary={g.item(active.index)?.header.id === active.summary.header.id ? g.item(active.index)! : active.summary}
-        background={background} setBackground={setBackground} onClose={close} onStale={g.refresh} />}
+        background={background} setBackground={setBackground} onClose={close} onStale={g.refresh} annotationsVersion={annotationsVersion} onAnnotated={g.refresh} />}
     </div>
+    {dialog === 'bulk' && <BulkAnnotationDialog ids={selected.map(s => s.header.id)} onClose={() => setDialog(null)} onChanged={annotated} />}
+    {dialog === 'tags' && <TagManagerDialog sourceId={g.sourceId || null} sourceName={sources.find(s => s.id === g.sourceId)?.name ?? 'all sources'} onClose={() => setDialog(null)} onChanged={annotated} />}
+    {dialog === 'history' && <AnnotationHistoryDialog onClose={() => setDialog(null)} onChanged={annotated} />}
     {comparing && <CompareDialog candidates={selected.slice(0, MAX_COMPARE)} background={background} setBackground={setBackground} onClose={() => setComparing(false)} />}
   </section>;
 }

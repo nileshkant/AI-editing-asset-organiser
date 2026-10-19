@@ -36,6 +36,11 @@ pub struct ImageDetails {
     pub source_available: bool,
     pub tags: Vec<String>,
     pub caption: Option<String>,
+    /// Creator notes, plain text (SS-046).
+    pub comment: String,
+    pub favorite: bool,
+    /// 1–5 stars; `None` is unrated (never zero).
+    pub rating: Option<u8>,
     pub annotation_revision: u32,
 }
 
@@ -133,6 +138,9 @@ impl Catalog {
             source_available: source.available,
             tags: asset.annotations.tags,
             caption: asset.annotations.caption,
+            comment: asset.annotations.comment,
+            favorite: asset.annotations.favorite,
+            rating: asset.annotations.rating,
             annotation_revision: asset.annotations.revision,
             header: asset.header,
         })
@@ -247,7 +255,7 @@ mod tests {
         db
     }
     #[test]
-    fn genuine_v11_upgrade_adds_only_the_gallery_index_with_a_backup() {
+    fn genuine_v11_upgrade_adds_the_gallery_index_with_a_backup() {
         let d = tempfile::tempdir().unwrap();
         let path = d.path().join("v11.sqlite");
         let mut old = Catalog { db: v11_database(&path) };
@@ -260,7 +268,8 @@ mod tests {
             .unwrap();
         drop(old);
         let c = Catalog::open(&path).unwrap();
-        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 12);
+        // Later schema steps may follow v12 in the same upgrade.
+        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), crate::catalog::SCHEMA_VERSION);
         assert_eq!(c.image(&image.header.id, None).unwrap(), image);
         let index: i64 = c
             .db
@@ -271,7 +280,7 @@ mod tests {
         let backup = std::fs::read_dir(d.path())
             .unwrap()
             .map(|e| e.unwrap().path())
-            .find(|p| p.to_string_lossy().contains("pre-v12-"))
+            .find(|p| p.to_string_lossy().contains(&format!("pre-v{}-", crate::catalog::SCHEMA_VERSION)))
             .unwrap();
         let db = rusqlite::Connection::open(backup).unwrap();
         assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 11);

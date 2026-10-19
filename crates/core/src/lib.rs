@@ -52,4 +52,5 @@ pub mod image_import;
 pub mod image_preview;
 
 pub mod image_gallery;
+pub mod image_annotations;
 mod image_preview_render;

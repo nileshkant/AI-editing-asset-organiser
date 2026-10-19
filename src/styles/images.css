@@ -65,3 +65,39 @@
   .image-body.with-inspector .image-grid-scroller { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .image-viewer, .image-grid-scroller { scroll-behavior: auto; } }
+
+/* SS-046 annotations */
+.image-annotations { display: grid; gap: .75rem; margin-block-start: 1rem; padding-block-start: .75rem; border-block-start: 1px solid var(--border-subtle); }
+.image-annotations h3 { margin: 0; font-size: .85rem; }
+.image-annotation-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.image-annotation-row .icon-button.active { color: var(--accent); border-color: var(--accent); }
+.image-rating { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .6rem; border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+.image-rating legend { float: left; margin-inline-end: .4rem; padding: 0; color: var(--text-muted); font-size: .8rem; }
+.image-rating label { display: inline-flex; align-items: center; gap: .2rem; }
+.image-tag-editor, .image-notes { display: grid; gap: .35rem; }
+.image-tag-label, .image-notes > label { color: var(--text-muted); font-size: .8rem; }
+.image-tags li:has(.tag-remove) { display: inline-flex; align-items: center; gap: .1rem; padding-inline-end: 0; }
+.image-tags .tag-remove { display: inline-grid; place-items: center; min-inline-size: 1.5rem; min-block-size: 1.5rem; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.image-tags .tag-remove:hover:not(:disabled) { color: var(--text-primary, #fff); }
+.image-tag-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .4rem; }
+.image-notes textarea { inline-size: 100%; min-block-size: 4.5rem; resize: vertical; font: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.image-notes-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .4rem; }
+.image-annotation-status { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; min-block-size: 1.5rem; }
+/* Percentages resolve against the viewport, so the dialog still fits (and scrolls) under page zoom, unlike vh. */
+.image-modal { inline-size: min(560px, calc(100% - 32px)); max-inline-size: calc(100% - 32px); max-block-size: calc(100% - 32px); overflow: auto; }
+.image-modal::backdrop { background: #000a; }
+.image-modal-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; margin-block-end: 1rem; }
+.image-modal-heading h2 { margin: 0; overflow-wrap: anywhere; }
+.image-modal label { margin-block-end: .75rem; }
+.image-modal label.checkbox { flex-direction: row; align-items: flex-start; gap: .5rem; }
+.image-modal label.checkbox input { margin-block-start: .15rem; }
+.image-bulk-row { display: flex; flex-wrap: wrap; gap: 0 1rem; }
+.image-bulk-preview ul, .image-aliases ul, .image-history { display: grid; gap: .35rem; padding: 0; margin: .5rem 0; list-style: none; }
+.image-tag-list { display: flex; flex-wrap: wrap; gap: .35rem; padding: 0; margin: 0 0 1rem; list-style: none; max-block-size: 14rem; overflow: auto; }
+.image-tag-list button { display: inline-flex; gap: .4rem; max-inline-size: 100%; text-align: start; overflow-wrap: anywhere; }
+.image-tag-list button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.image-tag-rename { display: grid; border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: .75rem; margin: 0 0 1rem; min-inline-size: 0; }
+.image-tag-rename legend { padding: 0 .3rem; }
+.image-tag-rename .modal-actions, .image-bulk-dialog .modal-actions { margin-block-start: .5rem; flex-wrap: wrap; }
+.image-aliases li, .image-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; overflow-wrap: anywhere; }
+.image-aliases h3 { margin: 0; font-size: .85rem; }

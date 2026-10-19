@@ -59,7 +59,7 @@ fn raw(row: &rusqlite::Row<'_>) -> rusqlite::Result<RawImage> {
 fn enumeration<T: serde::de::DeserializeOwned>(s: String) -> Result<T> {
     Ok(serde_json::from_value(serde_json::Value::String(s))?)
 }
-fn validate(asset: &ImageAsset) -> Result<()> {
+pub(crate) fn validate(asset: &ImageAsset) -> Result<()> {
     asset
         .validate()
         .map_err(|e| invalid(&format!("Invalid image contract: {e:?}")))?;
@@ -91,7 +91,7 @@ impl RawImage {
         Ok(result)
     }
 }
-fn load(db: &Connection, id: &str) -> Result<ImageAsset> {
+pub(crate) fn load(db: &Connection, id: &str) -> Result<ImageAsset> {
     let value = db
         .query_row(&format!("{READ_IMAGE} WHERE i.id=?1"), [id], raw)
         .optional()?;
@@ -627,5 +627,5 @@ pub(crate) fn validate_image_database(db: &Connection) -> Result<()> {
         }
         done.extend(chain);
     }
-    Ok(())
+    crate::image_annotations::validate_annotation_tables(db)
 }

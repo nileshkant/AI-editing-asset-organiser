@@ -257,5 +257,22 @@ export type GallerySort = 'name_asc' | 'name_desc';
 export type GalleryPage = { items: ImageSummary[]; offset: number; total: number };
 export type ImageDetails = {
   header: ImageSummary['header']; profile: import('./contracts/imageV1').ImageProfile | null; source_name: string; source_available: boolean;
-  tags: string[]; caption: string | null; annotation_revision: number;
+  tags: string[]; caption: string | null; comment: string; favorite: boolean;
+  /** 1–5 stars; null is unrated (never zero). */
+  rating: number | null; annotation_revision: number;
 };
+/** SS-046 explicit changes. Absent fields are kept; `rating: null` clears it. */
+export type AnnotationPatch = { add_tags?: string[]; remove_tags?: string[]; comment?: string; favorite?: boolean; rating?: number | null };
+export type AnnotationError = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'PERMISSION_DENIED' | 'CONFLICT' | 'SOURCE_UNAVAILABLE' | 'LIMIT_EXCEEDED' | 'INTERNAL';
+export type ImageAnnotations = import('./contracts/imageV1').ImageAnnotations;
+export type AnnotationEditResult = { annotations: ImageAnnotations; action_id: string | null };
+export type BulkTarget = { id: string; revision: number };
+export type ItemOutcome = 'applied' | 'unchanged' | 'conflict' | 'not_found' | 'permission_denied' | 'source_unavailable' | 'limit_exceeded';
+export type ItemResult = { id: string; outcome: ItemOutcome; revision: number | null };
+export type TagEffect = { tag: string; count: number };
+export type BulkPreview = { targets: BulkTarget[]; changes: number; unchanged: number; skipped: ItemResult[]; additions: TagEffect[]; removals: TagEffect[] };
+export type BulkResult = { action_id: string | null; results: ItemResult[]; applied: number; unchanged: number; conflicts: number; skipped: number };
+export type AnnotationAction = { id: string; kind: 'edit' | 'bulk' | 'rename'; label: string; state: 'applied' | 'undone'; created_at: number; items: number };
+export type TagAlias = { alias: string; canonical: string };
+export type TagList = { tags: { tag: string; count: number }[]; truncated: boolean; aliases: TagAlias[] };
+export type RenamePreview = { from: string; to: string; images: number; merged: number; unavailable: number; audio_unchanged: number };

@@ -31,7 +31,47 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
     const galleryItem = (i: number) => ({ header: { id: `00000000-0000-4000-8000-${pad(i, 12)}`, kind: 'image', source_id: 'source',
       relative_path: `shoot/${i === 3 ? '長い名前-'.repeat(10) : ''}image-${pad(i, 6)}.png`, content_hash: (i.toString(16) + 'a'.repeat(64)).slice(0, 64),
       technical_state: i % 37 === 5 ? 'pending' : 'ready', availability: i % 50 === 7 ? 'offline' : 'available', enrichment_state: 'disabled' },
-      width: 4000, height: 3000, annotation_revision: 1 });
+      width: 4000, height: 3000, annotation_revision: notesFor(i).revision });
+    // SS-046 renderer contract: revisioned annotations, history with undo, tag rename/aliases.
+    type Notes = { revision: number; tags: string[]; comment: string; favorite: boolean; rating: number | null };
+    const notes = new Map<number, Notes>(), history: any[] = [], aliases: { alias: string; canonical: string }[] = [];
+    const key = (t: string) => t.normalize('NFC').replace(/_/g, ' ').split(/\s+/).filter(Boolean).join(' ').toLowerCase();
+    function notesFor(i: number): Notes {
+      if (!notes.has(i)) notes.set(i, { revision: 1, tags: i === 3 ? ['very-long-tag-'.repeat(6), 'thumbnail'] : ['thumbnail'], comment: '', favorite: false, rating: null });
+      return notes.get(i)!;
+    }
+    const indexOf = (id: string) => parseInt(id.slice(-12), 10);
+    const change = (n: Notes, p: any): Notes => {
+      const remove = new Set((p.remove_tags ?? []).map(key));
+      const tags = n.tags.filter(t => !remove.has(key(t)));
+      for (const raw of p.add_tags ?? []) { const t = raw.trim().replace(/_/g, ' '); const canonical = aliases.find(a => key(a.alias) === key(t))?.canonical ?? t; if (t && !tags.some(x => key(x) === key(canonical))) tags.push(canonical); }
+      return { revision: n.revision, tags, comment: p.comment ?? n.comment, favorite: p.favorite ?? n.favorite, rating: 'rating' in p ? p.rating : n.rating };
+    };
+    const same = (a: Notes, b: Notes) => JSON.stringify({ ...a, revision: 0 }) === JSON.stringify({ ...b, revision: 0 });
+    const record = (kind: string, label: string, entries: { i: number; before: Notes; after: number }[]) => {
+      if (!entries.length) return null;
+      const id = `00000000-0000-4000-9000-${pad(history.length + 1, 12)}`;
+      history.unshift({ id, kind, label, state: 'applied', created_at: 1_760_000_000 + history.length, items: entries.length, entries });
+      return id;
+    };
+    const editable = (i: number) => galleryItem(i).header.availability === 'available';
+    const bulk = (targets: { id: string; revision: number }[], fn: (n: Notes) => Notes, kind: string, label: string) => {
+      const results: any[] = [], entries: any[] = [];
+      for (const t of targets) {
+        const i = indexOf(t.id), n = notesFor(i);
+        if (!editable(i)) { results.push({ id: t.id, outcome: 'source_unavailable', revision: null }); continue; }
+        if (n.revision !== t.revision) { results.push({ id: t.id, outcome: 'conflict', revision: n.revision }); continue; }
+        const next = fn(n);
+        if (same(next, n)) { results.push({ id: t.id, outcome: 'unchanged', revision: n.revision }); continue; }
+        notes.set(i, { ...next, revision: n.revision + 1 });
+        entries.push({ i, before: n, after: n.revision + 1 });
+        results.push({ id: t.id, outcome: 'applied', revision: n.revision + 1 });
+      }
+      const count = (o: string[]) => results.filter(r => o.includes(r.outcome)).length;
+      return { action_id: record(kind, `${label} · ${entries.length} ${entries.length === 1 ? 'image' : 'images'}`, entries), results, applied: count(['applied']), unchanged: count(['unchanged']), conflicts: count(['conflict']), skipped: count(['source_unavailable']) };
+    };
+    const describe = (p: any) => [p.add_tags?.length && `Add ${p.add_tags.map((t: string) => `“${t}”`).join(', ')}`, p.remove_tags?.length && `remove ${p.remove_tags.map((t: string) => `“${t}”`).join(', ')}`,
+      p.favorite !== undefined && (p.favorite ? 'mark favorite' : 'unmark favorite'), 'rating' in p && (p.rating ? `rate ${p.rating}/5` : 'clear rating'), p.comment !== undefined && 'edit notes'].filter(Boolean).join(', ');
     Object.assign(window, {
       isTauri: true,
       __fixtureCalls: calls,
@@ -64,7 +104,43 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
             }
             case 'image_details': { const i = parseInt(args.id.slice(-12), 10), item = galleryItem(i);
               return { header: item.header, profile: item.header.technical_state === 'ready' ? { raw_width: 3000, raw_height: 4000, orientation: 6, width: 4000, height: 3000, format: 'png', encoded_bytes: 9_437_184, bit_depth: 8, source_color_profile: null, alpha_channel: true, transparency: 'partial', analyzer_version: 'creativeshelf-still-v1-image02510-mox091' } : null,
-                source_name: source.name, source_available: true, tags: i === 3 ? ['very-long-tag-'.repeat(6), 'thumbnail'] : ['thumbnail'], caption: null, annotation_revision: 1 }; }
+                source_name: source.name, source_available: true, caption: null, tags: notesFor(i).tags, comment: notesFor(i).comment, favorite: notesFor(i).favorite, rating: notesFor(i).rating, annotation_revision: notesFor(i).revision }; }
+            case 'edit_image_annotations': { const i = indexOf(args.id), n = notesFor(i);
+              if (!editable(i)) throw 'SOURCE_UNAVAILABLE';
+              if (n.revision !== args.expectedRevision) throw 'CONFLICT';
+              const r = bulk([{ id: args.id, revision: n.revision }], x => change(x, args.patch), 'edit', describe(args.patch));
+              return { annotations: notesFor(i), action_id: r.action_id }; }
+            case 'preview_image_bulk_annotations': {
+              const ids = args.ids as string[], ok = ids.filter(id => editable(indexOf(id)));
+              const has = (t: string) => ok.filter(id => notesFor(indexOf(id)).tags.some(x => key(x) === key(t))).length;
+              return { targets: ok.map(id => ({ id, revision: notesFor(indexOf(id)).revision })), changes: ok.filter(id => !same(change(notesFor(indexOf(id)), args.patch), notesFor(indexOf(id)))).length,
+                unchanged: ok.filter(id => same(change(notesFor(indexOf(id)), args.patch), notesFor(indexOf(id)))).length,
+                skipped: ids.filter(id => !editable(indexOf(id))).map(id => ({ id, outcome: 'source_unavailable', revision: null })),
+                additions: (args.patch.add_tags ?? []).map((tag: string) => ({ tag, count: has(tag) })), removals: (args.patch.remove_tags ?? []).map((tag: string) => ({ tag, count: has(tag) })) }; }
+            case 'apply_image_bulk_annotations': return bulk(args.targets, x => change(x, args.patch), 'bulk', describe(args.patch));
+            case 'image_annotation_history': return history.slice(0, args.limit).map(({ entries, ...a }) => a);
+            case 'undo_image_annotation_action': { const a = history.find(h => h.id === args.actionId);
+              if (!a) throw 'NOT_FOUND'; if (a.state !== 'applied') throw 'CONFLICT';
+              const results = a.entries.map((e: any) => { const n = notesFor(e.i);
+                if (n.revision !== e.after) return { id: galleryItem(e.i).header.id, outcome: 'conflict', revision: n.revision };
+                notes.set(e.i, { ...e.before, revision: n.revision + 1 }); return { id: galleryItem(e.i).header.id, outcome: 'applied', revision: n.revision + 1 }; });
+              if (a.alias) aliases.splice(aliases.indexOf(a.alias), 1);
+              a.state = 'undone';
+              return { action_id: a.id, results, applied: results.filter((r: any) => r.outcome === 'applied').length, unchanged: 0, conflicts: results.filter((r: any) => r.outcome === 'conflict').length, skipped: 0 }; }
+            case 'image_tags': { const counts = new Map<string, { tag: string; count: number }>();
+              for (let i = 0; i < (images ? galleryTotal : 0); ++i) for (const t of notesFor(i).tags) { const c = counts.get(key(t)) ?? { tag: t, count: 0 }; c.count++; counts.set(key(t), c); }
+              return { tags: [...counts.values()].sort((a, b) => b.count - a.count), truncated: false, aliases }; }
+            case 'preview_image_tag_rename': { let n = 0, merged = 0, unavailable = 0;
+              for (let i = 0; i < galleryTotal; ++i) { const t = notesFor(i).tags; if (!t.some(x => key(x) === key(args.from))) continue;
+                if (!editable(i)) unavailable++; else { n++; if (key(args.from) !== key(args.to) && t.some(x => key(x) === key(args.to))) merged++; } }
+              return { from: args.from, to: args.to, images: n, merged, unavailable, audio_unchanged: sounds.filter(s => s.user_tags.some(t => key(t) === key(args.from))).length }; }
+            case 'rename_image_tag': {
+              const targets = []; for (let i = 0; i < galleryTotal; ++i) if (editable(i) && notesFor(i).tags.some(x => key(x) === key(args.from))) targets.push({ id: galleryItem(i).header.id, revision: notesFor(i).revision });
+              const r = bulk(targets, n => { const has = key(args.from) !== key(args.to) && n.tags.some(x => key(x) === key(args.to));
+                return { ...n, tags: n.tags.flatMap(t => key(t) === key(args.from) ? (has ? [] : [args.to]) : [t]) }; }, 'rename', `Rename “${args.from}” to “${args.to}”`);
+              if (args.keepAlias) { const alias = { alias: args.from, canonical: args.to }; aliases.push(alias); history[0].alias = alias; }
+              return r; }
+            case 'remove_image_tag_alias': { const at = aliases.findIndex(a => key(a.alias) === key(args.alias)); if (at < 0) throw 'NOT_FOUND'; aliases.splice(at, 1); return null; }
             case 'image_preview_cache_status': return images ? { enabled: true, entries: 6, bytes: 48_000, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 9, misses: 3, generated: 2, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 1, stale_rejected: 0, offline_served: 1 } }
               : { enabled: false, entries: 0, bytes: 0, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 0, misses: 0, generated: 0, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 0, stale_rejected: 0, offline_served: 0 } };
             case 'jobs': return [];

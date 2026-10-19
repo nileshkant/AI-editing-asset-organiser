@@ -26,7 +26,7 @@ SS-040, SS-041 and SS-042 are merged in main through
 [PR #40](https://github.com/nileshkant/AI-editing-asset-organiser/pull/40) and
 [PR #41](https://github.com/nileshkant/AI-editing-asset-organiser/pull/41).
 The roadmap/tickets PR #42 and SS-043's implementation PR #43 merged on
-17 October 2026. The user resumed the queue on 18 October 2026; SS-044 merged through PR #46, and SS-045 is in review.
+17 October 2026. The user resumed the queue on 18 October 2026; SS-044 and SS-045 merged through PRs #46 and #47, and SS-046 is in review.
 Their detailed R requirements, T scenarios, and A acceptance criteria are
 implementation contracts, not claims of completed work. All 26 IMG roadmap
 workstreams are mapped in IMAGE_QUEUE.md.
