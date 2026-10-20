@@ -388,6 +388,8 @@ fn image_import_idle(c: &Catalog, source_id: &str) -> Result<()> {
     }
     Ok(())
 }
+/// How long a save waits for a transiently held folder lock.
+const LOCK_PATIENCE: std::time::Duration = std::time::Duration::from_secs(2);
 fn lock(root: &Path) -> Result<(PathBuf, File)> {
     let dir = safe_dir(root, true)?;
     let mut options = OpenOptions::new();
@@ -397,9 +399,24 @@ fn lock(root: &Path) -> Result<(PathBuf, File)> {
     if !file.metadata()?.is_file() {
         return Err(invalid("Invalid catalog lock file"));
     }
-    file.try_lock()
-        .map_err(|_| invalid("Another application is updating the source catalog; retry later"))?;
-    Ok((dir, file))
+    // A child process spawned elsewhere in this app (FFmpeg, the image worker)
+    // can briefly share the lock's open file description between fork and exec,
+    // so a just-released lock may still read as held. Retry for a bounded moment
+    // before reporting a real competing writer.
+    let deadline = std::time::Instant::now() + LOCK_PATIENCE;
+    loop {
+        match file.try_lock() {
+            Ok(()) => return Ok((dir, file)),
+            Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(20))
+            }
+            Err(_) => {
+                return Err(invalid(
+                    "Another application is updating the source catalog; retry later",
+                ))
+            }
+        }
+    }
 }
 /// I/O happens outside the catalog mutex. A concurrent user edit remains dirty for retry.
 pub fn save(db: &Arc<Mutex<Catalog>>, source: &Source) -> Result<()> {

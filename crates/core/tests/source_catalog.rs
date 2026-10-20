@@ -186,7 +186,15 @@ fn access_error_and_concurrent_writer_do_not_prune_or_overwrite() {
         fs::read(root.path().join(".creativeshelf/catalog.json")).unwrap(),
         before
     );
-    drop(f);
+    // A holder that lets go within the save's patience (a spawned child briefly
+    // sharing the descriptor) does not fail the save.
+    let release = std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        drop(f);
+    });
+    source_catalog::save(&db, &source).unwrap();
+    release.join().unwrap();
+    let before = fs::read(root.path().join(".creativeshelf/catalog.json")).unwrap();
     fs::remove_file(root.path().join("tone.wav")).unwrap();
     fs::create_dir(root.path().join("tone.wav")).unwrap();
     assert!(source_catalog::fingerprint(root.path(), "tone.wav").is_err());
