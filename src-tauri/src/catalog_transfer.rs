@@ -7,7 +7,14 @@ pub async fn catalog_export(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     format: String,
+    // SS-055: generation prompts and private references are opt-in per export.
+    include_prompts: Option<bool>,
+    include_private_references: Option<bool>,
 ) -> Result<Option<String>, String> {
+    let sharing = soundshelf_core::image_generation::GenerationSharing {
+        prompts: include_prompts.unwrap_or(false),
+        private_references: include_private_references.unwrap_or(false),
+    };
     if !["json", "md"].contains(&format.as_str()) {
         return Err("Choose JSON or Markdown".into());
     }
@@ -26,7 +33,7 @@ pub async fn catalog_export(
         let snapshot = catalog
             .lock()
             .map_err(|e| e.to_string())?
-            .export_portable()
+            .export_portable_with(sharing)
             .map_err(|e| e.to_string())?;
         let text = if format == "json" {
             snapshot.json().map_err(|e| e.to_string())?

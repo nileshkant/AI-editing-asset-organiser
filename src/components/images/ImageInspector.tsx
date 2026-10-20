@@ -6,6 +6,7 @@ import type { ImageProfile } from '../../contracts/imageV1';
 import { fileName } from './ImageGrid';
 import { ImageViewer, type PreviewBackground } from './ImageViewer';
 import { AnnotationEditor } from './AnnotationEditor';
+import { GenerationProvenance } from './GenerationProvenance';
 
 export const formatBytes = (n: number) => n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KiB` : `${(n / 1024 ** 2).toFixed(1)} MiB`;
 /** Channel support and actual transparent pixels are distinct facts (SS-042). */
@@ -69,5 +70,6 @@ export function ImageInspector({ summary, background, setBackground, onClose, on
       <dt>AI analysis</dt><dd>{header.enrichment_state === 'disabled' ? 'Not enabled' : header.enrichment_state}</dd>
     </dl>
     {d && <AnnotationEditor details={d} name={name} onChanged={() => { setAttempt(n => n + 1); onAnnotated(); }} />}
+    {d && <GenerationProvenance id={id} version={header.content_hash} />}
   </aside>;
 }

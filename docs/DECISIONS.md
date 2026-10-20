@@ -216,3 +216,35 @@ Capabilities are only what a connection test observed for an exact profile
 revision. The image probe is a generated red square and must be answered
 correctly, so a text-only model is never labeled image-capable. Any edit resets
 capabilities, and test results from a superseded revision are discarded.
+
+## SS-055 generation metadata and prompt provenance (20 October 2026)
+
+Embedded generation settings are claims, not history. The reader is an
+allowlist of five formats with fixed limits on chunks, decompression, nesting,
+field length and CPU time. XMP is searched as text so no XML entity is ever
+expanded, and ComfyUI graphs are only walked from a single `KSampler`; an
+ambiguous graph leaves prompts unknown rather than guessed. Results are keyed by
+content hash and parser version, like analyses, so a changed file never loses
+the old version's evidence and a parser upgrade can re-read.
+
+Import already reads every new image to hash it, so the reader runs over the
+same buffer instead of opening the file again. Measured cost on a 24.6 MB PNG
+is about 10 µs for the reader; holding the bytes adds about 7 ms over a streamed
+hash, only on first read of new content. Metadata never affects readiness.
+
+Sidecars are `<stem>.txt` in the A1111 layout and only for folder sources: an
+exact-file grant never authorizes a sibling. Sidecar evidence is per image with
+its own revision so sidecar-only changes are visible and invalidate a review.
+
+User provenance is a separate revisioned record. Imported claims never overwrite
+it, and a review records the exact content, parser and sidecar revision it
+covered.
+
+Prompts and private references (local paths, `LoadImage` names) are removed
+from shared exports by default and the removal is recorded, so an importer sees
+"removed" instead of "unknown". Portable v2 gains an optional `generation` field
+instead of a v3: no released build reads v2 (neither v0.9.0-beta.1 nor
+v0.1.0-alpha.6 contains mixed catalogs), and v2 readers in this tree accept its
+absence. Schema v16 is additive. If another ticket lands a v16 first, the later
+merge takes the next free number and reruns the upgrade and fresh-equivalence
+tests.

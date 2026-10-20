@@ -56,6 +56,9 @@ pub mod image_preview;
 
 pub mod image_gallery;
 pub mod image_annotations;
+/// SS-055 generation metadata reader and prompt provenance.
+pub mod image_generation;
+pub mod image_provenance;
 mod image_preview_render;
 
 pub mod image_sources;

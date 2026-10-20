@@ -101,3 +101,16 @@
 .image-tag-rename .modal-actions, .image-bulk-dialog .modal-actions { margin-block-start: .5rem; flex-wrap: wrap; }
 .image-aliases li, .image-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; overflow-wrap: anywhere; }
 .image-aliases h3 { margin: 0; font-size: .85rem; }
+
+/* SS-055 generation provenance */
+.image-generation { display: grid; gap: .5rem; }
+.image-generation h3 { margin: 0; font-size: .95rem; }
+.image-generation p { margin: 0; }
+.image-generation-field { display: contents; }
+.image-generation-field dd { display: grid; gap: .1rem; }
+.image-generation-text { white-space: pre-wrap; max-height: 12rem; overflow: auto; }
+.image-generation-form { display: grid; gap: .5rem; }
+.image-generation-input { display: grid; gap: .2rem; }
+.image-generation-input textarea, .image-generation-input input, .image-generation-input select { width: 100%; box-sizing: border-box; }
+.image-generation-details ul { margin: .3rem 0 0; padding-left: 1rem; font-size: .85rem; display: grid; gap: .2rem; }
+.image-generation-details li { overflow-wrap: anywhere; }

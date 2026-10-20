@@ -141,7 +141,7 @@ export const SettingsView = memo(function SettingsView({
       </dialog>}
       {/* Keep panes mounted: category changes must not discard import previews,
           in-flight recovery state or credentials that are only shown once. */}
-      <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} /></div></section>
+      <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} active={category === 1} /></div></section>
       <section {...panelProps(2)}><div className="settings-card"><RecoverySettings onError={onError} /></div><ImagePreviewSettings onError={onError} /></section>
       <section {...panelProps(3)}><div className="settings-card"><McpSettings roots={roots} onError={onError} /></div></section>
       <section {...panelProps(4)}><div className="settings-card">{category === 4 && <AiProviderSettings onError={onError} />}</div></section>

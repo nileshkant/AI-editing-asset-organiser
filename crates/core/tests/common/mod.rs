@@ -14,6 +14,9 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
         "Only empty annotation storage can be removed from legacy fixtures");
     db.execute_batch(
         "
+      DROP TABLE image_generation_provenance;
+      DROP TABLE image_generation_sidecars;
+      DROP TABLE image_generation_extractions;
       DROP TABLE asset_file_stats;
       DROP TABLE image_source_monitor;
       DROP TABLE image_tag_aliases;

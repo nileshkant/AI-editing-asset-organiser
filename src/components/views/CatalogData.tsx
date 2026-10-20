@@ -1,17 +1,36 @@
 import { useEffect, useState } from 'react';
 import { call } from '../../api';
+import type { GenerationSettings, ImageImportCapabilities } from '../../types';
 
 type Preview = { token: string; preview: { schema: string; sources: { id: string; name: string }[]; sounds: number; images: number; legacy: boolean } };
 type Report = { report: { sounds: number; images: number; sources: number; offline_sources: number }; warnings: string[] };
 type Evidence = { sound_id: string; description: string; provenance: string; analyzed_seconds: number | null; measurement_scope: string };
 
-export function CatalogData({ onError }: { onError: (message: string) => void }) {
+export function CatalogData({ onError, active = true }: { onError: (message: string) => void; active?: boolean }) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [roots, setRoots] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [evidence, setEvidence] = useState<Evidence[]>([]);
   const [showEvidence, setShowEvidence] = useState(false);
+  // SS-055: generation prompts and private references leave the app only when chosen.
+  const [generation, setGeneration] = useState<GenerationSettings | null>(null);
+  const [share, setShare] = useState({ prompts: false, private_references: false });
+  // Loaded when the pane is first shown, so opening other settings panes makes no call.
+  const [shown, setShown] = useState(active);
+  if (active && !shown) setShown(true);
+  useEffect(() => {
+    if (!shown) return;
+    let live = true;
+    call<ImageImportCapabilities | null>('image_import_capabilities')
+      .then(cap => cap?.enabled || cap?.metadata_present ? call<GenerationSettings>('image_generation_settings') : null)
+      .then(s => { if (live && s) setGeneration(s); }).catch(() => {});
+    return () => { live = false; };
+  }, [shown]);
+  const saveGeneration = (next: GenerationSettings) => action(async () => {
+    setGeneration(await call<GenerationSettings>('set_image_generation_settings', { settings: next }));
+    setMessage('Generation metadata settings saved.');
+  });
   useEffect(() => () => { if (preview) void call('catalog_cancel_preview', { token: preview.token }).catch(() => {}); }, [preview]);
   const action = async (task: () => Promise<void>) => {
     if (busy) return;
@@ -23,7 +42,9 @@ export function CatalogData({ onError }: { onError: (message: string) => void })
     if (next) { setPreview(next); setRoots({}); }
   });
   const exportCatalog = (format: 'json' | 'md') => action(async () => {
-    const path = await call<string | null>('catalog_export', { format });
+    const path = await call<string | null>('catalog_export', generation && format === 'json'
+      ? { format, includePrompts: share.prompts, includePrivateReferences: share.private_references }
+      : { format });
     if (path) setMessage(`Catalog exported to ${path}`);
   });
   const importCatalog = () => action(async () => {
@@ -45,6 +66,21 @@ export function CatalogData({ onError }: { onError: (message: string) => void })
       <button disabled={busy || !!preview} onClick={() => void openImport(false)}>Import catalog</button>
       <button disabled={busy || !!preview} onClick={() => void openImport(true)}>Import legacy catalog</button>
     </div>
+    {generation && <fieldset className="catalog-generation">
+      <legend>Image generation metadata</legend>
+      <p className="muted">Prompts and private references such as local file names are left out of JSON exports unless you include them here. Markdown exports never include them.</p>
+      <label><input type="checkbox" checked={share.prompts} disabled={busy} onChange={e => setShare({ ...share, prompts: e.target.checked })} /> Include prompts in this JSON export</label>
+      <label><input type="checkbox" checked={share.private_references} disabled={busy} onChange={e => setShare({ ...share, private_references: e.target.checked })} /> Include private references in this JSON export</label>
+      <label htmlFor="generation-search">Search generation metadata</label>
+      <select id="generation-search" value={generation.search} disabled={busy} onChange={e => void saveGeneration({ ...generation, search: e.target.value as GenerationSettings['search'] })}>
+        <option value="exclude">Do not search it</option>
+        <option value="metadata">Everything except prompts</option>
+        <option value="prompts">Also search prompts</option>
+      </select>
+      <p className="muted">Image search is not available yet. This choice is saved and applied when it is.</p>
+      <label><input type="checkbox" checked={generation.snapshot.prompts} disabled={busy} onChange={e => void saveGeneration({ ...generation, snapshot: { ...generation.snapshot, prompts: e.target.checked } })} /> Include prompts in folder catalog snapshots</label>
+      <label><input type="checkbox" checked={generation.snapshot.private_references} disabled={busy} onChange={e => void saveGeneration({ ...generation, snapshot: { ...generation.snapshot, private_references: e.target.checked } })} /> Include private references in folder catalog snapshots</label>
+    </fieldset>}
     {busy && <p role="status">Working on catalog…</p>}
     {message && <p role="status">{message}</p>}
     {preview && <section className="catalog-preview" aria-label="Catalog import preview">

@@ -186,3 +186,7 @@ Do not wait for merge; preserve predecessor-first merge order. If blocked, recor
 No new tickets are added here for collaboration/cloud sync, additional formats,
 generator connectors, generative editing, video indexing, public marketplace,
 or executable presets. They remain the phase plan's explicitly later ideas.
+
+## Progress notes (append-only)
+
+- 20 October 2026: [SS-055](SS-055.md) in review from main `31bb956` while SS-050–054 run in parallel, as the user directed; see [review](../docs/reviews/SS-055.md). Schema v16. Merge it after SS-054 in queue order; the second of the two to merge takes the next free schema version.

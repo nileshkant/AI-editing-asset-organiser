@@ -39,6 +39,22 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
     // SS-046 renderer contract: revisioned annotations, history with undo, tag rename/aliases.
     type Notes = { revision: number; tags: string[]; comment: string; favorite: boolean; rating: number | null };
     const notes = new Map<number, Notes>(), history: any[] = [], aliases: { alias: string; canonical: string }[] = [];
+    // SS-055: one A1111 claim per image plus the person's own provenance entries.
+    const genSource = { format: 'a1111_parameters', container: 'png_text', key: 'parameters' };
+    const genPrompt = 'A lighthouse at dusk, <b>not markup</b>\nsecond line';
+    let genSettings = { search: 'metadata', snapshot: { prompts: false, private_references: false } };
+    const genUser = new Map<string, { revision: number; fields: Record<string, string>; confirmed: boolean }>();
+    const generationView = (id: string) => {
+      const u = genUser.get(id) ?? { revision: 0, fields: {}, confirmed: false };
+      const claim = { source: genSource, fields: { prompt: genPrompt, negative_prompt: null, generator: null, model: 'sdxl-base', seed: '18446744073709551617', sampler: 'Euler a', created: null, settings: { 'CFG scale': '7' }, references: [{ kind: 'image', value: 'C:/Users/me/ref.png', private: true }], digital_source_type: null } };
+      const imported: Record<string, string | null> = { prompt: genPrompt, model: 'sdxl-base', seed: claim.fields.seed, sampler: 'Euler a' };
+      const fields = ['prompt', 'negative_prompt', 'generator', 'model', 'seed', 'sampler', 'created', 'ai_generated'].map(field => u.fields[field] !== undefined
+        ? { field, value: u.fields[field], origin: 'user', source: null, conflicting: false, redacted: false, uncertain: false }
+        : imported[field] ? { field, value: imported[field], origin: 'imported', source: genSource, conflicting: false, redacted: false, uncertain: false }
+        : { field, value: null, origin: 'unknown', source: null, conflicting: false, redacted: false, uncertain: false });
+      return { asset_id: id, revision: u.revision, embedded: { parser: 'creativeshelf-generation-v1', status: 'found', claims: [claim], issues: [], uninterpreted: [{ container: 'png_text', key: 'workflow', bytes: 48_213 }], redacted: [] },
+        sidecar: null, fields, claims: [claim], confirmed: u.confirmed, confirmation_outdated: false, inherited_from: null, editable: true, settings: genSettings };
+    };
     const key = (t: string) => t.normalize('NFC').replace(/_/g, ' ').split(/\s+/).filter(Boolean).join(' ').toLowerCase();
     function notesFor(i: number): Notes {
       if (!notes.has(i)) notes.set(i, { revision: 1, tags: i === 3 ? ['very-long-tag-'.repeat(6), 'thumbnail'] : ['thumbnail'], comment: '', favorite: false, rating: null });
@@ -131,6 +147,13 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
               if (a.alias) aliases.splice(aliases.indexOf(a.alias), 1);
               a.state = 'undone';
               return { action_id: a.id, results, applied: results.filter((r: any) => r.outcome === 'applied').length, unchanged: 0, conflicts: results.filter((r: any) => r.outcome === 'conflict').length, skipped: 0 }; }
+            case 'image_generation': return generationView(args.id);
+            case 'edit_image_generation': { const u = genUser.get(args.id) ?? { revision: 0, fields: {}, confirmed: false };
+              if (u.revision !== args.expectedRevision) throw 'CONFLICT';
+              const fields = { ...u.fields }; for (const [k, v] of Object.entries(args.patch.set ?? {})) { if (v === null) delete fields[k]; else fields[k] = v as string; }
+              genUser.set(args.id, { revision: u.revision + 1, fields, confirmed: args.patch.confirm ?? u.confirmed }); return generationView(args.id); }
+            case 'image_generation_settings': return genSettings;
+            case 'set_image_generation_settings': genSettings = args.settings; return genSettings;
             case 'image_tags': { const counts = new Map<string, { tag: string; count: number }>();
               for (let i = 0; i < (images ? galleryTotal : 0); ++i) for (const t of notesFor(i).tags) { const c = counts.get(key(t)) ?? { tag: t, count: 0 }; c.count++; counts.set(key(t), c); }
               return { tags: [...counts.values()].sort((a, b) => b.count - a.count), truncated: false, aliases }; }

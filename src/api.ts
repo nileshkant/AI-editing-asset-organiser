@@ -201,3 +201,10 @@ export const previewImageTagRename = (from: string, to: string, sourceId: string
 export const renameImageTag = (from: string, to: string, sourceId: string | null, keepAlias: boolean) =>
   call<import('./types').BulkResult>('rename_image_tag', { from, to, sourceId, keepAlias });
 export const removeImageTagAlias = (alias: string) => call<null>('remove_image_tag_alias', { alias });
+/** SS-055: attributed generation provenance for one image. */
+export const imageGeneration = (id: string) => call<import('./types').GenerationView>('image_generation', { id });
+export const editImageGeneration = (id: string, expectedRevision: number, patch: import('./types').GenerationPatch) =>
+  call<import('./types').GenerationView>('edit_image_generation', { id, expectedRevision, patch });
+export const imageGenerationSettings = () => call<import('./types').GenerationSettings>('image_generation_settings');
+export const setImageGenerationSettings = (settings: import('./types').GenerationSettings) =>
+  call<import('./types').GenerationSettings>('set_image_generation_settings', { settings });

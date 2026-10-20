@@ -4,6 +4,7 @@ use crate::{
         contained, hash_file, path_text, valid_relative, validate_clip_recipe, validate_profile,
         Catalog, Clip, SavedSearch, Sound, ANALYZER,
     },
+    image_generation::GenerationSharing,
     invalid, Result,
 };
 use rusqlite::{params, OptionalExtension};
@@ -251,17 +252,23 @@ impl PortableCatalog {
     }
 }
 impl Catalog {
+    /// Shared export: generation prompts and private references are redacted.
     pub fn export_portable(&self) -> Result<PortableCatalog> {
-        self.export_audio_portable(None)
+        self.export_portable_with(GenerationSharing::default())
+    }
+    /// `sharing` opts generation prompts and private references in (SS-055).
+    pub fn export_portable_with(&self, sharing: GenerationSharing) -> Result<PortableCatalog> {
+        self.export_audio_portable(None, sharing)
     }
     pub(crate) fn export_portable_for_source(&self, source_id: &str) -> Result<PortableCatalog> {
-        self.export_audio_portable(Some(source_id))
+        let sharing = self.generation_settings().map_err(|_| invalid("Invalid generation settings"))?.snapshot;
+        self.export_audio_portable(Some(source_id), sharing)
     }
-    fn export_audio_portable(&self, source_id: Option<&str>) -> Result<PortableCatalog> {
+    fn export_audio_portable(&self, source_id: Option<&str>, sharing: GenerationSharing) -> Result<PortableCatalog> {
         // Consistent snapshot even if a separate connection is writing.
         let tx = self.db.unchecked_transaction()?;
         // Source snapshots carry one folder's members; aliases are library-wide.
-        let images = crate::mixed_catalog::export_images(&self.db, source_id, source_id.is_some())?;
+        let images = crate::mixed_catalog::export_images(&self.db, source_id, source_id.is_some(), sharing)?;
         let image_tag_aliases = if source_id.is_some() { vec![] } else { crate::mixed_catalog::export_aliases(&self.db)? };
         let sounds=if let Some(id)=source_id { self.scoped_sounds(&[id.to_owned()])? } else { self.all_sounds()? };
         let ids:HashSet<_>=sounds.iter().map(|s|s.id.clone()).collect();
