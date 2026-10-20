@@ -40,6 +40,8 @@ pub struct AppState {
     pub data_directory: PathBuf,
     pub catalog_imports: Arc<Mutex<std::collections::HashMap<String, (String, bool)>>>,
     pub catalog_roots: Arc<Mutex<std::collections::HashMap<(String, String), String>>>,
+    /// One pending restore preview: token, natively picked path and its summary.
+    pub restore_preview: Arc<Mutex<Option<(String, PathBuf, soundshelf_core::maintenance::BackupSummary)>>>,
     pub catalog: Arc<Mutex<Catalog>>,
     pub tools: Option<MediaTools>,
     pub player: Arc<Player>,
@@ -113,7 +115,7 @@ impl AppState {
                         let sources=db.lock().ok().and_then(|c|{
                             let states=c.snapshot_states().ok()?;
                             Some(states.into_iter().filter(|s|s.dirty).filter_map(|s|{
-                                let blocked:i64=c.db_connection().query_row("SELECT COUNT(*) FROM jobs WHERE source_id=?1 AND (state!='complete' OR failed>0)",[&s.source_id],|r|r.get(0)).ok()?;
+                                let blocked:i64=c.db_connection().query_row("SELECT (SELECT COUNT(*) FROM jobs WHERE source_id=?1 AND (state!='complete' OR failed>0))+(SELECT COUNT(*) FROM image_import_jobs WHERE source_id=?1 AND state IN ('queued','running'))",[&s.source_id],|r|r.get(0)).ok()?;
                                 if blocked==0 {c.source(&s.source_id).ok().filter(|s|s.available&&s.scope=="folder")}else{None}
                             }).collect::<Vec<_>>())
                         }).unwrap_or_default();
@@ -242,6 +244,7 @@ impl AppState {
             data_directory,
             catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
             catalog_roots: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            restore_preview: Arc::new(Mutex::new(None)),
             catalog,
             tools,
             player,
@@ -297,6 +300,18 @@ impl AppState {
             }
         }
         Ok(())
+    }
+    /// Folder import after `import_folder`. A restored mixed catalog is checked by
+    /// the image lane (it also handles audio), and only for changed members; the
+    /// audio lane keeps audio-only folders. Without the image lane, image records
+    /// stay as restored metadata and audio uses the legacy lane.
+    pub fn enqueue_folder_import(&self,source:Source)->Result<(),String> {
+        let mixed=self.image_imports.enabled&&self.catalog.lock().map_err(|e|e.to_string())?.source_has_images(&source.id).map_err(|e|e.to_string())?;
+        if mixed {
+            soundshelf_core::image_sources::enqueue_snapshot_checks(&self.catalog,&source.id).map_err(|e|e.to_string())?;
+            return Ok(());
+        }
+        self.enqueue_import(source)
     }
     pub fn enqueue_import(&self,source:Source)->Result<(),String> {
         let job=self.catalog.lock().map_err(|e|e.to_string())?.enqueue_import(&source.id).map_err(|e|e.to_string())?;

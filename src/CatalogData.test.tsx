@@ -3,15 +3,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CatalogData } from './components/views/CatalogData';
 const invoke=vi.fn();
 vi.mock('@tauri-apps/api/core',()=>({isTauri:()=>true,invoke:(...args:unknown[])=>invoke(...args)}));
-const preview={token:'preview-token',preview:{schema:'soundshelf-catalog/v1',sources:[{id:'source-a',name:'Foley'}],sounds:12,legacy:false}};
+const preview={token:'preview-token',preview:{schema:'soundshelf-catalog/v1',sources:[{id:'source-a',name:'Foley'}],sounds:12,images:0,legacy:false}};
 beforeEach(()=>{vi.clearAllMocks();invoke.mockImplementation((cmd:string)=>{
   if(cmd==='catalog_preview') return Promise.resolve(preview);
   if(cmd==='catalog_map_root') return Promise.resolve('/relocated/audio');
-  if(cmd==='catalog_import') return Promise.resolve({report:{sounds:12,sources:1,offline_sources:0},warnings:[]});
+  if(cmd==='catalog_import') return Promise.resolve({report:{sounds:12,images:0,sources:1,offline_sources:0},warnings:[]});
   if(cmd==='catalog_legacy_evidence') return Promise.resolve([]);
   return Promise.resolve(null);
 });});
 describe('Catalog data workflow',()=>{
+  it('shows image counts for a mixed catalog before and after import',async()=>{
+    invoke.mockImplementation((cmd:string)=>Promise.resolve(cmd==='catalog_preview'?{...preview,preview:{...preview.preview,schema:'soundshelf-catalog/v2',images:1234}}:cmd==='catalog_import'?{report:{sounds:12,images:1234,sources:1,offline_sources:1},warnings:[]}:null));
+    render(<CatalogData onError={vi.fn()}/>);
+    fireEvent.click(screen.getByText('Import catalog'));
+    await screen.findByText('12 sounds · 1,234 images · 1 sources');
+    expect(screen.getByText(/without reading audio or image files/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Confirm catalog import'));
+    await screen.findByText(/Imported 12 sounds and 1234 images from 1 sources. 1 sources need relinking/);
+  });
   it('previews without importing and maps roots through the native picker before confirmation',async()=>{
     render(<CatalogData onError={vi.fn()}/>);
     fireEvent.click(screen.getByText('Import catalog'));

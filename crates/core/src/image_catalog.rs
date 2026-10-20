@@ -550,7 +550,7 @@ impl Catalog {
         let importing:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM image_source_identity WHERE source_id=?1) OR EXISTS(SELECT 1 FROM image_import_jobs j WHERE j.source_id=?1 AND (j.state IN ('queued','running') OR EXISTS(SELECT 1 FROM image_import_items i WHERE i.job_id=j.id AND i.media_kind='image' AND i.state IN ('pending','running'))))",[source_id],|r|r.get(0))?;
         if self.source_has_images(source_id)? || importing {
             return Err(invalid(
-                "Image metadata requires mixed catalog support; audio-only operation is blocked",
+                "This source contains images; use the image source actions (relink, refresh) for it",
             ));
         }
         Ok(())

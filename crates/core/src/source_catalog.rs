@@ -50,6 +50,9 @@ pub(crate) fn count_decode() {
 }
 
 pub const SCHEMA: &str = "creativeshelf-source/v1";
+/// Folder snapshots that also carry image records (SS-048). Audio-only folders
+/// keep writing v1, so an older app still reads them.
+pub const SCHEMA_V2: &str = "creativeshelf-source/v2";
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Fingerprint {
@@ -138,15 +141,25 @@ pub fn read(root: &Path) -> Result<Option<Snapshot>> {
 }
 impl Snapshot {
     pub fn validate(&self) -> Result<()> {
-        if self.schema != SCHEMA
+        let mixed = self.schema == SCHEMA_V2;
+        if !mixed && self.schema != SCHEMA && self.schema.starts_with("creativeshelf-source/") {
+            return Err(invalid("Source catalog was written by a newer CreativeShelf; update the app. The folder catalog was left unchanged."));
+        }
+        if !mixed && self.schema != SCHEMA
             || self.analyzer != crate::catalog::ANALYZER
             || Uuid::parse_str(&self.revision).is_err()
+            || mixed != (self.catalog.schema == crate::portable::PORTABLE_SCHEMA_V2)
         {
             return Err(invalid(
                 "Unsupported source catalog; use Rebuild catalog to recover",
             ));
         }
         self.catalog.validate()?;
+        if !self.catalog.image_tag_aliases.is_empty()
+            || self.catalog.images.iter().any(|i| i.asset.header.content_hash.is_none())
+        {
+            return Err(invalid("Source catalog image records are incomplete"));
+        }
         if self.catalog.sounds.iter().any(|s| {
             s.content_hash.len() != 64 || !s.content_hash.bytes().all(|b| b.is_ascii_hexdigit())
         }) {
@@ -165,6 +178,7 @@ impl Snapshot {
             .sounds
             .iter()
             .map(|s| s.relative_path.as_str())
+            .chain(self.catalog.images.iter().map(|i| i.asset.header.relative_path.as_str()))
             .collect();
         if members.len() != self.fingerprints.len() {
             return Err(invalid("Source catalog fingerprints do not match members"));
@@ -268,13 +282,21 @@ pub fn import_folder(db: &Arc<Mutex<Catalog>>, root: &Path) -> Result<Source> {
             Some(_) => {}
         }
     }
+    // Images follow the same stat-only rule: no directory walk, hash or decode.
+    let expected = snapshot.fingerprints.clone();
+    crate::mixed_catalog::apply_fingerprints(&mut snapshot.catalog.images, |relative| {
+        Ok(match fingerprint(&root, relative)? {
+            None => crate::mixed_catalog::FingerprintState::Missing,
+            Some(stat) if expected[relative] != stat => crate::mixed_catalog::FingerprintState::Changed,
+            Some(_) => crate::mixed_catalog::FingerprintState::Same,
+        })
+    })?;
     let mut c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
     if let Some(existing) = c
         .source_headers()?
         .into_iter()
         .find(|s| Path::new(&s.root) == root)
     {
-        c.require_audio_only_source(&existing.id)?;
         if existing.scope != "folder" || existing.id != snapshot.catalog.sources[0].id {
             return Err(invalid(
                 "Source catalog identity conflicts with this library; use Rebuild catalog",
@@ -292,12 +314,24 @@ pub fn import_folder(db: &Arc<Mutex<Catalog>>, root: &Path) -> Result<Source> {
                 return Err(invalid("Source catalog member identity conflicts with this library; rebuild explicitly"));
             }
         }
+        for image in &snapshot.catalog.images {
+            let h = &image.asset.header;
+            let local: Option<String> =
+                c.db.query_row(
+                    "SELECT id FROM asset_registry WHERE source_id=?1 AND relative_path=?2",
+                    params![existing.id, h.relative_path],
+                    |r| r.get(0),
+                )
+                .optional()?;
+            if local.as_ref().is_some_and(|id| id != &h.id) {
+                return Err(invalid("Source catalog member identity conflicts with this library; rebuild explicitly"));
+            }
+        }
         c.db.execute("INSERT INTO source_catalog_state(source_id,revision,dirty) VALUES(?1,?2,1) ON CONFLICT(source_id) DO UPDATE SET revision=excluded.revision,dirty=dirty+1",params![existing.id,snapshot.revision])?;
         return Ok(existing); // Local annotations and revisions always win on same-library reimport.
     }
     let id = snapshot.catalog.sources[0].id.clone();
     if let Ok(existing) = c.source(&id) {
-        c.require_audio_only_source(&id)?;
         if Path::new(&existing.root).exists() {
             return Err(invalid("Catalog belongs to an existing source; use Relink folder instead of duplicating it"));
         }
@@ -338,6 +372,19 @@ impl Catalog {
         Ok(())
     }
 }
+/// A snapshot taken mid-import would publish half-registered members. The
+/// background saver skips busy sources; explicit saves report a retry.
+fn image_import_idle(c: &Catalog, source_id: &str) -> Result<()> {
+    let busy: bool = c.db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM image_import_jobs WHERE source_id=?1 AND state IN ('queued','running'))",
+        [source_id],
+        |r| r.get(0),
+    )?;
+    if busy {
+        return Err(invalid("An image import or check is running for this folder; its catalog saves when it finishes"));
+    }
+    Ok(())
+}
 fn lock(root: &Path) -> Result<(PathBuf, File)> {
     let dir = safe_dir(root, true)?;
     let mut options = OpenOptions::new();
@@ -370,11 +417,11 @@ fn save_inner(
     if source.scope != "folder" {
         return Ok(());
     }
-    db.lock().map_err(|_|invalid("Catalog unavailable"))?.require_audio_only_source(&source.id)?;
+    image_import_idle(&*db.lock().map_err(|_| invalid("Catalog unavailable"))?, &source.id)?;
     let root = Path::new(&source.root);
     let (dir, _lock) = lock(root)?;
     let disk = read(root)?;
-    let (mut catalog, expected, serial, clip_history) = {
+    let (mut catalog, expected, serial, clip_history, image_verified) = {
         let c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
         if c.source_generation(&source.id)? != source.generation {
             return Err(invalid("Source moved; discard stale snapshot"));
@@ -416,7 +463,18 @@ fn save_inner(
                 })
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        (data, revision, serial, history)
+        drop(q);
+        // Members the image lane rehashed at their current stat count as verified.
+        let mut image_verified = BTreeMap::new();
+        for image in &data.images {
+            let h = &image.asset.header;
+            if let (Some(hash), Some(stat)) = (&h.content_hash, fingerprint(root, &h.relative_path).ok().flatten()) {
+                if crate::mixed_catalog::image_stat_verified(&c.db, &h.id, hash, stat.size, &stat.modified_ns)? {
+                    image_verified.insert(h.relative_path.clone(), stat);
+                }
+            }
+        }
+        (data, revision, serial, history, image_verified)
     };
     if disk.as_ref().map(|s| &s.revision) != expected.as_ref() {
         return Err(invalid("Source catalog revision changed in another library; local metadata preserved. Reimport or rebuild explicitly."));
@@ -448,8 +506,26 @@ fn save_inner(
         }
         fingerprints.insert(s.relative_path.clone(), stat);
     }
+    for image in &catalog.images {
+        let h = &image.asset.header;
+        let stat = fingerprint(root, &h.relative_path)?
+            .ok_or_else(|| invalid("Source changed during snapshot; retry import before saving"))?;
+        let previous = disk.as_ref().and_then(|d| {
+            d.catalog
+                .images
+                .iter()
+                .find(|old| old.asset.header.id == h.id && old.asset.header.content_hash == h.content_hash)
+                .and_then(|_| d.fingerprints.get(&h.relative_path))
+        });
+        if previous.is_some_and(|old| old != &stat) && image_verified.get(&h.relative_path) != Some(&stat) {
+            return Err(invalid(
+                "Source changed after analysis; refresh before saving metadata",
+            ));
+        }
+        fingerprints.insert(h.relative_path.clone(), stat);
+    }
     let snapshot = Snapshot {
-        schema: SCHEMA.into(),
+        schema: if catalog.images.is_empty() { SCHEMA } else { SCHEMA_V2 }.into(),
         analyzer: crate::catalog::ANALYZER.into(),
         revision: Uuid::new_v4().to_string(),
         catalog,
@@ -492,7 +568,7 @@ fn commit_snapshot(
 ) -> Result<()> {
     let c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
     let tx = Transaction::new_unchecked(&c.db, TransactionBehavior::Immediate)?;
-    c.require_audio_only_source(&source.id)?;
+    image_import_idle(&c, &source.id)?;
     if c.source_generation(&source.id)? != source.generation {
         return Err(invalid("Source moved; discard stale snapshot"));
     }
@@ -509,12 +585,11 @@ fn commit_snapshot(
 }
 /// Explicit recovery preserves the former snapshot as a sibling backup.
 pub fn rebuild(db: &Arc<Mutex<Catalog>>, source: &Source) -> Result<()> {
-    db.lock().map_err(|_|invalid("Catalog unavailable"))?.require_audio_only_source(&source.id)?;
     let root = Path::new(&source.root);
     let (dir, _lock) = lock(root)?;
     let c = db.lock().map_err(|_| invalid("Catalog unavailable"))?;
     let tx = Transaction::new_unchecked(&c.db, TransactionBehavior::Immediate)?;
-    c.require_audio_only_source(&source.id)?;
+    image_import_idle(&c, &source.id)?;
     if c.source_generation(&source.id)? != source.generation {
         return Err(invalid("Source moved; discard stale rebuild"));
     }
@@ -533,8 +608,11 @@ pub fn rebuild(db: &Arc<Mutex<Catalog>>, source: &Source) -> Result<()> {
 mod image_publication_tests {
     use super::*;
 
+    /// An image registered after the snapshot was staged cannot be lost: the
+    /// publication succeeds for what was read, and the dirty serial survives so
+    /// the next save carries the new record.
     #[test]
-    fn image_registered_by_another_connection_after_staging_blocks_publication() {
+    fn image_registered_by_another_connection_after_staging_stays_dirty() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("media");
         fs::create_dir(&root).unwrap();
@@ -545,16 +623,31 @@ mod image_publication_tests {
         save(&db, &source).unwrap();
         let snapshot = read(&root).unwrap().unwrap();
         let folder = root.join(".creativeshelf");
-        let original = fs::read(folder.join("catalog.json")).unwrap();
         let staged = folder.join("staged-test.tmp");
-        fs::write(&staged, b"must never publish this audio-only snapshot").unwrap();
+        fs::write(&staged, serde_json::to_vec(&snapshot).unwrap()).unwrap();
+        let serial: i64 = db.lock().unwrap().db.query_row(
+            "SELECT dirty FROM source_catalog_state WHERE source_id=?1", [&source.id], |r| r.get(0)).unwrap();
         let mut other = Catalog::open(&path).unwrap();
         other.register_image(&source, "new.png", None).unwrap();
-        let error = commit_snapshot(&db, &source, &folder, &staged, &snapshot,
-            Some(&snapshot.revision), 1).unwrap_err();
-        assert!(error.to_string().contains("Image metadata"));
-        assert_eq!(fs::read(folder.join("catalog.json")).unwrap(), original);
-        assert!(staged.exists()); // The save caller owns staging cleanup.
-        assert!(db.lock().unwrap().snapshot_states().unwrap()[0].dirty);
+        commit_snapshot(&db, &source, &folder, &staged, &snapshot, Some(&snapshot.revision), serial).unwrap();
+        let states = db.lock().unwrap().snapshot_states().unwrap();
+        assert!(states[0].dirty, "the image registered after staging must keep the folder dirty");
+        assert_eq!(states[0].error, "");
+    }
+
+    #[test]
+    fn running_image_import_defers_folder_catalog_publication() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("media");
+        fs::create_dir(&root).unwrap();
+        let catalog = Catalog::open(&dir.path().join("catalog.sqlite")).unwrap();
+        let source = catalog.add_source(&root).unwrap();
+        catalog
+            .enqueue_image_import(&source.id, source.generation, crate::image_jobs::ImportMode::Images, None)
+            .unwrap();
+        let db = Arc::new(Mutex::new(catalog));
+        let error = save(&db, &source).unwrap_err();
+        assert!(error.to_string().contains("image import or check is running"));
+        assert!(!root.join(".creativeshelf/catalog.json").exists());
     }
 }

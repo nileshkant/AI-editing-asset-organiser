@@ -546,6 +546,38 @@ pub fn refresh_image_source(
     Ok(job)
 }
 
+/// After a warm folder-catalog import (SS-048): check only the members whose
+/// snapshot stat changed. Unchanged members are never hashed or decoded. More
+/// than `MAX_PATHS` changed members fall back to one listed check of the source.
+pub fn enqueue_snapshot_checks(db: &Arc<Mutex<Catalog>>, id: &str) -> Result<Option<ImageImportJob>> {
+    let c = lock(db)?;
+    let tx = Transaction::new_unchecked(&c.db, TransactionBehavior::Immediate)?;
+    let source = c.source_header(id).map_err(|_| E::NotFound)?;
+    if !source.available {
+        return Ok(None);
+    }
+    let pending = c.pending_members(id).map_err(|_| E::Internal)?;
+    if pending.is_empty() {
+        return Ok(None);
+    }
+    let listed = pending.len() > MAX_PATHS;
+    let job = enqueue_job_on(
+        &tx,
+        id,
+        source.generation,
+        JobSpec {
+            mode: source_mode(&tx, id)?,
+            paths: (!listed).then_some(pending),
+            folders: vec![],
+            scan: if listed { ScanKind::Listed } else { ScanKind::Discover },
+            verify: false,
+            origin: JobOrigin::Refresh,
+        },
+    )?;
+    tx.commit()?;
+    Ok(Some(job))
+}
+
 /// What one OS watcher may report for one source generation.
 #[derive(Debug, Clone)]
 pub struct WatchScope {

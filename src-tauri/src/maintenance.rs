@@ -86,15 +86,64 @@ pub async fn database_backup(
     .await
     .map_err(|e| e.to_string())?
 }
+#[derive(serde::Serialize)]
+pub struct RestorePreview {
+    token: String,
+    summary: soundshelf_core::maintenance::BackupSummary,
+}
+/// Pick and fully validate a backup without changing anything. Only the
+/// natively picked path is retained, bound to the previewed file digest.
+#[tauri::command]
+pub async fn database_restore_preview(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<RestorePreview>, String> {
+    let catalog = state.catalog.clone();
+    let pending = state.restore_preview.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let picked = app
+            .dialog()
+            .file()
+            .add_filter("SQLite backup", &["sqlite"])
+            .blocking_pick_file();
+        let Some(picked) = picked else {
+            return Ok(None);
+        };
+        let path = picked.into_path().map_err(|e| e.to_string())?;
+        let summary = catalog
+            .lock()
+            .map_err(|e| e.to_string())?
+            .inspect_backup(&path)
+            .map_err(|e| e.to_string())?;
+        let token = uuid::Uuid::new_v4().to_string();
+        *pending.lock().map_err(|e| e.to_string())? = Some((token.clone(), path, summary.clone()));
+        Ok(Some(RestorePreview { token, summary }))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub fn database_restore_cancel(state: tauri::State<AppState>) -> Result<(), String> {
+    *state.restore_preview.lock().map_err(|e| e.to_string())? = None;
+    Ok(())
+}
 #[tauri::command]
 pub async fn database_restore(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
+    token: String,
     confirmed: bool,
 ) -> Result<Option<String>, String> {
     if !confirmed {
         return Err("Confirm restoring the database".into());
     }
+    let (path, summary) = {
+        let mut pending = state.restore_preview.lock().map_err(|e| e.to_string())?;
+        match pending.take() {
+            Some((t, path, summary)) if t == token => (path, summary),
+            _ => return Err("Restore preview expired; choose the backup again".into()),
+        }
+    };
     let catalog = state.catalog.clone();
     let player = state.player.clone();
     let agent = state.agent.clone();
@@ -106,15 +155,6 @@ pub async fn database_restore(
     let image_previews = state.image_imports.previews.clone();
     let rendered_previews = state.image_previews.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let picked = app
-            .dialog()
-            .file()
-            .add_filter("SQLite backup", &["sqlite"])
-            .blocking_pick_file();
-        let Some(picked) = picked else {
-            return Ok(None);
-        };
-        let path = picked.into_path().map_err(|e| e.to_string())?;
         player.stop();
         agent.stop();
         let rollback = data.join(format!("restore-rollback-{}.sqlite", uuid::Uuid::new_v4()));
@@ -123,7 +163,7 @@ pub async fn database_restore(
                 catalog
                     .lock()
                     .map_err(|_| soundshelf_core::invalid("Catalog lock unavailable"))?
-                    .restore_database(&path, &rollback)
+                    .restore_previewed(&path, &rollback, &summary)
             })
             .map_err(|e| e.to_string())?;
         image_previews.invalidate().map_err(|e|e.to_string())?;

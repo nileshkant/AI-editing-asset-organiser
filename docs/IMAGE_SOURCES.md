@@ -143,3 +143,11 @@ deliberately) and carry no new fields into source snapshots, which remain gated.
 - A listed check cannot distinguish an unmounted nested mount point from a
   deleted subfolder; discovery walks never cross volumes.
 - Network drive discovery is out of scope; paths are whatever the user selected.
+
+## SS-048 update
+
+As required above, stats, watch preference, root identity and monitor state
+are excluded from portable and folder catalogs (backup only). A restored or
+imported source starts with watching off. Folder snapshots use the
+`asset_file_stats` row for an exact hash, size and mtime as proof that a changed
+member was re-verified. See [Mixed catalogs](MIXED_CATALOGS.md).

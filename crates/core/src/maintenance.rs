@@ -6,6 +6,28 @@ use crate::{
 use rusqlite::{Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path, time::Duration};
+/// Counts shown before a restore. `digest` binds the preview to the file bytes.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct BackupSummary {
+    pub schema_version: u32,
+    pub sources: u64,
+    pub sounds: u64,
+    pub images: u64,
+    pub clips: u64,
+    pub tag_aliases: u64,
+    pub folder_catalogs: u64,
+    #[serde(skip)]
+    pub digest: String,
+}
+fn file_digest(path: &Path) -> Result<String> {
+    let meta = fs::symlink_metadata(path)?;
+    if !meta.is_file() || meta.len() > 512 * 1024 * 1024 {
+        return Err(invalid("Backup must be a regular SQLite file up to 512 MiB"));
+    }
+    let mut hasher = blake3::Hasher::new();
+    hasher.update_reader(fs::File::open(path)?)?;
+    Ok(hasher.finalize().to_hex().to_string())
+}
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Preferences {
@@ -70,9 +92,8 @@ impl Catalog {
         let _ = fs::remove_file(stage);
         result
     }
-    /// Must run under the catalog lock with import/export work stopped.
-    /// Restores only current compatible schema, with a rollback snapshot first.
-    pub fn restore_database(&mut self, backup: &Path, rollback: &Path) -> Result<()> {
+    /// Open and fully validate a backup without changing the live catalog.
+    fn open_backup(&self, backup: &Path) -> Result<Connection> {
         let meta = fs::symlink_metadata(backup)?;
         if !meta.is_file() || meta.len() > 512 * 1024 * 1024 {
             return Err(invalid(
@@ -86,9 +107,11 @@ impl Catalog {
         source.pragma_update(None, "trusted_schema", false)?;
         let version: u32 = source.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version != SCHEMA_VERSION {
-            return Err(invalid(
-                "Backup version differs; use a matching app or portable catalog import",
-            ));
+            return Err(invalid(if version > SCHEMA_VERSION {
+                "Backup was made by a newer CreativeShelf; restore it with that version"
+            } else {
+                "Backup version differs; use a matching app or portable catalog import"
+            }));
         }
         let integrity: String = source.query_row("PRAGMA quick_check", [], |r| r.get(0))?;
         if integrity != "ok" || schema(&source)? != schema(&self.db)? {
@@ -111,6 +134,42 @@ impl Catalog {
             [], |r| r.get(0),
         )?;
         if stale != 0 { return Err(invalid("Backup search metadata is inconsistent")); }
+        Ok(source)
+    }
+    /// Restore preview: what a validated backup contains, bound to its bytes.
+    pub fn inspect_backup(&self, backup: &Path) -> Result<BackupSummary> {
+        let digest = file_digest(backup)?;
+        let source = self.open_backup(backup)?;
+        let count = |sql: &str| -> Result<u64> {
+            Ok(source.query_row(sql, [], |r| r.get::<_, i64>(0))?.max(0) as u64)
+        };
+        let summary = BackupSummary {
+            schema_version: SCHEMA_VERSION,
+            sources: count("SELECT count(*) FROM sources")?,
+            sounds: count("SELECT count(*) FROM sounds")?,
+            images: count("SELECT count(*) FROM image_assets")?,
+            clips: count("SELECT count(*) FROM clips")?,
+            tag_aliases: count("SELECT count(*) FROM image_tag_aliases")?,
+            folder_catalogs: count("SELECT count(*) FROM source_catalog_state WHERE revision IS NOT NULL")?,
+            digest,
+        };
+        drop(source);
+        if file_digest(backup)? != summary.digest {
+            return Err(invalid("Backup changed while it was inspected; choose it again"));
+        }
+        Ok(summary)
+    }
+    /// Restore exactly the previewed bytes; a backup edited since its preview fails.
+    pub fn restore_previewed(&mut self, backup: &Path, rollback: &Path, previewed: &BackupSummary) -> Result<()> {
+        if file_digest(backup)? != previewed.digest {
+            return Err(invalid("Backup changed since its preview; choose it again"));
+        }
+        self.restore_database(backup, rollback)
+    }
+    /// Must run under the catalog lock with import/export work stopped.
+    /// Restores only current compatible schema, with a rollback snapshot first.
+    pub fn restore_database(&mut self, backup: &Path, rollback: &Path) -> Result<()> {
+        let source = self.open_backup(backup)?;
         let active: i64 = self.db.query_row(
             "SELECT (SELECT count(*) FROM jobs WHERE state IN ('queued','running'))+(SELECT count(*) FROM image_import_jobs WHERE state IN ('queued','running'))",
             [],

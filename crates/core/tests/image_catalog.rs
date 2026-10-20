@@ -340,7 +340,7 @@ fn large_path_pages_respect_the_wire_byte_budget_without_skipping_records() {
 }
 
 #[test]
-fn mixed_sidecars_are_protected_while_other_audio_sources_still_save() {
+fn mixed_sidecars_save_as_v2_while_audio_only_sources_stay_v1() {
     let (dir, c, s) = fixture();
     // Establish a real valid old snapshot before image registration.
     let audio = c.register(&s, "old.wav", "a".repeat(64).as_str()).unwrap();
@@ -348,25 +348,22 @@ fn mixed_sidecars_are_protected_while_other_audio_sources_still_save() {
     let db = Arc::new(Mutex::new(c));
     source_catalog::save(&db, &s).unwrap();
     let sidecar = Path::new(&s.root).join(".creativeshelf/catalog.json");
-    let original = fs::read(&sidecar).unwrap();
+    assert_eq!(source_catalog::read(Path::new(&s.root)).unwrap().unwrap().schema, source_catalog::SCHEMA);
+    fs::write(Path::new(&s.root).join("image.png"), b"image member").unwrap();
     db.lock()
         .unwrap()
         .register_image(&s, "image.png", Some(&digest('a')))
         .unwrap();
-    assert!(source_catalog::save(&db, &s).is_err());
-    assert!(source_catalog::rebuild(&db, &s).is_err());
-    assert!(source_catalog::import_folder(&db, Path::new(&s.root)).is_err());
-    assert_eq!(fs::read(&sidecar).unwrap(), original);
-    assert!(db.lock().unwrap().export_portable().is_err());
-    assert!(db
-        .lock()
-        .unwrap()
-        .snapshot_states()
-        .unwrap()
-        .iter()
-        .any(|state| state.source_id == s.id
-            && state.dirty
-            && state.error.contains("Image metadata")));
+    // SS-048 removed the SS-041 guard: the image travels in a v2 snapshot.
+    source_catalog::save(&db, &s).unwrap();
+    let snapshot = source_catalog::read(Path::new(&s.root)).unwrap().unwrap();
+    assert_eq!(snapshot.schema, source_catalog::SCHEMA_V2);
+    assert_eq!(snapshot.catalog.images[0].asset.header.relative_path, "image.png");
+    assert!(snapshot.catalog.sounds.is_empty(), "confirmed-missing audio is pruned as before");
+    assert!(db.lock().unwrap().snapshot_states().unwrap().iter().all(|state| state.source_id != s.id || (!state.dirty && state.error.is_empty())));
+    assert_eq!(db.lock().unwrap().export_portable().unwrap().images.len(), 1);
+    source_catalog::rebuild(&db, &s).unwrap();
+    assert!(!sidecar.exists(), "rebuild moves the previous snapshot to a backup");
     // Image presence in a different source must not break an audio-only sidecar.
     let other = dir.path().join("audio-only");
     fs::create_dir(&other).unwrap();

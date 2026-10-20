@@ -1215,11 +1215,13 @@ mod tests {
     }
 
     #[test]
-    fn aliases_block_audio_only_portable_export_until_mixed_catalogs() {
+    fn aliases_travel_in_mixed_portable_exports() {
         let f = fixture();
-        assert!(f.c.export_portable().is_ok());
+        assert_eq!(f.c.export_portable().unwrap().schema, crate::portable::PORTABLE_SCHEMA);
         f.c.db.execute("INSERT INTO image_tag_aliases VALUES('bg','bg','background',0)", []).unwrap();
-        assert!(f.c.export_portable().is_err(), "aliases are never silently dropped from an audio-only export");
+        let exported = f.c.export_portable().unwrap();
+        assert_eq!(exported.schema, crate::portable::PORTABLE_SCHEMA_V2, "aliases are never dropped from a v1 export");
+        assert_eq!(exported.image_tag_aliases[0].canonical, "background");
     }
 
     #[test]

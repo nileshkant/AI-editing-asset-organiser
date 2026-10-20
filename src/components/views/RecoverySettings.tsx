@@ -2,18 +2,30 @@ import {useEffect, useState} from 'react';
 import {call} from '../../api';
 type Preferences = {output_device: string | null; imports_paused: boolean};
 type Resources = {preferences: Preferences; output_devices: string[]; import_workers: number};
+type BackupSummary = {schema_version: number; sources: number; sounds: number; images: number; clips: number; tag_aliases: number; folder_catalogs: number};
+type RestorePreview = {token: string; summary: BackupSummary};
+const plural=(n:number,word:string)=>`${n.toLocaleString()} ${word}${n===1?'':'s'}`;
 export function RecoverySettings({onError}: {onError: (error: string) => void}) {
   const [resources,setResources] = useState<Resources | null>(null);
   const [busy,setBusy] = useState(false);
   const [confirm,setConfirm] = useState<'restore' | 'cache' | null>(null);
   const [message,setMessage] = useState('');
+  const [restore,setRestore] = useState<RestorePreview | null>(null);
+  useEffect(() => () => { if (restore) void call('database_restore_cancel').catch(() => {}); }, [restore]);
   useEffect(() => {let active=true; call<Resources>('resource_settings').then(value=>{if(active && value?.preferences && Array.isArray(value.output_devices))setResources(value);}).catch(e=>onError(String(e)));return()=>{active=false};},[onError]);
   const run=async (task:()=>Promise<void>)=>{if(busy)return;setBusy(true);setMessage('');try{await task();}catch(e){onError(String(e));}finally{setBusy(false);}};
   const save=(preferences:Preferences)=>void run(async()=>{await call('save_resource_settings',{preferences});setResources(current=>current ? {...current,preferences}:current);setMessage('Preferences saved. Output changes stop playback; import pause applies after the current job.');});
   const perform=()=>void run(async()=>{
     if(confirm==='cache'){const count=await call<number>('purge_waveform_cache',{confirmed:true});setMessage(`Cleared ${count} waveform cache files. Waveforms rebuild on demand; analysis and tags are retained.`);}
-    if(confirm==='restore'){const rollback=await call<string | null>('database_restore',{confirmed:true});if(rollback){setMessage(`Database restored. Rollback backup: ${rollback}. Restart the app, review source catalog warnings and rescan incomplete imports. MCP is stopped; pair again after restart.`);}}
+    if(confirm==='restore'){const preview=await call<RestorePreview | null>('database_restore_preview');if(preview)setRestore(preview);}
     setConfirm(null);
+  });
+  const restoreBackup=()=>void run(async()=>{
+    if(!restore)return;
+    // The preview is consumed by this attempt, whether it succeeds or not.
+    const token=restore.token;
+    try{const rollback=await call<string | null>('database_restore',{token,confirmed:true});if(rollback){setMessage(`Database restored. Rollback backup: ${rollback}. Restart the app, review source catalog warnings and rescan incomplete imports. MCP is stopped; pair again after restart.`);}}
+    finally{setRestore(null);}
   });
   return <section aria-label="Recovery and resources">
     <h2>Audio and resources</h2>
@@ -40,6 +52,13 @@ export function RecoverySettings({onError}: {onError: (error: string) => void}) 
       <button disabled={busy} onClick={perform}>{confirm==='restore'?'Confirm and choose backup':'Confirm cache clear'}</button>
       <button disabled={busy} onClick={()=>setConfirm(null)}>Cancel recovery action</button>
     </div>}
+    {restore && <section role="group" aria-label="Backup contents">
+      <h3>Review backup</h3>
+      <p>{plural(restore.summary.sources,'source')} · {plural(restore.summary.sounds,'sound')} · {plural(restore.summary.images,'image')} · {plural(restore.summary.clips,'clip')} · {plural(restore.summary.tag_aliases,'tag alias')}</p>
+      <p className="muted">Database version {restore.summary.schema_version}. These records replace the current database. Image and audio files are not part of a backup; anything missing from your folders stays missing until you relink. {restore.summary.folder_catalogs>0?'Folder catalogs saved after this backup are kept and reported as conflicts, never overwritten.':''}</p>
+      <button disabled={busy} onClick={restoreBackup}>Restore this backup</button>
+      <button disabled={busy} onClick={()=>setRestore(null)}>Cancel restore</button>
+    </section>}
     {busy && <p role="status">Working on recovery…</p>}
     {message && <p role="status">{message}</p>}
   </section>;

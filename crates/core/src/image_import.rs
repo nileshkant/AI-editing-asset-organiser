@@ -624,8 +624,8 @@ impl ImageImportEngine {
                 return Err(E::TimedOut);
             }
             let c = lock(&self.catalog)?;
-            let batch = c.db_connection().prepare_cached("SELECT relative_path,kind FROM asset_registry WHERE source_id=?1 AND relative_path>?2 AND (kind='image' OR (?3 AND kind='audio')) ORDER BY relative_path LIMIT 32")?
-                .query_map(params![source.id,after,mixed],|r|Ok(DiscoveredImport{relative_path:r.get(0)?,media_kind:if r.get::<_,String>(1)?=="audio"{ImportMedia::Audio}else{ImportMedia::Image}}))?
+            let batch = c.db_connection().prepare_cached("SELECT relative_path,kind FROM asset_registry WHERE source_id=?1 AND relative_path>?2 AND (kind='image' OR (?3 AND kind='audio')) ORDER BY relative_path LIMIT ?4")?
+                .query_map(params![source.id,after,mixed,image_jobs::MAX_DISCOVERY_BATCH as i64],|r|Ok(DiscoveredImport{relative_path:r.get(0)?,media_kind:if r.get::<_,String>(1)?=="audio"{ImportMedia::Audio}else{ImportMedia::Image}}))?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let Some(last) = batch.last() else {
                 break;

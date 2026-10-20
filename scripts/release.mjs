@@ -12,7 +12,6 @@ try {
   const action = process.argv[2];
   if (!['check', 'build', 'inspect', 'local', 'inspect-local'].includes(action)) throw new Error('Use release.mjs check|build|inspect|local|inspect-local; inspection requires extracted app directory and artifact path.');
   const imageDevelopment = process.env.CREATIVESHELF_IMAGE_DEVELOPMENT === '1';
-  if (imageDevelopment && action === 'build') throw new Error('Image development packaging is local-only until SS-048 mixed persistence ships');
   const target = hostTarget(), suffix = process.platform === 'win32' ? '.exe' : '';
   if (action === 'inspect' || action === 'inspect-local') {
     const stage = JSON.parse(await readFile('release-reports/stage.json', 'utf8'));
@@ -72,7 +71,7 @@ try {
         images = { worker: await readFile(`target/${target}/release/creativeshelf-image-worker${suffix}`), notices };
       }
       const stage = await stageResources(media, bridge, target, stageDirectory, images);
-      if (!local) for (const name of [`media/ffmpeg${suffix}`, `media/ffprobe${suffix}`, `mcp/soundshelf-mcp${suffix}`]) signResource(resolve(stageDirectory, name), settings);
+      if (!local) for (const name of [`media/ffmpeg${suffix}`, `media/ffprobe${suffix}`, `mcp/soundshelf-mcp${suffix}`, ...(images ? [`images/creativeshelf-image-worker${suffix}`] : [])]) signResource(resolve(stageDirectory, name), settings);
       stage.entries = await inventory(stageDirectory); stage.bytes = stage.entries.reduce((n, e) => n + e.bytes, 0);
       await mkdir('release-reports', { recursive: true });
       const bundle = { resources: stage.resources, targets: process.platform === 'darwin' ? ['app', 'dmg'] : process.platform === 'win32' ? ['nsis', 'msi'] : ['appimage', 'deb'] };

@@ -126,3 +126,10 @@ silently. History is not part of the payload.
 - All dialogs are modal with focus trapped, Escape to close and focus returned to
   the opener. They are sized against the viewport so they fit and scroll at 200%
   zoom.
+
+## SS-048 update
+
+The payload above shipped. Annotations (with `revision`) travel in portable v2
+and folder v2 snapshots, and aliases travel in whole-library portable v2. An
+identical alias on import is accepted and a conflicting one fails the import.
+Undo history stays local. See [Mixed catalogs](MIXED_CATALOGS.md).

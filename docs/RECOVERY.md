@@ -57,5 +57,17 @@ registry membership, version history and lineage before changing live data.
 Migration creates a pre-v10 snapshot for v5–v9 databases; restore that snapshot
 with the matching old binary for downgrade, retaining the newer database
 separately. Never edit `user_version`. Mixed-library portable JSON and image
-source snapshots remain blocked until SS-048. See [Image storage](IMAGE_STORAGE.md)
+source snapshots are supported from SS-048 (schema v15); see
+[Mixed catalogs](MIXED_CATALOGS.md). See [Image storage](IMAGE_STORAGE.md)
 for migration failure behavior, naming and compatibility limits.
+
+## Restore preview and mixed catalogs (SS-048, schema v15)
+
+Choosing **Restore database** now opens a preview first. The backup is fully
+validated without changing anything, and its counts (sources, sounds, images,
+clips, tag aliases, folder catalogs) are shown. **Restore this backup** applies
+exactly the previewed file: the preview is bound to a BLAKE3 digest, so a file
+edited after preview is refused before any rollback copy is written.
+**Cancel restore** discards the preview. A backup written by a newer app
+reports that it needs the newer version. After restore, folder catalogs are
+marked for review and a newer folder snapshot is never overwritten silently.

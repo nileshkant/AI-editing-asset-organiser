@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { call } from '../../api';
 
-type Preview = { token: string; preview: { schema: string; sources: { id: string; name: string }[]; sounds: number; legacy: boolean } };
-type Report = { report: { sounds: number; sources: number; offline_sources: number }; warnings: string[] };
+type Preview = { token: string; preview: { schema: string; sources: { id: string; name: string }[]; sounds: number; images: number; legacy: boolean } };
+type Report = { report: { sounds: number; images: number; sources: number; offline_sources: number }; warnings: string[] };
 type Evidence = { sound_id: string; description: string; provenance: string; analyzed_seconds: number | null; measurement_scope: string };
 
 export function CatalogData({ onError }: { onError: (message: string) => void }) {
@@ -32,12 +32,13 @@ export function CatalogData({ onError }: { onError: (message: string) => void })
     const token = preview.token;
     try {
       const result = await call<Report>('catalog_import', { token, confirmed: true });
-      setMessage(`Imported ${result.report.sounds} sounds from ${result.report.sources} sources. ${result.report.offline_sources} sources need relinking. ${result.warnings.join(' ')}`);
+      const images = result.report.images ? ` and ${result.report.images} images` : '';
+      setMessage(`Imported ${result.report.sounds} sounds${images} from ${result.report.sources} sources. ${result.report.offline_sources} sources need relinking. ${result.warnings.join(' ')}`);
     } finally { setPreview(null); }
   });
   return <div className="catalog-data">
     <h2>Data</h2>
-    <p className="muted">Transfer your catalog, annotations, saved searches and clips. JSON restores metadata; Markdown provides a readable copy. Audio stays in your source folders.</p>
+    <p className="muted">Transfer your catalog, annotations, saved searches and clips. JSON restores metadata; Markdown provides a readable copy. Audio and images stay in your source folders.</p>
     <div className="header-actions">
       <button disabled={busy || !!preview} onClick={() => void exportCatalog('json')}>Export catalog JSON</button>
       <button disabled={busy || !!preview} onClick={() => void exportCatalog('md')}>Export catalog Markdown</button>
@@ -48,11 +49,11 @@ export function CatalogData({ onError }: { onError: (message: string) => void })
     {message && <p role="status">{message}</p>}
     {preview && <section className="catalog-preview" aria-label="Catalog import preview">
       <h3>{preview.preview.legacy ? 'Review legacy import' : 'Review catalog import'}</h3>
-      <p>{preview.preview.sounds.toLocaleString()} sounds · {preview.preview.sources.length} sources</p>
+      <p>{preview.preview.sounds.toLocaleString()} sounds{preview.preview.images ? ` · ${preview.preview.images.toLocaleString()} images` : ''} · {preview.preview.sources.length} sources</p>
       <p>Choose a local folder for each source. Existing catalog entries are preserved; conflicting identities or overlapping sources stop the import.</p>
       {preview.preview.legacy
         ? <p>Map every source before importing. Legacy descriptions are filename inference. Old measurements cover only the first 20 seconds at 12 kHz mono. Full-file analysis will run in the background.</p>
-        : <p>Unmapped sources are imported offline. Relink them in Sources when their folders are available. Import reuses stored analysis without reading audio.</p>}
+        : <p>Unmapped sources are imported offline. Relink them in Sources when their folders are available. Import reuses stored analysis without reading audio or image files; run Check files if mapped files may have changed.</p>}
       {preview.preview.sources.map(source => <div className="setting-row" key={source.id}>
         <div className="folder-detail"><strong>{source.name}</strong><small>{roots[source.id] || 'Not mapped'}</small></div>
         <button disabled={busy} onClick={() => void action(async () => {
