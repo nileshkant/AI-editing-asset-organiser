@@ -38,7 +38,9 @@ describe('gated native media imports', () => {
   it('discards a late preview after cancellation instead of re-opening or confirming it', async () => {
     let resolve!: (value: MediaImportPreview) => void;
     invoke.mockImplementation((command: string) => command === 'preview_media_import' ? new Promise(r => { resolve = r; }) : Promise.resolve(command === 'image_import_capabilities' ? { enabled: true } : command === 'choose_media_import' ? ['/a.png'] : command === 'image_import_jobs' ? [] : null));
-    render(<Harness />); fireEvent.click(await screen.findByRole('button', { name: 'Choose media files' })); await screen.findByText('Checking selected files and folders…'); fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    render(<Harness />); fireEvent.click(await screen.findByRole('button', { name: 'Choose media files' })); await screen.findByText('Checking selected files and folders…');
+    // The text renders before the dialog's open effect runs; wait for the dialog to be open (accessible).
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
     await act(async () => resolve(preview)); expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(invoke).toHaveBeenCalledWith('cancel_media_preview', { requestId: expect.any(String), previewId: 'preview' }); expect(invoke.mock.calls.some(([cmd]) => cmd === 'confirm_media_import')).toBe(false);
   });
   it('fences stale sequence/generation records and refreshes terminal failures immediately', async () => {
