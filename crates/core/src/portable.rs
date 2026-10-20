@@ -20,6 +20,9 @@ pub const PORTABLE_SCHEMA: &str = "soundshelf-catalog/v1";
 /// Mixed audio/image catalogs (SS-048). Audio-only exports stay v1 so older
 /// readers keep working; an older reader rejects v2 by schema, never by dropping images.
 pub const PORTABLE_SCHEMA_V2: &str = "soundshelf-catalog/v2";
+/// v2 plus exact-duplicate decisions (SS-062). Written only when there are
+/// decisions, so libraries without them keep producing v2 for older readers.
+pub const PORTABLE_SCHEMA_V3: &str = "soundshelf-catalog/v3";
 const SCHEMA_FAMILY: &str = "soundshelf-catalog/";
 pub const LEGACY_SCHEMA: &str = "portable-sound-effects-catalog/v3";
 pub const MAX_BYTES: u64 = 64 * 1024 * 1024;
@@ -56,6 +59,9 @@ pub struct PortableCatalog {
     /// v2 only: library-wide creator tag aliases (SS-046). Undo history stays local.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub image_tag_aliases: Vec<crate::mixed_catalog::PortableTagAlias>,
+    /// v3 only: creator decisions on exact-duplicate stacks (SS-062).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub image_duplicate_decisions: Vec<crate::image_duplicates::PortableDuplicateDecision>,
 }
 #[derive(Debug, Serialize)]
 pub struct Preview {
@@ -85,12 +91,15 @@ fn unique(ids: impl Iterator<Item = String>, max_bytes: usize) -> Result<()> {
 }
 impl PortableCatalog {
     pub fn validate(&self) -> Result<()> {
-        let mixed = self.schema == PORTABLE_SCHEMA_V2;
+        let mixed = self.schema == PORTABLE_SCHEMA_V2 || self.schema == PORTABLE_SCHEMA_V3;
         if !mixed && self.schema != PORTABLE_SCHEMA {
             return Err(invalid(newer_or_unsupported(&self.schema)));
         }
         if !mixed && (!self.images.is_empty() || !self.image_tag_aliases.is_empty()) {
             return Err(invalid("Image records require the soundshelf-catalog/v2 schema"));
+        }
+        if self.schema != PORTABLE_SCHEMA_V3 && !self.image_duplicate_decisions.is_empty() {
+            return Err(invalid("Duplicate decisions require the soundshelf-catalog/v3 schema"));
         }
         if self.sounds.len() > 100_000 || self.sources.len() > 10_000 || self.clips.len() > 100_000
         {
@@ -121,6 +130,7 @@ impl PortableCatalog {
             &mut taken,
             &mut identities,
         )?;
+        crate::image_duplicates::validate_decisions(&self.image_duplicate_decisions, &self.images)?;
         for source in &self.sources {
             if !["folder", "files"].contains(&source.scope.as_str()) {
                 return Err(invalid("Invalid source scope"));
@@ -263,10 +273,13 @@ impl Catalog {
         // Source snapshots carry one folder's members; aliases are library-wide.
         let images = crate::mixed_catalog::export_images(&self.db, source_id, source_id.is_some())?;
         let image_tag_aliases = if source_id.is_some() { vec![] } else { crate::mixed_catalog::export_aliases(&self.db)? };
+        // Restricted to the exported images, so a folder snapshot names only its own files.
+        let image_duplicate_decisions = crate::image_duplicates::export_decisions(&self.db, &images)?;
         let sounds=if let Some(id)=source_id { self.scoped_sounds(&[id.to_owned()])? } else { self.all_sounds()? };
         let ids:HashSet<_>=sounds.iter().map(|s|s.id.clone()).collect();
         let result = PortableCatalog {
-            schema: if images.is_empty() && image_tag_aliases.is_empty() { PORTABLE_SCHEMA } else { PORTABLE_SCHEMA_V2 }.into(),
+            schema: if !image_duplicate_decisions.is_empty() { PORTABLE_SCHEMA_V3 }
+                else if images.is_empty() && image_tag_aliases.is_empty() { PORTABLE_SCHEMA } else { PORTABLE_SCHEMA_V2 }.into(),
             sources: self
                 .sources()?
                 .into_iter()
@@ -284,6 +297,7 @@ impl Catalog {
             legacy_evidence: self.legacy_evidence()?.into_iter().filter(|e|ids.contains(&e.sound_id)).collect(),
             images,
             image_tag_aliases,
+            image_duplicate_decisions,
         };
         tx.commit()?;
         result.validate()?;
@@ -413,6 +427,7 @@ impl Catalog {
             )?;
         }
         crate::mixed_catalog::import_images(&tx, &data.images, &data.image_tag_aliases)?;
+        crate::image_duplicates::import_decisions(&tx, &data.image_duplicate_decisions)?;
         tx.commit()?;
         Ok(ImportReport {
             sources: data.sources.len(),
@@ -499,7 +514,7 @@ pub fn preview(text: &str, allow_legacy: bool) -> Result<Preview> {
     }
     if let Some(schema) = declared_schema(text) {
         if schema.starts_with(SCHEMA_FAMILY) {
-            if schema != PORTABLE_SCHEMA && schema != PORTABLE_SCHEMA_V2 {
+            if ![PORTABLE_SCHEMA, PORTABLE_SCHEMA_V2, PORTABLE_SCHEMA_V3].contains(&schema.as_str()) {
                 return Err(invalid(newer_or_unsupported(&schema)));
             }
             // A current-family document never falls back to the legacy parser:
@@ -551,7 +566,7 @@ fn newer_or_unsupported(schema: &str) -> &'static str {
         .strip_prefix(SCHEMA_FAMILY)
         .and_then(|v| v.strip_prefix('v'))
         .and_then(|v| v.parse::<u32>().ok());
-    if version.is_some_and(|v| v > 2) {
+    if version.is_some_and(|v| v > 3) {
         "Catalog was written by a newer CreativeShelf; update the app to import it. Nothing was imported."
     } else {
         "Unsupported portable catalog schema"
@@ -586,6 +601,7 @@ pub fn prepare_import(
         legacy_evidence: vec![],
         images: vec![],
         image_tag_aliases: vec![],
+        image_duplicate_decisions: vec![],
     };
     for s in old.sounds {
         let root = roots

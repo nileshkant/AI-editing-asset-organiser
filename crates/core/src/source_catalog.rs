@@ -53,6 +53,8 @@ pub const SCHEMA: &str = "creativeshelf-source/v1";
 /// Folder snapshots that also carry image records (SS-048). Audio-only folders
 /// keep writing v1, so an older app still reads them.
 pub const SCHEMA_V2: &str = "creativeshelf-source/v2";
+/// v2 plus the folder's own exact-duplicate decisions (SS-062).
+pub const SCHEMA_V3: &str = "creativeshelf-source/v3";
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Fingerprint {
@@ -141,14 +143,15 @@ pub fn read(root: &Path) -> Result<Option<Snapshot>> {
 }
 impl Snapshot {
     pub fn validate(&self) -> Result<()> {
-        let mixed = self.schema == SCHEMA_V2;
+        let mixed = self.schema == SCHEMA_V2 || self.schema == SCHEMA_V3;
         if !mixed && self.schema != SCHEMA && self.schema.starts_with("creativeshelf-source/") {
             return Err(invalid("Source catalog was written by a newer CreativeShelf; update the app. The folder catalog was left unchanged."));
         }
         if !mixed && self.schema != SCHEMA
             || self.analyzer != crate::catalog::ANALYZER
             || Uuid::parse_str(&self.revision).is_err()
-            || mixed != (self.catalog.schema == crate::portable::PORTABLE_SCHEMA_V2)
+            || (self.schema == SCHEMA_V2) != (self.catalog.schema == crate::portable::PORTABLE_SCHEMA_V2)
+            || (self.schema == SCHEMA_V3) != (self.catalog.schema == crate::portable::PORTABLE_SCHEMA_V3)
         {
             return Err(invalid(
                 "Unsupported source catalog; use Rebuild catalog to recover",
@@ -525,7 +528,8 @@ fn save_inner(
         fingerprints.insert(h.relative_path.clone(), stat);
     }
     let snapshot = Snapshot {
-        schema: if catalog.images.is_empty() { SCHEMA } else { SCHEMA_V2 }.into(),
+        schema: if !catalog.image_duplicate_decisions.is_empty() { SCHEMA_V3 }
+            else if catalog.images.is_empty() { SCHEMA } else { SCHEMA_V2 }.into(),
         analyzer: crate::catalog::ANALYZER.into(),
         revision: Uuid::new_v4().to_string(),
         catalog,

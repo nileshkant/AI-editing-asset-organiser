@@ -201,3 +201,11 @@ export const previewImageTagRename = (from: string, to: string, sourceId: string
 export const renameImageTag = (from: string, to: string, sourceId: string | null, keepAlias: boolean) =>
   call<import('./types').BulkResult>('rename_image_tag', { from, to, sourceId, keepAlias });
 export const removeImageTagAlias = (alias: string) => call<null>('remove_image_tag_alias', { alias });
+/** SS-062: exact-duplicate stacks in the gallery's source view (all sources when null). */
+export const imageDuplicateGroups = (sourceId: string | null, includeHidden: boolean, offset: number, limit: number) =>
+  call<import('./types').DuplicatePage>('image_duplicate_groups', { sourceId, includeHidden, offset, limit });
+export const imageDuplicateGroup = (sourceId: string | null, contentHash: string) =>
+  call<import('./types').DuplicateGroup>('image_duplicate_group', { sourceId, contentHash });
+/** One decision from the revision last read (CONFLICT otherwise). */
+export const updateImageDuplicateGroup = (sourceId: string | null, group: import('./types').DuplicateGroup, action: import('./types').DuplicateAction) =>
+  call<import('./types').DuplicateGroup>('update_image_duplicate_group', { sourceId, contentHash: group.content_hash, expectedRevision: group.revision, action });

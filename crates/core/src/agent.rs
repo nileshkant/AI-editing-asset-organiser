@@ -519,6 +519,7 @@ impl AgentLibrary {
                     // MCP image tools are SS-067/068; this tool stays audio-only.
                     images: vec![],
                     image_tag_aliases: vec![],
+                    image_duplicate_decisions: vec![],
                 };
                 document.validate().map_err(mapped)?;
                 let root_map=document.sources.iter().map(|s|json!({"source_id":s.id,"root":if access.paths {c.source(&s.id).ok().map(|s|s.root)}else{None}})).collect::<Vec<_>>();

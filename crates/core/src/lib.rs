@@ -56,6 +56,7 @@ pub mod image_preview;
 
 pub mod image_gallery;
 pub mod image_annotations;
+pub mod image_duplicates;
 mod image_preview_render;
 
 pub mod image_sources;

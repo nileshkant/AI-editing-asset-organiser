@@ -216,3 +216,21 @@ Capabilities are only what a connection test observed for an exact profile
 revision. The image probe is a generated red square and must be answered
 correctly, so a text-only model is never labeled image-capable. Any edit resets
 capabilities, and test results from a superseded revision are discarded.
+
+## SS-062 exact duplicates first (20 October 2026)
+
+SS-062 is split. Exact copies (identical verified BLAKE3 digests) ship first
+because they need nothing beyond the content hashes every image already has.
+Variation families need SS-060 visual retrieval, which is not built yet, so those
+requirements stay open on the ticket rather than being approximated.
+
+Stacks are derived on read from `image_assets.content_hash`, not materialized.
+A stored stack would need invalidation on every import, refresh, relink, restore
+and file change; the derived query is exact by construction and measured
+interactive at the 100,000-image cap. Only creator decisions are stored, keyed by
+digest, so they survive recomputation and travel with the bytes they describe.
+
+Decisions travel in a new portable `soundshelf-catalog/v3` and folder
+`creativeshelf-source/v3`, written only when a library has decisions, following
+the SS-048 rule that new fields get a new version. Folder snapshots carry only
+references to their own copies.
