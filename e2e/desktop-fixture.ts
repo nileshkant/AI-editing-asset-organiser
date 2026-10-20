@@ -18,6 +18,10 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
       generation: 0, available: true, scope: 'folder', files: [] };
     let playback = { sound_id: null as string | null, state: 'stopped', position_seconds: 0, duration_seconds: 0, volume: 1, peak: 0, error: null };
     let mediaJob: any = null;
+    // SS-047 renderer contract: one image source with a missing file and a possible move.
+    let imageSource: any = { source_id: 'source', name: source.name, root: source.root, scope: 'folder', source_generation: '0', root_state: 'offline',
+      watch: false, mode: 'mixed', checked_at: 0, images: 3, missing: 1, inaccessible: 0, failed: 1, pending: 0, move_candidates: 1, active_job: null, watch_state: null };
+    let moves = [{ missing_id: 'image-old', missing_path: 'shoot/before-move.png', missing_revision: 3, present_id: 'image-new', present_path: 'shoot/after/' + '長い名前-'.repeat(8) + '.png', present_revision: 1, same_file: false }];
     // Synthetic 16x12 RGBA PNG (opaque red | transparent and half-alpha blue) in the SS-044 envelope.
     const previewPng = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAABAAAAAMCAYAAABr5z2BAAAAIklEQVR4nGO4Y6PxHx/WiLrDgA8zjBpAHwMa8OFRA6hgAABstnLwKEaeUAAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
     const previewEnvelope = (meta: object) => {
@@ -90,7 +94,7 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
             case 'choose_media_import': return ['/素材/' + 'long-folder-'.repeat(30)];
             case 'preview_media_import': return { id: 'native-preview', request_id: args.requestId, mode: args.mode, scopes: [{ root: '/素材/' + 'long-folder-'.repeat(30), recursive: args.mode === 'mixed', files: args.mode === 'images' ? ['chosen.png'] : [] }], images: 2, audio: 0, unsupported: 1, inaccessible: 0, complete: true, issues: [], reference_in_place: true, expires_at: Date.now() / 1000 + 300 };
             case 'cancel_media_preview': return;
-            case 'confirm_media_import': mediaJob = { id: 'image-job', source_id: 'source', source_generation: '0', sequence: '10', mode: 'mixed', state: 'failed', phase: 'complete', discovery_complete: true, history_truncated: false, total: 2, completed: 2, ready: 1, reused: 0, failed: 1, unsupported: 0, current: '', error_code: 'DECODE_FAILED' }; return [mediaJob];
+            case 'confirm_media_import': mediaJob = { id: 'image-job', source_id: 'source', source_generation: '0', sequence: '10', mode: 'mixed', state: 'failed', phase: 'complete', discovery_complete: true, history_truncated: false, total: 2, completed: 2, ready: 1, reused: 0, failed: 1, unsupported: 0, current: '', error_code: 'DECODE_FAILED', scan: 'discover', verify: true, origin: 'import' }; return [mediaJob];
             case 'image_import_items': return { items: [{ job_id: 'image-job', relative_path: 'chosen.png', media_kind: 'image', state: 'ready', asset_id: 'image-one', content_hash: 'a'.repeat(64), error_code: null, attempts: 1, warnings: ['assumed_srgb'] }, { job_id: 'image-job', relative_path: 'corrupt.png', media_kind: 'image', state: 'failed', asset_id: null, content_hash: null, error_code: 'DECODE_FAILED', attempts: 1, warnings: [] }], next_after: null };
             case 'imported_images': return { items: [{ header: { id: 'image-one', kind: 'image', source_id: 'source', relative_path: 'chosen.png', content_hash: 'a'.repeat(64), technical_state: 'ready', availability: 'available', enrichment_state: 'disabled' }, width: 640, height: 480, annotation_revision: 1 },
               { header: { id: 'image-two', kind: 'image', source_id: 'source', relative_path: 'offline-' + '長い名前-'.repeat(12) + '.png', content_hash: 'b'.repeat(64), technical_state: 'ready', availability: 'offline', enrichment_state: 'disabled' }, width: 640, height: 480, annotation_revision: 1 }], next_after: null };
@@ -143,6 +147,16 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
             case 'remove_image_tag_alias': { const at = aliases.findIndex(a => key(a.alias) === key(args.alias)); if (at < 0) throw 'NOT_FOUND'; aliases.splice(at, 1); return null; }
             case 'image_preview_cache_status': return images ? { enabled: true, entries: 6, bytes: 48_000, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 9, misses: 3, generated: 2, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 1, stale_rejected: 0, offline_served: 1 } }
               : { enabled: false, entries: 0, bytes: 0, quota_bytes: 512 * 1024 * 1024, active: 0, waiting: 0, counters: { hits: 0, misses: 0, generated: 0, coalesced: 0, evicted: 0, repaired: 0, write_failures: 0, cancelled: 0, stale_rejected: 0, offline_served: 0 } };
+            case 'image_source_statuses': return images ? [imageSource] : [];
+            case 'check_image_source': imageSource = { ...imageSource, root_state: 'online', checked_at: 1_760_000_000 }; return imageSource;
+            case 'set_image_source_watch': imageSource = { ...imageSource, watch: args.enabled, watch_state: args.enabled ? { state: 'watching', error: null } : null }; return imageSource;
+            case 'refresh_image_source': mediaJob = { id: 'refresh-job', source_id: 'source', source_generation: imageSource.source_generation, sequence: '20', mode: 'mixed', state: 'complete', phase: 'complete', discovery_complete: true, history_truncated: false, total: 3, completed: 3, ready: 3, reused: 3, failed: 0, unsupported: 0, current: '', error_code: null, scan: args.scan, verify: args.verify, origin: 'refresh' }; return mediaJob;
+            case 'choose_image_relink': return { id: 'relink-plan', source_id: 'source', source_generation: imageSource.source_generation, root: '/Volumes/New drive/' + 'long-folder-'.repeat(12), members: 3, present: 2, absent: 1, sampled: 2, matched: 1, changed: 1, unreadable: 0, complete: true, acknowledgement_required: true, expires_at: Date.now() / 1000 + 300 };
+            case 'cancel_image_relink': return;
+            case 'confirm_image_relink': imageSource = { ...imageSource, root_state: 'online', source_generation: '1' };
+              mediaJob = { id: 'relink-job', source_id: 'source', source_generation: '1', sequence: '30', mode: 'mixed', state: 'queued', phase: 'discovery', discovery_complete: false, history_truncated: false, total: 0, completed: 0, ready: 0, reused: 0, failed: 0, unsupported: 0, current: '', error_code: null, scan: 'listed', verify: true, origin: 'relink' }; return mediaJob;
+            case 'image_move_candidates': return moves;
+            case 'reconcile_image_move': moves = []; imageSource = { ...imageSource, move_candidates: 0, missing: 0 }; return { id: args.missingId };
             case 'jobs': return [];
             case 'sources': return [source];
             case 'search_sounds': {

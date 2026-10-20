@@ -272,7 +272,7 @@ fn checkpoint(cancel: &AtomicBool, end: Instant) -> Result<()> {
     }
     Ok(())
 }
-fn hash_path(path: &Path, cancel: &AtomicBool, end: Instant) -> Result<String> {
+pub(crate) fn hash_path(path: &Path, cancel: &AtomicBool, end: Instant) -> Result<String> {
     let mut file = File::open(path).map_err(|_| AnalysisError::SourceUnavailable)?;
     let size = file
         .metadata()

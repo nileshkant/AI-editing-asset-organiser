@@ -10,7 +10,7 @@ let rawDrop: ((event: { payload: { type: string; paths: string[] } }) => void) |
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: (...args: unknown[]) => invoke(...args) }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn((name: string, fn: (event: { payload: unknown }) => void) => { listeners.set(name, fn); return Promise.resolve(unlisten); }) }));
 vi.mock('@tauri-apps/api/webviewWindow', () => ({ getCurrentWebviewWindow: () => ({ onDragDropEvent: (fn: typeof rawDrop) => { rawDrop = fn; return Promise.resolve(unlisten); } }) }));
-const job: ImageImportJob = { id: 'j1', source_id: 's1', source_generation: '0', sequence: '3', mode: 'images', state: 'running', phase: 'analysis', discovery_complete: true, history_truncated: false, total: 2, completed: 0, ready: 0, reused: 0, failed: 0, unsupported: 0, current: '', error_code: null };
+const job: ImageImportJob = { id: 'j1', source_id: 's1', source_generation: '0', sequence: '3', mode: 'images', state: 'running', phase: 'analysis', discovery_complete: true, history_truncated: false, total: 2, completed: 0, ready: 0, reused: 0, failed: 0, unsupported: 0, current: '', error_code: null, scan: 'discover', verify: true, origin: 'import' };
 const preview: MediaImportPreview = { id: 'preview', request_id: 'request', mode: 'mixed', scopes: [{ root: '/素材 long folder', recursive: false, files: ['chosen.png'] }], images: 1, audio: 0, unsupported: 1, inaccessible: 0, complete: true, issues: [], reference_in_place: true, expires_at: Math.floor(Date.now() / 1000) + 300 };
 let backendJobs: ImageImportJob[];
 beforeEach(() => {

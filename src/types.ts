@@ -215,13 +215,14 @@ export type ExportResult = {
 };
 
 export type ImageImportMode = 'images' | 'mixed';
-export type ImageImportError = 'INVALID_ARGUMENT' | 'PERMISSION_DENIED' | 'SOURCE_CHANGED' | 'SOURCE_UNAVAILABLE' | 'FILE_MISSING' | 'SOURCE_CONFLICT' | 'EXISTING_CATALOG' | 'SOURCE_OVERLAP' | 'QUEUE_FULL' | 'LIMIT_EXCEEDED' | 'NOT_FOUND' | 'LEASE_LOST' | 'CANCELLED' | 'DISCOVERY_INCOMPLETE' | 'DECODE_FAILED' | 'WRONG_ASSET_KIND' | 'INACCESSIBLE' | 'UNSUPPORTED_ANIMATION' | 'UNSUPPORTED_COLOR_PROFILE' | 'AUDIO_DECODE_FAILED' | 'WORKER_UNAVAILABLE' | 'BUSY' | 'TIMED_OUT' | 'UNSUPPORTED_FORMAT' | 'FILTERED_MEDIA' | 'NO_ELIGIBLE_FILES' | 'INTERNAL';
+export type ImageImportError = 'INVALID_ARGUMENT' | 'PERMISSION_DENIED' | 'SOURCE_CHANGED' | 'SOURCE_UNAVAILABLE' | 'FILE_MISSING' | 'SOURCE_CONFLICT' | 'EXISTING_CATALOG' | 'SOURCE_OVERLAP' | 'QUEUE_FULL' | 'LIMIT_EXCEEDED' | 'NOT_FOUND' | 'LEASE_LOST' | 'CANCELLED' | 'DISCOVERY_INCOMPLETE' | 'DECODE_FAILED' | 'WRONG_ASSET_KIND' | 'INACCESSIBLE' | 'UNSUPPORTED_ANIMATION' | 'UNSUPPORTED_COLOR_PROFILE' | 'AUDIO_DECODE_FAILED' | 'WORKER_UNAVAILABLE' | 'BUSY' | 'TIMED_OUT' | 'UNSUPPORTED_FORMAT' | 'FILTERED_MEDIA' | 'NO_ELIGIBLE_FILES' | 'NO_MATCHING_FILES' | 'CONFLICT' | 'INTERNAL';
 export type ImageImportJob = {
   id: string; source_id: string; source_generation: string; sequence: string;
   mode: ImageImportMode; state: 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
   phase: 'discovery' | 'analysis' | 'complete'; discovery_complete: boolean; history_truncated: boolean;
   total: number; completed: number; ready: number; reused: number; failed: number; unsupported: number;
   current: string; error_code: ImageImportError | null;
+  scan: 'discover' | 'listed'; verify: boolean; origin: 'import' | 'refresh' | 'watch' | 'relink';
 };
 export type MediaImportPreview = {
   id: string; request_id: string; mode: ImageImportMode;
@@ -237,6 +238,24 @@ export type ImageImportItem = {
 };
 export type ImageImportItemPage = { items: ImageImportItem[]; next_after: string | null };
 export type ImportedImagePage = { items: { header: import('./contracts/imageV1').ImageHeader; width: number | null; height: number | null; annotation_revision: number }[]; next_after: string | null };
+/** SS-047 source lifecycle. Root state is the folder; asset availability is per image. */
+export type ImageRootState = 'unknown' | 'online' | 'offline' | 'inaccessible' | 'changed';
+export type ImageWatchState = { state: 'watching' | 'paused' | 'failed'; error: string | null };
+export type ImageSourceStatus = {
+  source_id: string; name: string; root: string; scope: 'folder' | 'files'; source_generation: string;
+  root_state: ImageRootState; watch: boolean; mode: ImageImportMode; checked_at: number;
+  images: number; missing: number; inaccessible: number; failed: number; pending: number;
+  move_candidates: number; active_job: string | null; watch_state: ImageWatchState | null;
+};
+export type ImageRelinkPreview = {
+  id: string; source_id: string; source_generation: string; root: string;
+  members: number; present: number; absent: number; sampled: number; matched: number; changed: number; unreadable: number;
+  complete: boolean; acknowledgement_required: boolean; expires_at: number;
+};
+export type ImageMoveCandidate = {
+  missing_id: string; missing_path: string; missing_revision: number;
+  present_id: string; present_path: string; present_revision: number; same_file: boolean;
+};
 export type ImageImportCapabilities = { enabled: boolean; reference_in_place: boolean; production_images: boolean; metadata_present: boolean };
 export type ImagePreviewTier = 'small' | 'medium' | 'large' | 'inspect' | 'tile';
 export type ImagePreviewError = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'STALE_VERSION' | 'NOT_READY' | 'ORIGINAL_UNAVAILABLE' | 'SOURCE_CHANGED' | 'CANCELLED' | 'BUSY' | 'TIMED_OUT' | 'LIMIT_EXCEEDED' | 'INVALID_DATA' | 'UNSUPPORTED' | 'PERMISSION_DENIED' | 'WORKER_UNAVAILABLE' | 'WORKER_FAILED' | 'INTERNAL';

@@ -112,6 +112,14 @@ impl ImageImports {
             }));
         }
     }
+    /// Publish a job change to the desktop UI (also used by the SS-047 watcher).
+    pub fn emit(&self, job: ImageImportJob) {
+        if let Ok(s) = self.sink.lock() {
+            if let Some(send) = s.as_ref() {
+                send(job);
+            }
+        }
+    }
     pub fn shutdown(&self) {
         self.stop.store(true, Ordering::Relaxed);
         if let Ok(mut handle) = self.worker.lock() {
