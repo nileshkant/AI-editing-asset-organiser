@@ -43,6 +43,8 @@ pub struct AppState {
     /// One pending restore preview: token, natively picked path and its summary.
     pub restore_preview: Arc<Mutex<Option<(String, PathBuf, soundshelf_core::maintenance::BackupSummary)>>>,
     pub catalog: Arc<Mutex<Catalog>>,
+    /// SS-049 provider settings; constructing it contacts no provider or keychain.
+    pub providers: Arc<soundshelf_core::ai_provider::Providers>,
     pub tools: Option<MediaTools>,
     pub player: Arc<Player>,
     pub progress: Arc<Mutex<Vec<Progress>>>,
@@ -241,6 +243,7 @@ impl AppState {
             image_previews,
             agent: Arc::new(soundshelf_agent::Agent::persistent(data_directory.join("runtime/mcp.json"), data_directory.join("mcp-access.sqlite"), Some(agent_library.clone()))),
             agent_library,
+            providers: Arc::new(soundshelf_core::ai_provider::Providers::new(catalog.clone(), Arc::new(crate::providers::OsKeychain))),
             data_directory,
             catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
             catalog_roots: Arc::new(Mutex::new(std::collections::HashMap::new())),
