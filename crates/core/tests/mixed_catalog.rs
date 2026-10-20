@@ -238,7 +238,7 @@ fn unsupported_newer_and_malformed_mixed_catalogs_fail_without_changes() {
         .db_connection()
         .execute("INSERT INTO image_tag_aliases VALUES('brand blue','Brand blue','Other',0)", [])
         .unwrap();
-    let error = target.import_portable(&data, &BTreeMap::new(), Path::new("/offline")).unwrap_err();
+    let error = target.import_portable(&data, &BTreeMap::new(), _t.path()).unwrap_err();
     assert!(error.to_string().contains("alias conflicts"), "{error}");
     for table in ["sources", "sounds", "image_assets", "asset_registry"] {
         let n: i64 = target
