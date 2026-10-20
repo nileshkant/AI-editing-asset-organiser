@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "min_tag_precision": 0.8,
+  "min_tag_recall": 0.6,
+  "min_caption_fact_coverage": 0.75,
+  "max_caption_error_rate": 0.1,
+  "min_recall_at_5": 0.8,
+  "min_mrr": 0.6,
+  "min_mrr_gain_over_filenames": 0.2,
+  "max_out_of_domain_with_results": 0,
+  "max_failure_rate": 0.02,
+  "max_p95_latency_ms": 20000,
+  "max_mean_input_tokens": 3000,
+  "similarity_cutoff_keep_recall": 0.95
+}
