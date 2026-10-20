@@ -27,7 +27,7 @@ for (const viewport of [{ width: 1280, height: 820 }, { width: 720, height: 560 
     await page.screenshot({ path: testInfo.outputPath(`inspector-${viewport.width}.png`) });
     await page.getByRole('button', { name: 'Close details' }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    for (const category of ['Sources', 'Catalog data', 'Audio & recovery', 'Agent access', 'Application', 'MCP guide']) {
+    for (const category of ['Sources', 'Catalog data', 'Audio & recovery', 'Agent access', 'AI providers', 'Application', 'MCP guide']) {
       await page.getByRole('tab', { name: category, exact: true }).click();
       await expect(page.getByRole('tabpanel')).toBeVisible();
       await expectAccessible(page);

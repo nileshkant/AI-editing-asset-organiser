@@ -25,6 +25,8 @@ pub mod sources;
 
 pub mod portable;
 pub mod mixed_catalog;
+pub mod ai_provider;
+pub mod ai_provider_wire;
 
 pub mod agent;
 

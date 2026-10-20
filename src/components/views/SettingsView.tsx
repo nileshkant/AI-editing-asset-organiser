@@ -7,6 +7,7 @@ import { FolderCatalogs } from './FolderCatalogs';
 import { RecoverySettings } from './RecoverySettings';
 import { CatalogData } from './CatalogData';
 import { ImagePreviewSettings } from './ImagePreviewSettings';
+import { AiProviderSettings } from './AiProviderSettings';
 import type { AppInfo, Source } from '../../types';
 
 interface SettingsViewProps {
@@ -24,7 +25,7 @@ export const SettingsView = memo(function SettingsView({
   onRelink,
   onError,
 }: SettingsViewProps) {
-  const categories = ['Sources', 'Catalog data', 'Audio & recovery', 'Agent access', 'Application', 'MCP guide'];
+  const categories = ['Sources', 'Catalog data', 'Audio & recovery', 'Agent access', 'AI providers', 'Application', 'MCP guide'];
   const [category, setCategory] = useState(0);
   const settingsId = useId();
   const panelProps = (index: number) => ({
@@ -143,7 +144,8 @@ export const SettingsView = memo(function SettingsView({
       <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} /></div></section>
       <section {...panelProps(2)}><div className="settings-card"><RecoverySettings onError={onError} /></div><ImagePreviewSettings onError={onError} /></section>
       <section {...panelProps(3)}><div className="settings-card"><McpSettings roots={roots} onError={onError} /></div></section>
-      <section {...panelProps(4)}>
+      <section {...panelProps(4)}><div className="settings-card">{category === 4 && <AiProviderSettings onError={onError} />}</div></section>
+      <section {...panelProps(5)}>
       <div className="settings-card">
       <h2>Application</h2>
       <div className="setting-row"><span>Version</span><span>{info?.version || 'Unavailable'}</span></div>
@@ -155,7 +157,7 @@ export const SettingsView = memo(function SettingsView({
       <p className="muted">Unavailable · no recognition model enabled. Audio analysis measures the recording; automatic sound-event recognition is planned for a future version.</p>
       </div>
       </section>
-      <section {...panelProps(5)}>{category === 5 && <McpGuide />}</section>
+      <section {...panelProps(6)}>{category === 6 && <McpGuide />}</section>
     </section>
   );
 });

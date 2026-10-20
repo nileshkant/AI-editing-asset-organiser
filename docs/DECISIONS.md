@@ -196,3 +196,23 @@ changed members only. Folder snapshots accept a changed image stat only when an
 Restore gets a preview bound to a BLAKE3 digest of the backup, so what is
 confirmed is exactly what was inspected. Schema v15 only rewrites the three
 SS-041 dirty triggers to drop their guard errors.
+
+## SS-049 AI provider settings and keys (20 October 2026)
+
+Provider profiles are one versioned `app_settings` row, so they are machine
+preferences: backed up with the catalog, never exported. Keys never touch SQLite.
+They live in the OS credential store (the `keyring` crate, pinned) or in process
+memory for session-only use, keyed by profile ID and bound to the endpoint
+origin they were entered for. Moving a profile to another origin or provider
+kind deletes the key rather than risk sending it elsewhere.
+
+HTTP uses `ureq` with rustls and the platform certificate verifier: blocking
+calls fit the existing worker threads, and it allows redirects and proxies to be
+switched off. Every resolved address is checked against the endpoint's locality
+policy at connect time, so DNS cannot move a remote profile onto a private or
+link-local address. No proxy support yet; that is a documented limit.
+
+Capabilities are only what a connection test observed for an exact profile
+revision. The image probe is a generated red square and must be answered
+correctly, so a text-only model is never labeled image-capable. Any edit resets
+capabilities, and test results from a superseded revision are discarded.

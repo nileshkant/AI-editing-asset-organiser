@@ -295,3 +295,18 @@ export type AnnotationAction = { id: string; kind: 'edit' | 'bulk' | 'rename'; l
 export type TagAlias = { alias: string; canonical: string };
 export type TagList = { tags: { tag: string; count: number }[]; truncated: boolean; aliases: TagAlias[] };
 export type RenamePreview = { from: string; to: string; images: number; merged: number; unavailable: number; audio_unchanged: number };
+/** SS-049 provider settings. Keys are write-only: no command ever returns one. */
+export type ProviderKind = 'openai' | 'anthropic' | 'gemini' | 'openai_compatible';
+export type CapabilityState = 'untested' | 'supported' | 'unsupported' | 'inconclusive';
+export type ProviderView = {
+  id: string; kind: ProviderKind; label: string; base_url: string; model: string; allow_local: boolean;
+  key_storage: 'none' | 'keychain' | 'session'; key_origin: string | null; revision: number;
+  capabilities: { image_input: CapabilityState; structured_output: CapabilityState; embeddings: CapabilityState; tested_revision: number | null; tested_at: number | null; model_version: string | null };
+  locality: 'remote' | 'private' | 'loopback' | null; has_key: boolean;
+};
+export type ProviderDraft = { kind: ProviderKind; label: string; base_url: string | null; model: string; allow_local: boolean };
+export type ProviderTestReport = {
+  provider: ProviderView;
+  steps: { check: 'model_access' | 'image_input' | 'structured_output' | 'embeddings'; passed: boolean; error: { code: string; message: string } | null }[];
+  usage: { input_tokens: number | null; output_tokens: number | null };
+};

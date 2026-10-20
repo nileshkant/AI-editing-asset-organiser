@@ -21,10 +21,16 @@ moxcms = { version = "=0.9.1", default-features = false }
 flate2 = { version = "=1.1.10", default-features = false, features = ["rust_backend"] }
 crc32fast = "=1.5.2"
 unicode-normalization = "=0.1.26"
+# SS-049 provider connections: blocking HTTPS with OS trust roots, no redirects.
+ureq = { version = "=3.4.2", default-features = false, features = ["rustls", "platform-verifier"] }
+url = "=2.5.8"
+base64 = "=0.22.1"
 
 [dev-dependencies]
 tempfile = "3"
 png = "=0.18.1"
+# SS-049: a real TLS server with a self-signed certificate for certificate-failure tests.
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std"] }
 
 [features]
 # Compiles an explicit narrow-binary integration fixture only in the media build job.
