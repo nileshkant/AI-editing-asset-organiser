@@ -27,7 +27,7 @@ pub enum ImportError {
     FileMissing,
     #[error("Another selection for this source is already importing")]
     SourceConflict,
-    #[error("Existing folder catalog requires mixed catalog support; use the audio import flow or a disposable development folder")]
+    #[error("This folder already has a CreativeShelf catalog; add the folder first to restore its metadata, then import images into that source")]
     ExistingCatalog,
     #[error("Selection overlaps an existing source scope; use that source or choose exact files")]
     SourceOverlap,
@@ -1086,7 +1086,8 @@ mod tests {
             Err(ImportError::SourceChanged)
         );
         assert!(c.require_audio_only_source(&s.id).is_err());
-        assert!(c.export_portable().is_err());
+        // SS-048: a queued import has no image records yet; export stays lossless.
+        assert!(c.export_portable().unwrap().images.is_empty());
         let encoded = serde_json::to_value(j).unwrap();
         assert_eq!(encoded["source_generation"], "0");
         assert!(encoded.get("paths").is_none());

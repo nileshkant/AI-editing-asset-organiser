@@ -212,7 +212,7 @@ fn legacy_portable_snapshot_and_agent_payloads_remain_unchanged() {
         "INVALID_ARGUMENT"
     );
     let mut future = expected["portable"].clone();
-    future["schema"] = json!("soundshelf-catalog/v2");
+    future["schema"] = json!("soundshelf-catalog/v3");
     assert!(serde_json::from_value::<PortableCatalog>(future)
         .unwrap()
         .validate()

@@ -17,6 +17,10 @@ use std::{
 use uuid::Uuid;
 
 pub const PORTABLE_SCHEMA: &str = "soundshelf-catalog/v1";
+/// Mixed audio/image catalogs (SS-048). Audio-only exports stay v1 so older
+/// readers keep working; an older reader rejects v2 by schema, never by dropping images.
+pub const PORTABLE_SCHEMA_V2: &str = "soundshelf-catalog/v2";
+const SCHEMA_FAMILY: &str = "soundshelf-catalog/";
 pub const LEGACY_SCHEMA: &str = "portable-sound-effects-catalog/v3";
 pub const MAX_BYTES: u64 = 64 * 1024 * 1024;
 
@@ -46,18 +50,26 @@ pub struct PortableCatalog {
     pub clips: Vec<Clip>,
     pub saved_searches: Vec<SavedSearch>,
     pub legacy_evidence: Vec<LegacyEvidence>,
+    /// v2 only: image and element records in the SS-040 contract shape.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub images: Vec<crate::mixed_catalog::PortableImage>,
+    /// v2 only: library-wide creator tag aliases (SS-046). Undo history stays local.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub image_tag_aliases: Vec<crate::mixed_catalog::PortableTagAlias>,
 }
 #[derive(Debug, Serialize)]
 pub struct Preview {
     pub schema: String,
     pub sources: Vec<PortableSource>,
     pub sounds: usize,
+    pub images: usize,
     pub legacy: bool,
 }
 #[derive(Debug, Serialize)]
 pub struct ImportReport {
     pub sources: usize,
     pub sounds: usize,
+    pub images: usize,
     pub offline_sources: usize,
     pub legacy: bool,
 }
@@ -73,8 +85,12 @@ fn unique(ids: impl Iterator<Item = String>, max_bytes: usize) -> Result<()> {
 }
 impl PortableCatalog {
     pub fn validate(&self) -> Result<()> {
-        if self.schema != PORTABLE_SCHEMA {
-            return Err(invalid("Unsupported portable catalog schema"));
+        let mixed = self.schema == PORTABLE_SCHEMA_V2;
+        if !mixed && self.schema != PORTABLE_SCHEMA {
+            return Err(invalid(newer_or_unsupported(&self.schema)));
+        }
+        if !mixed && (!self.images.is_empty() || !self.image_tag_aliases.is_empty()) {
+            return Err(invalid("Image records require the soundshelf-catalog/v2 schema"));
         }
         if self.sounds.len() > 100_000 || self.sources.len() > 10_000 || self.clips.len() > 100_000
         {
@@ -92,6 +108,19 @@ impl PortableCatalog {
             .map(|s| (&s.id, s.files.iter().collect()))
             .collect();
         let sounds: BTreeMap<_, _> = self.sounds.iter().map(|s| (&s.id, s)).collect();
+        let mut identities: HashSet<String> = self.sounds.iter().map(|s| s.id.clone()).collect();
+        let mut taken: HashSet<(String, String)> = self
+            .sounds
+            .iter()
+            .map(|s| (s.source_id.clone(), s.relative_path.clone()))
+            .collect();
+        crate::mixed_catalog::validate_images(
+            &self.images,
+            &self.image_tag_aliases,
+            &sources,
+            &mut taken,
+            &mut identities,
+        )?;
         for source in &self.sources {
             if !["folder", "files"].contains(&source.scope.as_str()) {
                 return Err(invalid("Invalid source scope"));
@@ -193,7 +222,7 @@ impl PortableCatalog {
                 .replace('[', "\\[")
                 .replace(']', "\\]")
         }
-        let mut out = String::from("# CreativeShelf catalog\n\nSchema: soundshelf-catalog/v1. Media locations are relative to source IDs; map each source to a local root. This Markdown is a readable companion; use JSON for restore.\n");
+        let mut out = format!("# CreativeShelf catalog\n\nSchema: {}. Media locations are relative to source IDs; map each source to a local root. This Markdown is a readable companion; use JSON for restore.\n", self.schema);
         for s in &self.sounds {
             out.push_str(&format!("\n## {}\n\nSource: {}\n\nRelative path: {}\n\nStatus: {} · Favorite: {}\n\nTags: {}\n\nComment: {}\n",escape(&s.title),escape(&s.source_id),escape(&s.relative_path),s.status,s.favorite,escape(&s.user_tags.join(", ")),escape(&s.comment)));
             if let Some(p) = &s.profile {
@@ -205,6 +234,17 @@ impl PortableCatalog {
             }
             if let Some(n) = self.legacy_evidence.iter().find(|n| n.sound_id == s.id) {
                 out.push_str(&format!("\nLegacy filename inference: {}\n\nLegacy measurements cover up to 20 seconds at 12 kHz mono; they are not full-file facts.\n",escape(&n.description)));
+            }
+        }
+        for image in &self.images {
+            let a = &image.asset;
+            let h = &a.header;
+            out.push_str(&format!("\n## Image: {}\n\nSource: {}\n\nRelative path: {}\n\nFavorite: {} · Rating: {}\n\nTags: {}\n\nNotes: {}\n",
+                escape(h.relative_path.rsplit('/').next().unwrap_or(&h.relative_path)), escape(&h.source_id), escape(&h.relative_path),
+                a.annotations.favorite, a.annotations.rating.map_or("none".into(), |r| r.to_string()),
+                escape(&a.annotations.tags.join(", ")), escape(&a.annotations.comment)));
+            if let Some(p) = &a.profile {
+                out.push_str(&format!("\nMeasured size: {} × {} pixels\n", p.width, p.height));
             }
         }
         out
@@ -220,16 +260,13 @@ impl Catalog {
     fn export_audio_portable(&self, source_id: Option<&str>) -> Result<PortableCatalog> {
         // Consistent snapshot even if a separate connection is writing.
         let tx = self.db.unchecked_transaction()?;
-        if let Some(id)=source_id {
-            self.require_audio_only_source(id)?;
-        } else {
-            let images:bool=self.db.query_row("SELECT EXISTS(SELECT 1 FROM image_source_identity) OR EXISTS(SELECT 1 FROM image_assets) OR EXISTS(SELECT 1 FROM image_tag_aliases) OR EXISTS(SELECT 1 FROM image_import_jobs WHERE state IN ('queued','running')) OR EXISTS(SELECT 1 FROM image_import_items WHERE media_kind='image' AND state IN ('pending','running'))",[],|r|r.get(0))?;
-            if images { return Err(invalid("Image metadata requires mixed catalog support; audio-only portable export is blocked")); }
-        }
+        // Source snapshots carry one folder's members; aliases are library-wide.
+        let images = crate::mixed_catalog::export_images(&self.db, source_id, source_id.is_some())?;
+        let image_tag_aliases = if source_id.is_some() { vec![] } else { crate::mixed_catalog::export_aliases(&self.db)? };
         let sounds=if let Some(id)=source_id { self.scoped_sounds(&[id.to_owned()])? } else { self.all_sounds()? };
         let ids:HashSet<_>=sounds.iter().map(|s|s.id.clone()).collect();
         let result = PortableCatalog {
-            schema: PORTABLE_SCHEMA.into(),
+            schema: if images.is_empty() && image_tag_aliases.is_empty() { PORTABLE_SCHEMA } else { PORTABLE_SCHEMA_V2 }.into(),
             sources: self
                 .sources()?
                 .into_iter()
@@ -245,6 +282,8 @@ impl Catalog {
             clips: self.all_clips()?.into_iter().filter(|c|ids.contains(&c.sound_id)).collect(),
             saved_searches: if source_id.is_some(){vec![]}else{self.saved_searches()?},
             legacy_evidence: self.legacy_evidence()?.into_iter().filter(|e|ids.contains(&e.sound_id)).collect(),
+            images,
+            image_tag_aliases,
         };
         tx.commit()?;
         result.validate()?;
@@ -373,10 +412,12 @@ impl Catalog {
                 params![n.sound_id, serde_json::to_string(n)?],
             )?;
         }
+        crate::mixed_catalog::import_images(&tx, &data.images, &data.image_tag_aliases)?;
         tx.commit()?;
         Ok(ImportReport {
             sources: data.sources.len(),
             sounds: data.sounds.len(),
+            images: data.images.len(),
             offline_sources: locations.iter().filter(|(_, _, a)| !*a).count(),
             legacy: !data.legacy_evidence.is_empty(),
         })
@@ -456,14 +497,23 @@ pub fn preview(text: &str, allow_legacy: bool) -> Result<Preview> {
     if text.len() as u64 > MAX_BYTES {
         return Err(invalid("Catalog exceeds 64 MiB"));
     }
-    if let Ok(data) = serde_json::from_str::<PortableCatalog>(text) {
-        data.validate()?;
-        return Ok(Preview {
-            schema: data.schema,
-            sources: data.sources,
-            sounds: data.sounds.len(),
-            legacy: false,
-        });
+    if let Some(schema) = declared_schema(text) {
+        if schema.starts_with(SCHEMA_FAMILY) {
+            if schema != PORTABLE_SCHEMA && schema != PORTABLE_SCHEMA_V2 {
+                return Err(invalid(newer_or_unsupported(&schema)));
+            }
+            // A current-family document never falls back to the legacy parser:
+            // its own validation error is the actionable one.
+            let data: PortableCatalog = serde_json::from_str(text)?;
+            data.validate()?;
+            return Ok(Preview {
+                schema: data.schema,
+                sources: data.sources,
+                sounds: data.sounds.len(),
+                images: data.images.len(),
+                legacy: false,
+            });
+        }
     }
     if !allow_legacy {
         return Err(invalid(
@@ -484,8 +534,28 @@ pub fn preview(text: &str, allow_legacy: bool) -> Result<Preview> {
             })
             .collect(),
         sounds: data.sounds.len(),
+        images: 0,
         legacy: true,
     })
+}
+/// Reads only the top-level `schema` string, bounded by the document limit.
+fn declared_schema(text: &str) -> Option<String> {
+    #[derive(Deserialize)]
+    struct Head {
+        schema: String,
+    }
+    serde_json::from_str::<Head>(text).ok().map(|h| h.schema)
+}
+fn newer_or_unsupported(schema: &str) -> &'static str {
+    let version = schema
+        .strip_prefix(SCHEMA_FAMILY)
+        .and_then(|v| v.strip_prefix('v'))
+        .and_then(|v| v.parse::<u32>().ok());
+    if version.is_some_and(|v| v > 2) {
+        "Catalog was written by a newer CreativeShelf; update the app to import it. Nothing was imported."
+    } else {
+        "Unsupported portable catalog schema"
+    }
 }
 /// Hash legacy media before acquiring the catalog lock. Old path IDs are never content digests.
 pub fn prepare_import(
@@ -514,6 +584,8 @@ pub fn prepare_import(
         clips: vec![],
         saved_searches: vec![],
         legacy_evidence: vec![],
+        images: vec![],
+        image_tag_aliases: vec![],
     };
     for s in old.sounds {
         let root = roots

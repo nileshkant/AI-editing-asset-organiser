@@ -65,7 +65,7 @@ fn cancel_export(state: tauri::State<AppState>, destination_id: String) -> Resul
 #[tauri::command]
 async fn sources(state:tauri::State<'_,AppState>)->Result<Vec<Source>,String>{let c=state.catalog.clone();tauri::async_runtime::spawn_blocking(move||c.lock().map_err(|e|e.to_string())?.sources().map_err(|e|e.to_string())).await.map_err(|e|e.to_string())?}
 #[tauri::command]
-async fn import_root(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{let c=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||{let path=PathBuf::from(path);if !path.is_dir(){return Err("Choose an existing folder.".to_string());}soundshelf_core::source_catalog::import_folder(&c,&path).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())??;state.enqueue_import(source.clone())?;Ok(source)}
+async fn import_root(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{let c=state.catalog.clone();let source=tauri::async_runtime::spawn_blocking(move||{let path=PathBuf::from(path);if !path.is_dir(){return Err("Choose an existing folder.".to_string());}soundshelf_core::source_catalog::import_folder(&c,&path).map_err(|e|e.to_string())}).await.map_err(|e|e.to_string())??;state.enqueue_folder_import(source.clone())?;Ok(source)}
 #[tauri::command]
 async fn import_path(state:tauri::State<'_,AppState>,path:String)->Result<Source,String>{
     if path.len()>32768 {return Err("Path is too long".into());}
@@ -78,7 +78,7 @@ async fn import_path(state:tauri::State<'_,AppState>,path:String)->Result<Source
             catalog.select_file(&path).map(|(s,p)|(s,Some(vec![p]))).map_err(|e|e.to_string())
         }
     }).await.map_err(|e|e.to_string())??;
-    if paths.is_none(){state.enqueue_import(source.clone())?;}else{state.enqueue_paths(source.clone(),paths)?;}Ok(source)
+    if paths.is_none(){state.enqueue_folder_import(source.clone())?;}else{state.enqueue_paths(source.clone(),paths)?;}Ok(source)
 }
 #[tauri::command]
 fn convert_source(state:tauri::State<AppState>,id:String,confirmed:bool)->Result<Source,String>{
@@ -377,7 +377,7 @@ fn main() {
             image_import::image_import_capabilities,image_import::choose_media_import,image_import::preview_media_import,image_import::cancel_media_preview,image_import::confirm_media_import,image_import::image_import_jobs,image_import::image_import_items,image_import::cancel_image_import,image_import::retry_image_import,image_import::imported_images,image_preview::image_preview,image_gallery::image_gallery_page,image_gallery::image_details,image_annotations::edit_image_annotations,image_annotations::preview_image_bulk_annotations,image_annotations::apply_image_bulk_annotations,image_annotations::image_annotation_history,image_annotations::undo_image_annotation_action,image_annotations::image_tags,image_annotations::preview_image_tag_rename,image_annotations::rename_image_tag,image_annotations::remove_image_tag_alias,image_sources::image_source_statuses,image_sources::check_image_source,image_sources::refresh_image_source,image_sources::set_image_source_watch,image_sources::choose_image_relink,image_sources::confirm_image_relink,image_sources::cancel_image_relink,image_sources::image_move_candidates,image_sources::reconcile_image_move,image_preview::cancel_image_preview,image_preview::image_preview_cache_status,image_preview::set_image_preview_cache_quota,image_preview::clear_image_preview_cache,
             app_info,
             agent::mcp_status, agent::mcp_start, agent::mcp_stop, agent::mcp_pair, agent::mcp_revoke, agent::mcp_rotate, agent::mcp_approve_destination, agent::mcp_bridge_location,
-            maintenance::resource_settings,maintenance::save_resource_settings,maintenance::database_backup,maintenance::database_restore,maintenance::purge_waveform_cache,maintenance::support_report,
+            maintenance::resource_settings,maintenance::save_resource_settings,maintenance::database_backup,maintenance::database_restore_preview,maintenance::database_restore_cancel,maintenance::database_restore,maintenance::purge_waveform_cache,maintenance::support_report,
             catalog_transfer::catalog_export,
             catalog_transfer::catalog_preview,
             catalog_transfer::catalog_map_root,

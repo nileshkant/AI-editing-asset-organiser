@@ -110,3 +110,12 @@ separate recovery copy, and restore the pre-upgrade v9 snapshot with its matchin
 binary/data location. Never edit `user_version` or copy a live database without
 its WAL. The pre-upgrade snapshot does not include later image edits. An older
 binary cannot read a v10 backup; future mixed portable transfer is SS-048.
+
+## SS-048 update
+
+Schema v15 removes the guard errors above: mixed libraries export portable v2
+and save folder v2 snapshots, while audio-only libraries still write v1. The
+dirty triggers remain. Legacy audio-only root relink and file-to-folder
+conversion still reject image sources, which use the SS-047 image actions. A
+v14 binary cannot open v15; restore the `*.pre-v15-<uuid>.sqlite` backup to go
+back. See [Mixed catalogs](MIXED_CATALOGS.md).

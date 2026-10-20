@@ -177,3 +177,22 @@ losing events (bounded queue full, backend rescan flag, too many paths, app not
 running, drive away) collapses to one complete quick refresh rather than
 guesses. Watching is opt-in per source. Exact-file sources filter events to
 their listed members before queueing them.
+
+## SS-048 mixed catalogs, restore preview and schema v15 (20 October 2026)
+
+Mixed libraries use new envelope versions (portable v2, folder v2) instead of
+optional fields in v1. Older apps already reject an unknown schema string, so
+they fail visibly rather than silently drop images. Writers choose v1 whenever
+the library is audio-only, so existing users and older apps are unaffected.
+
+Every SQLite column is classified as portable, backup only or rebuildable, and a
+test fails on an unclassified column. Machine-local facts (file stats, watch
+preference, root identity, jobs, undo history) are backup only.
+
+Warm reimport trusts stats like audio does, and queues targeted image checks for
+changed members only. Folder snapshots accept a changed image stat only when an
+`asset_file_stats` row proves the exact hash was re-verified.
+
+Restore gets a preview bound to a BLAKE3 digest of the backup, so what is
+confirmed is exactly what was inspected. Schema v15 only rewrites the three
+SS-041 dirty triggers to drop their guard errors.

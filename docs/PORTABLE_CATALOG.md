@@ -68,3 +68,12 @@ audio-only folder snapshot. Its old snapshot remains protected with a retry
 warning; other audio-only sources can still save. Full SQLite backup preserves
 all image data. Mixed portable and folder envelopes are assigned to SS-048.
 See [Image storage](IMAGE_STORAGE.md) for exact service/recovery semantics.
+
+## Mixed catalogs (SS-048)
+
+The guard above is replaced. Libraries with images export
+`soundshelf-catalog/v2` and write `creativeshelf-source/v2` folder snapshots;
+audio-only libraries keep writing v1, so older apps still read them and reject
+v2 by schema instead of dropping images. The import preview shows image counts.
+See [Mixed catalogs](MIXED_CATALOGS.md) for formats, what travels, warm reimport
+and limits.

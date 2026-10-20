@@ -118,3 +118,14 @@ Loopback playback is not physical-device qualification. Native OS picker/drop
 adapters compile in platform CI and share scoped core validation; real installed
 picker/drop, removable-drive ACLs, mount/reboot identity and signed installed
 packages still require platform qualification. No AI quality claim is made.
+
+## SS-048 update
+
+The persistence guards described above are replaced by versioned mixed
+formats (portable `soundshelf-catalog/v2`, folder `creativeshelf-source/v2`).
+Adding a folder that has a v2 snapshot routes to the image lane and checks
+only changed members. A new image import of a folder that already has a
+snapshot is still refused, with guidance to add the folder first. The
+`image-development` feature stays opt-in, and release packaging with
+`CREATIVESHELF_IMAGE_DEVELOPMENT=1` is no longer local-only. See
+[Mixed catalogs](MIXED_CATALOGS.md).

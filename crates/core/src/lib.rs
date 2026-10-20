@@ -24,6 +24,7 @@ pub fn invalid(message: &str) -> Error { Error::Invalid(message.into()) }
 pub mod sources;
 
 pub mod portable;
+pub mod mixed_catalog;
 
 pub mod agent;
 

@@ -346,3 +346,13 @@ adds SQLite v10 with shared audio/image identity, versioned image persistence,
 cache reuse and bounded metadata APIs, documented in [Image storage](IMAGE_STORAGE.md).
 The image capability remains disabled, and existing IPC/MCP/portable payloads
 are unchanged. Mixed JSON persistence remains an explicit SS-048 boundary.
+
+## SS-048 persistence amendment
+
+`ImageAsset` is now carried verbatim (validated by this contract) in portable
+`soundshelf-catalog/v2` and folder `creativeshelf-source/v2` documents, along with
+cached technical warnings and version history. Audio payload meanings are
+unchanged and audio-only documents remain v1. A new durable field must be
+classified in `mixed_catalog::persistence_inventory` and carried through every
+serialization and restore path in the same PR; see
+[Mixed catalogs](MIXED_CATALOGS.md).

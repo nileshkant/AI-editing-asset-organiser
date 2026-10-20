@@ -682,8 +682,8 @@ impl MediaImportPreviews {
         };
         for group in groups.values_mut() {
             checkpoint(cancel, end)?;
-            // Until SS-048 can restore mixed sidecars, never treat an existing
-            // unknown folder catalog as a fresh library and overwrite its work.
+            // A new image source never adopts an existing folder catalog: Add
+            // folder restores it (with its identities) and later imports reuse it.
             if group.existing.is_none()
                 && group.recursive
                 && group.root.join(".creativeshelf/catalog.json").exists()
@@ -1215,6 +1215,6 @@ mod tests {
             .execute("DELETE FROM image_import_jobs WHERE id=?1", [&jobs[0].id])
             .unwrap();
         assert!(c.require_audio_only_source(&jobs[0].source_id).is_err());
-        assert!(c.export_portable().is_err());
+        assert!(c.export_portable().is_ok());
     }
 }

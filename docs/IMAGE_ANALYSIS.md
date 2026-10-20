@@ -145,3 +145,9 @@ This ticket adds no schema: the SS-041 profile fields and validators already
 represent its durable facts. Full SQLite backup preserves them; mixed JSON
 transfer stays blocked until SS-048. No transient samples/counts become durable
 by accident. There are no new UI controls or external AI/model calls to qualify.
+
+## SS-048 update
+
+Profiles and their content-bound technical warnings now travel in mixed
+portable and folder catalogs, so a warm import reuses analysis without decoding.
+See [Mixed catalogs](MIXED_CATALOGS.md).
