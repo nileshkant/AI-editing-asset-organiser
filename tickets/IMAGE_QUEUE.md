@@ -62,7 +62,7 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 ### 2. AI configuration, analysis, and provenance
 
 10. [SS-049: Shared AI provider configuration and secret handling](SS-049.md) — merged; [PR #52](https://github.com/nileshkant/AI-editing-asset-organiser/pull/52), see [review](../docs/reviews/SS-049.md); predecessor: SS-048 (merged).
-11. [SS-050: Image AI evaluation corpus and qualified adapters](SS-050.md) — in-review (real-model results pending a key); see [review](../docs/reviews/SS-050.md); predecessor: SS-049 (merged).
+11. [SS-050: Image AI evaluation corpus and qualified adapters](SS-050.md) — in-review (real-model results pending a key); [PR #53](https://github.com/nileshkant/AI-editing-asset-organiser/pull/53), see [review](../docs/reviews/SS-050.md); predecessor: SS-049 (merged).
 12. [SS-051: Optional local model pack lifecycle](SS-051.md) — not-started; predecessor: SS-050.
 13. [SS-052: Consented image enrichment queue and usage budgets](SS-052.md) — not-started; predecessor: SS-051.
 14. [SS-053: Structured image descriptions and AI tag persistence](SS-053.md) — not-started; predecessor: SS-052.
