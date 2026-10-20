@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { call } from '../../api';
-import type { CapabilityState, ProviderDraft, ProviderKind, ProviderTestReport, ProviderView } from '../../types';
+import type { AiFeatureStatus, CapabilityState, ProviderDraft, ProviderKind, ProviderTestReport, ProviderView } from '../../types';
 
 const kinds: { value: ProviderKind; label: string; endpoint: string }[] = [
   { value: 'openai', label: 'OpenAI', endpoint: 'https://api.openai.com/v1' },
@@ -100,18 +100,47 @@ function Provider({ provider, busy, run }: { provider: ProviderView; busy: boole
   </article>;
 }
 
+const featureName = { image_descriptions: 'Image descriptions and suggested tags', semantic_search: 'Search images by meaning', offline_tagging: 'Offline image tagging' };
+const featureNeeds = { image_descriptions: 'image input and structured output', semantic_search: 'embeddings, plus image descriptions', offline_tagging: '' };
+function featureLine(f: AiFeatureStatus) {
+  switch (f.state) {
+    case 'ready': return `Provider ready: ${f.provider_label}`;
+    case 'needs_provider': return 'Add an AI provider and API key to enable';
+    case 'needs_key': return `Add an API key for ${f.provider_label} to enable`;
+    case 'needs_test': return `Run Test connection for ${f.provider_label} to check ${featureNeeds[f.feature]}`;
+    case 'unsupported': return `No configured provider supports ${featureNeeds[f.feature]}`;
+    case 'not_offered': return 'Not available in this version';
+  }
+}
+
+/** SS-050: features stay listed; each says what it needs. */
+function AiFeatures({ features }: { features: AiFeatureStatus[] }) {
+  if (!features.length) return null;
+  return <section aria-label="Image AI features">
+    <h3>Image AI features</h3>
+    <p className="muted">Optional and off until a provider passes Test connection. Analyzing your library arrives in a later update; nothing is sent from here. Quality on the evaluation set has not been measured yet.</p>
+    <ul>
+      {features.map(f => <li key={f.feature} aria-disabled={f.state !== 'ready'}>
+        <strong>{featureName[f.feature]}</strong>: {featureLine(f)}
+      </li>)}
+    </ul>
+  </section>;
+}
+
 /** SS-049: provider profiles and keys. Nothing here analyzes images. */
 export function AiProviderSettings({ onError }: { onError: (error: string) => void }) {
   const [providers, setProviders] = useState<ProviderView[]>([]);
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [features, setFeatures] = useState<AiFeatureStatus[]>([]);
   const [notice, setNotice] = useState('');
   // Older desktop builds and test doubles may answer with something else; show an empty list.
-  const list = (p: unknown) => Array.isArray(p) ? p as ProviderView[] : [];
-  const refresh = async () => setProviders(list(await call<unknown>('ai_providers')));
+  const list = <T,>(p: unknown) => Array.isArray(p) ? p as T[] : [];
+  const load = () => Promise.all([call<unknown>('ai_providers'), call<unknown>('ai_features')]);
+  const refresh = async () => { const [p, f] = await load(); setProviders(list<ProviderView>(p)); setFeatures(list<AiFeatureStatus>(f)); };
   useEffect(() => {
     let active = true;
-    call<unknown>('ai_providers').then(p => { if (active) setProviders(list(p)); }).catch(e => { if (active) onError(String(e)); });
+    load().then(([p, f]) => { if (active) { setProviders(list<ProviderView>(p)); setFeatures(list<AiFeatureStatus>(f)); } }).catch(e => { if (active) onError(String(e)); });
     return () => { active = false; };
   }, [onError]);
   const run = async (command: string, args: Record<string, unknown>) => {
@@ -133,6 +162,7 @@ export function AiProviderSettings({ onError }: { onError: (error: string) => vo
     <h2>AI providers</h2>
     <p className="muted">Optional. Adding a provider or key sends nothing. Only <strong>Test connection</strong> contacts the provider, and it sends a generated 16×16 test image and fixed text, never your files or catalog. Image analysis will ask separately which sources may be sent. Keys stay in the system keychain or, for this session only, in memory; they are never shown again or written to the catalog, backups or exports.</p>
     <p role="status">{notice}</p>
+    <AiFeatures features={features} />
     {providers.length ? providers.map(p => <Provider key={p.id} provider={p} busy={busy} run={run} />) : <p className="muted">No AI providers configured.</p>}
     {adding
       ? <ProviderForm busy={busy} submitLabel="Add provider" initial={empty} onCancel={() => setAdding(false)}

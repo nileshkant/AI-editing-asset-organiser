@@ -1,5 +1,6 @@
 //! Helpers for building genuine older schemas in migration fixtures only.
 #![allow(dead_code)]
+pub mod http;
 pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
     let images: i64 = db
         .query_row("SELECT count(*) FROM image_assets", [], |r| r.get(0))

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { call } from '../../api';
 import type { Source } from '../../types';
-type Access = { source_ids: string[]; read: boolean; edit: boolean; export: boolean; paths: boolean };
-const defaultAccess: Access = { source_ids: [], read: true, edit: false, export: false, paths: false };
+type Access = { source_ids: string[]; read: boolean; edit: boolean; export: boolean; paths: boolean; previews: boolean };
+const defaultAccess: Access = { source_ids: [], read: true, edit: false, export: false, paths: false, previews: false };
 type Client = { id: string; name: string; access?: Access };
 type Status = { endpoint: string | null; clients: Client[]; startup_error?: string | null };
 type Pairing = { client: Client; token: string };
@@ -42,7 +42,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
   const validPort = /^\d{1,5}$/.test(port) && Number(port) <= 65535;
   return <section aria-label="MCP access">
     <h2>Agent access · MCP</h2>
-    <p className="muted">Off until first enabled. After setup, MCP starts with CreativeShelf on its remembered port. Stop MCP disables automatic startup; pairings are kept. CreativeShelf must stay open; quitting closes access. Give each client access to specific sources. Editing, exporting and machine paths require separate permission.</p>
+    <p className="muted">Off until first enabled. After setup, MCP starts with CreativeShelf on its remembered port. Stop MCP disables automatic startup; pairings are kept. CreativeShelf must stay open; quitting closes access. Give each client access to specific sources. Image previews, editing, exporting and machine paths each require separate permission.</p>
     <button disabled={busy} onClick={() => void showBridge()}>Show installed bridge</button>
     {bridge && <div><p>For a command-based client, use this absolute executable path and discovery arguments. Set SOUNDSHELF_MCP_TOKEN privately to the paired credential below.</p><pre aria-label="Installed MCP bridge configuration">{JSON.stringify({ command: bridge.command, args: ['--discovery', bridge.discovery] }, null, 2)}</pre></div>}
     {status.startup_error && <p role="alert">MCP could not start automatically: {status.startup_error}</p>}
@@ -59,7 +59,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
         <label className="settings-control">Client name <input maxLength={80} value={name} onChange={e => setName(e.target.value)} /></label>
         <fieldset disabled={busy}><legend>Client permissions</legend>
           <label className="settings-check"><input type="checkbox" checked={access.read} onChange={e => setAccess(e.target.checked ? defaultAccess : { ...defaultAccess, read: false })} />Read catalog</label>
-          {(['edit', 'export', 'paths'] as const).map(key => <label className="settings-check" key={key}><input type="checkbox" disabled={!access.read} checked={access[key]} onChange={e => setAccess(a => ({ ...a, [key]: e.target.checked }))} />{key === 'edit' ? 'Edit annotations and clips' : key === 'export' ? 'Export clips to approved destinations' : 'Reveal local paths'}</label>)}
+          {(['previews', 'edit', 'export', 'paths'] as const).map(key => <label className="settings-check" key={key}><input type="checkbox" disabled={!access.read} checked={access[key]} onChange={e => setAccess(a => ({ ...a, [key]: e.target.checked }))} />{key === 'previews' ? 'View image previews (pixels, up to 512 px)' : key === 'edit' ? 'Edit annotations, image tags and clips' : key === 'export' ? 'Export clips to approved destinations' : 'Reveal local paths'}</label>)}
           <fieldset disabled={!access.read}><legend>Allowed sources</legend>
             {roots.map(source => <label className="settings-check" key={source.id}><input type="checkbox" checked={access.source_ids.includes(source.id)} onChange={e => setAccess(a => ({ ...a, source_ids: e.target.checked ? [...a.source_ids, source.id] : a.source_ids.filter(id => id !== source.id) }))} />{source.name}</label>)}
             {!roots.length && <p className="muted">No sources available. Catalog results will be empty.</p>}
@@ -75,7 +75,7 @@ export function McpSettings({ onError, roots = [] }: { onError: (error: string) 
         <button onClick={() => setPairing(null)}>Hide credential</button>
       </div>}
       {destination && <p role="status">Approved for {status.clients.find(c => c.id === destination.clientId)?.name}: <code>{destination.path}</code> · Destination ID <code>{destination.id}</code>. Give this ID to that client for one export.</p>}
-      <ul aria-label="Paired MCP clients">{status.clients.map(client => <li key={client.id}>{client.name} · {client.access?.source_ids.length || 0} sources · {!client.access?.read ? 'Status only' : client.access?.edit ? 'Edit enabled' : 'Read only'}
+      <ul aria-label="Paired MCP clients">{status.clients.map(client => <li key={client.id}>{client.name} · {client.access?.source_ids.length || 0} sources · {!client.access?.read ? 'Status only' : client.access?.edit ? 'Edit enabled' : 'Read only'}{client.access?.previews ? ' · Image previews' : ''}
         {client.access?.export && <><button disabled={busy} onClick={() => void approveDestination(client.id, 'wav')}>Approve WAV destination for {client.name}</button><button disabled={busy} onClick={() => void approveDestination(client.id, 'flac')}>Approve FLAC destination for {client.name}</button></>} <button disabled={busy} onClick={() => { if (window.confirm(`Replace the credential for ${client.name}? Its current configuration will stop working.`)) void act('mcp_rotate', { id: client.id }); }}>Rotate token for {client.name}</button><button disabled={busy} onClick={() => void act('mcp_revoke', { id: client.id })}>Revoke {client.name}</button></li>)}</ul>
     </>}
   </section>;
