@@ -8,7 +8,7 @@ separately and are never replaced by a new file version or sidecar.
 
 Code: `crates/core/src/image_generation.rs` (reader),
 `crates/core/src/image_provenance.rs` (catalog), `generation_schema.sql`
-(schema v16). Rationale: [DECISIONS.md](DECISIONS.md) ("SS-055 generation
+(schema v17). Rationale: [DECISIONS.md](DECISIONS.md) ("SS-055 generation
 metadata"). Review evidence: [reviews/SS-055.md](reviews/SS-055.md).
 
 ## Supported formats (the allowlist)
@@ -69,7 +69,7 @@ expanded.
 - **Import.** New content is read once: the import already reads the image to
   hash it, and the metadata reader runs over the same buffer. The result is keyed
   by content hash and parser version.
-- **Upgraded libraries.** Images imported before schema v16 have no result. The
+- **Upgraded libraries.** Images imported before schema v17 have no result. The
   next Check files or refresh reads each one once, checking that the bytes still
   match the stored hash.
 - **Changed files.** A new content hash gets its own result; the old version's

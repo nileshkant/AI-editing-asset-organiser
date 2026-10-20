@@ -94,7 +94,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 16;
+pub const SCHEMA_VERSION: u32 = 17;
 
 pub(crate) fn upgrade_backup(db: &Connection, destination: &Path) -> Result<()> {
     let mut options = OpenOptions::new();
@@ -238,7 +238,8 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             if version < 13 { tx.execute_batch(include_str!("annotation_schema.sql"))?; }
             if version < 14 { tx.execute_batch(include_str!("image_refresh_schema.sql"))?; }
             if version < 15 { tx.execute_batch(include_str!("mixed_catalog_schema.sql"))?; }
-            if version < 16 { tx.execute_batch(include_str!("generation_schema.sql"))?; }
+            // v16 is reserved for SS-062 (exact-duplicate stacks), which merges first.
+            if version < 17 { tx.execute_batch(include_str!("generation_schema.sql"))?; }
             let violations: i64 = tx.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| r.get(0))?;
             if violations != 0 { return Err(invalid("Catalog has invalid references; upgrade rolled back")); }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;

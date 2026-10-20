@@ -280,6 +280,5 @@ from shared exports by default and the removal is recorded, so an importer sees
 "removed" instead of "unknown". Portable v2 gains an optional `generation` field
 instead of a v3: no released build reads v2 (neither v0.9.0-beta.1 nor
 v0.1.0-alpha.6 contains mixed catalogs), and v2 readers in this tree accept its
-absence. Schema v16 is additive. If another ticket lands a v16 first, the later
-merge takes the next free number and reruns the upgrade and fresh-equivalence
-tests.
+absence. Schema v17 is additive. Parallel tickets agreed on version numbers in
+merge order: SS-062 takes v16, SS-055 v17 and SS-058 v18.

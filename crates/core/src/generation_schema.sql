@@ -1,4 +1,4 @@
--- v16 (SS-055): generation metadata claims and user-authored prompt provenance.
+-- v17 (SS-055): generation metadata claims and user-authored prompt provenance.
 -- Embedded claims are content-bound and parser-versioned, like analyses.
 -- Sidecar claims and user provenance belong to one asset and survive content
 -- changes. Every write marks the folder snapshot dirty.

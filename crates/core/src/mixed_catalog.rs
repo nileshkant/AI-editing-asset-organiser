@@ -585,31 +585,31 @@ mod persistence_inventory {
         let image = old.register_image(&source, "kept.png", Some(&"a".repeat(64))).unwrap();
         drop(old);
         let c = Catalog::open(&path).unwrap();
-        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 16);
+        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 17);
         assert_eq!(c.image(&image.header.id, None).unwrap(), image, "v15 records are unchanged");
         let view = c.image_generation(&image.header.id).unwrap();
         assert_eq!((view.revision, view.embedded.is_none(), view.claims.len()), (0, true, 0), "not read yet, never fabricated");
         let fresh = Catalog::open(std::path::Path::new(":memory:")).unwrap();
         assert_eq!(master(&c.db), master(&fresh.db), "restore compares schemas exactly");
         let backup = std::fs::read_dir(d.path()).unwrap().map(|e| e.unwrap().path())
-            .find(|p| p.to_string_lossy().contains("pre-v16-")).unwrap();
+            .find(|p| p.to_string_lossy().contains("pre-v17-")).unwrap();
         let db = Connection::open(backup).unwrap();
         assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 15);
     }
 
     #[test]
-    fn v16_failure_rolls_back_and_keeps_the_v15_catalog_usable() {
+    fn v17_failure_rolls_back_and_keeps_the_v15_catalog_usable() {
         let d = tempfile::tempdir().unwrap();
         let path = d.path().join("v15.sqlite");
         let db = v15_database(&path);
-        // An object the v16 script creates already exists, so it fails mid-migration.
+        // An object the v17 script creates already exists, so it fails mid-migration.
         db.execute_batch("CREATE TABLE image_generation_sidecars(x);").unwrap();
         drop(db);
         assert!(Catalog::open(&path).is_err());
         let db = Connection::open(&path).unwrap();
         assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 15);
         let created: i64 = db.query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('image_generation_extractions','image_generation_provenance')", [], |r| r.get(0)).unwrap();
-        assert_eq!(created, 0, "nothing from v16 survives the rollback");
+        assert_eq!(created, 0, "nothing from v17 survives the rollback");
     }
 
     #[test]

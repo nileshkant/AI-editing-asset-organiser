@@ -14,7 +14,7 @@ the feature gate.
 | --- | --- | --- |
 | Portable JSON | `soundshelf-catalog/v1`, unchanged | `soundshelf-catalog/v2` |
 | Folder snapshot `.creativeshelf/catalog.json` | `creativeshelf-source/v1`, unchanged | `creativeshelf-source/v2` |
-| SQLite | schema v16 (v15 plus SS-055 generation tables) | schema v16 |
+| SQLite | schema v17 (adds SS-055 generation tables; v16 is SS-062's) | schema v17 |
 
 - v2 is v1 plus two arrays: `images` and (portable only) `image_tag_aliases`.
   Every audio field keeps its v1 meaning and shape.
@@ -174,13 +174,13 @@ backup. A failure leaves v14 intact (tested). An upgraded schema is identical to
 a fresh one, as restore requires (tested). A v14 binary cannot open a v15
 database; restore the pre-upgrade backup to go back.
 
-## Schema v16
+## Schema v17
 
 `generation_schema.sql` adds three tables for [generation metadata](GENERATION_METADATA.md):
 extractions keyed by content hash and parser version, one sidecar record per
 image, and one provenance record per image. Their triggers mark the folder
 snapshot dirty. The upgrade adds tables only, is transactional with a
-`*.pre-v16-<uuid>.sqlite` backup, and leaves v15 intact on failure (tested). An
+`*.pre-v17-<uuid>.sqlite` backup, and leaves the older version intact on failure (tested). An
 upgraded schema equals a fresh one (tested). Existing images are read for
 metadata on their next check.
 
