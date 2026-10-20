@@ -204,9 +204,11 @@ fn legacy_portable_snapshot_and_agent_payloads_remain_unchanged() {
         )
         .unwrap_err();
     assert_eq!(wrong.code, "PERMISSION_DENIED");
+    // SS-080 added the image tools; unshipped families are still refused.
+    assert!(library.execute("fixture-client", &access, "images.search", json!({})).is_ok());
     assert_eq!(
         library
-            .execute("fixture-client", &access, "images.search", json!({}))
+            .execute("fixture-client", &access, "elements.search", json!({}))
             .unwrap_err()
             .code,
         "INVALID_ARGUMENT"

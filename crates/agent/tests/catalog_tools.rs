@@ -439,6 +439,7 @@ async fn real_clip_export_is_owned_idempotent_and_preserves_original() {
         edit: true,
         export: true,
         paths: false,
+        previews: false,
     };
     let paired = agent
         .pair_with_access("editor".into(), scope.clone())
@@ -783,4 +784,71 @@ async fn cancelled_callers_cannot_bypass_blocking_work_limit() {
     .await
     .unwrap();
     assert_eq!(released.status(), 200);
+}
+
+/// SS-080 A1 over the real transport: find an untagged image, then tag it.
+/// Pixel previews through the image worker are covered in soundshelf-core's
+/// agent_images test; here, discovery and permission gates are checked.
+#[tokio::test]
+async fn image_tagging_slice_over_mcp_is_scoped_and_permissioned() {
+    let dir = tempdir().unwrap();
+    let root = dir.path();
+    for d in ["public", "secret"] {
+        fs::create_dir(root.join(d)).unwrap();
+    }
+    let mut c = Catalog::open(&root.join("catalog.sqlite")).unwrap();
+    let public = c.add_source(&root.join("public")).unwrap();
+    let secret = c.add_source(&root.join("secret")).unwrap();
+    let version = "b".repeat(64);
+    let image = c.register_image(&public, "boards/sunset.png", Some(&version)).unwrap().header.id;
+    c.register_image(&public, "boards/tagged.png", Some(&version)).unwrap();
+    let hidden = c.register_image(&secret, "sunset private.png", Some(&version)).unwrap().header.id;
+    let tagged = c.image_in_sources(&[public.id.clone()], &c.filtered_image_ids(&[public.id.clone()], &Default::default(), 1, 1).unwrap().ids[0], None).unwrap();
+    c.edit_image_annotations(&tagged.header.id, 1, &soundshelf_core::image_annotations::AnnotationPatch { add_tags: vec!["done".into()], ..Default::default() })
+        .unwrap();
+    let catalog = Arc::new(Mutex::new(c));
+    let exports = Arc::new(ExportService::new(root.join("journal")).unwrap());
+    let library = Arc::new(AgentLibrary::new(catalog, exports, None));
+    let agent = Agent::with_library(root.join("runtime/mcp.json"), library);
+    let endpoint = agent.start(0).unwrap().endpoint.unwrap();
+    let connect = |access: Access| {
+        let paired = agent.pair_with_access("images".into(), access).unwrap();
+        let http = reqwest::Client::builder().no_proxy().timeout(Duration::from_secs(5)).build().unwrap();
+        ().serve(StreamableHttpClientTransport::with_client(
+            http,
+            StreamableHttpClientTransportConfig::with_uri(endpoint.clone()).auth_header(paired.token),
+        ))
+    };
+    let read = Access { source_ids: vec![public.id.clone()], read: true, ..Default::default() };
+    let reader = connect(read.clone()).await.unwrap();
+    let names: Vec<String> = reader.list_all_tools().await.unwrap().into_iter().map(|t| t.name.to_string()).collect();
+    assert!(names.contains(&"images.search".into()) && names.contains(&"images.get".into()));
+    assert!(!names.iter().any(|n| n == "images.preview" || n == "images.annotate"), "{names:?}");
+    let (found, error) = call(&reader, "images.search", json!({"text": "sunset", "untagged_only": true})).await;
+    assert!(!error);
+    assert_eq!(found["total"], 1, "the other client's matching image is not counted");
+    assert_eq!(found["items"][0]["id"], image.as_str());
+    let (denied, error) = call(&reader, "images.preview", json!({"id": image, "version": version})).await;
+    assert!(error);
+    assert_eq!(denied["code"], "PERMISSION_DENIED");
+    let (hidden_get, _) = call(&reader, "images.get", json!({"id": hidden, "version": version})).await;
+    let (unknown_get, _) = call(&reader, "images.get", json!({"id": "7d444840-9dc0-41d3-8a6e-4e8a0f1c2b3d", "version": version})).await;
+    assert_eq!(hidden_get, unknown_get);
+    reader.cancel().await.unwrap();
+
+    let editor = connect(Access { edit: true, ..read }).await.unwrap();
+    let (got, _) = call(&editor, "images.get", json!({"id": image, "version": version})).await;
+    let revision = got["image"]["revision"].clone();
+    let (done, error) = call(&editor, "images.annotate", json!({"id": image, "version": version, "revision": revision, "add_tags": ["sunset", "warm light"]})).await;
+    assert!(!error, "{done}");
+    assert_eq!(done["tags"], json!(["sunset", "warm light"]));
+    let (stale, error) = call(&editor, "images.annotate", json!({"id": image, "version": version, "revision": revision, "add_tags": ["x"]})).await;
+    assert!(error);
+    assert_eq!(stale["code"], "ASSET_CHANGED");
+    let (untagged, _) = call(&editor, "images.search", json!({"untagged_only": true})).await;
+    assert_eq!(untagged["total"], 0);
+    let (by_tag, _) = call(&editor, "images.search", json!({"tags": ["Warm Light"]})).await;
+    assert_eq!(by_tag["items"][0]["id"], image.as_str());
+    editor.cancel().await.unwrap();
+    agent.stop();
 }

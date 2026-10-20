@@ -504,6 +504,10 @@ impl Catalog {
     /// One image, from the revision the editor last read. A concurrent change is
     /// a `Conflict`, never silently merged into the editor's view.
     pub fn edit_image_annotations(&mut self, id: &str, expected_revision: u32, patch: &AnnotationPatch) -> Result<EditResult> {
+        self.edit_image_annotations_as(id, expected_revision, patch, None)
+    }
+    /// Same edit, with the actor named in the undo history (SS-080 MCP clients).
+    pub fn edit_image_annotations_as(&mut self, id: &str, expected_revision: u32, patch: &AnnotationPatch, actor: Option<&str>) -> Result<EditResult> {
         let tx = self.immediate()?;
         let p = prepare(&tx, patch)?;
         let current = editable(&tx, id).map_err(item_error)?;
@@ -517,7 +521,11 @@ impl Catalog {
         let next = write(&tx, id, &current, next)?;
         entry.id = id.into();
         entry.after = next.revision;
-        let action_id = record(&tx, ActionKind::Edit, &label(&p, &removed, 1), &[entry], None)?;
+        let text = match actor {
+            Some(a) => truncate(format!("{a}: {}", label(&p, &removed, 1))),
+            None => label(&p, &removed, 1),
+        };
+        let action_id = record(&tx, ActionKind::Edit, &text, &[entry], None)?;
         tx.commit()?;
         Ok(EditResult { annotations: next, action_id })
     }

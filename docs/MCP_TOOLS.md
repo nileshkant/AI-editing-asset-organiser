@@ -1,6 +1,6 @@
-# Scoped catalog and clip MCP tools (SS-019)
+# Scoped catalog, clip and image MCP tools (SS-019, SS-080)
 
-Open Settings → Agent access, start MCP, enter a client name and explicitly select allowed sources. Read is separate from edit, export and local-path permissions; write/path permissions are off by default. No selected sources means empty catalog results. Pairings persist across Stop/Quit/restart; Stop disables automatic startup. Rotate to replace a credential, or revoke and re-pair to change permissions.
+Open Settings → Agent access, start MCP, enter a client name and explicitly select allowed sources. Read is separate from image preview, edit, export and local-path permissions; these are off by default. No selected sources means empty catalog results. Pairings persist across Stop/Quit/restart; Stop disables automatic startup. Rotate to replace a credential, or revoke and re-pair to change permissions.
 
 Discovery advertises only permitted tools, and direct calls also enforce permission checks. The authentication gate passes an internal client identity to the SDK handler; tool arguments cannot choose their owner or grant permissions. Pending requests recheck revocation before dispatch. Already accepted operations may finish; revocation requests cancellation of owned exports before the native publication boundary.
 
@@ -18,6 +18,15 @@ Discovery advertises only permitted tools, and direct calls also enforce permiss
 - `clips.export`: `{clip_id, revision, destination_id, options, idempotency_key}` returns `{job_id}` immediately. Options match native export: format `wav`/`flac`, optional sample rate and fades. Export permission required.
 - `jobs.get`: `{id}`. `jobs.list`: `{offset, limit}`. These show owned export jobs and import jobs from permitted sources. Import current filenames, lease details, selected paths and raw errors are omitted. `jobs.cancel` can cancel only the caller's export jobs; agents cannot cancel shared import jobs.
 - `catalog.export`: same filters/pagination as search, returning `catalog`, `root_map`, `total`, `next_offset`. The catalog is a valid portable subset with relative media paths and corresponding clips/annotations/evidence. Global saved searches are excluded. Root-map values are null unless path permission is granted.
+
+## Image tools (SS-080)
+
+- `images.search`: `{text, source_ids, tags, untagged_only, favorites_only, offset, limit}`, all optional. `text` is a case-insensitive substring of the relative path, caption or a tag; `tags` must all be present (same normalization as the app, so `blue_hour` matches `Blue Hour`). Results are in gallery order (path, case-folded) with `total` and `next_offset`; offsets go up to 100,000. Each item has `id`, `version` (content hash), `source_id`, `relative_path`, state, availability, size, format, transparency, `tags`, `caption`, `favorite`, `rating` and `revision`. Creator notes are never searched or returned, and absolute paths are never returned. Naming a source outside the pairing is `PERMISSION_DENIED`.
+- `images.get`: `{id, version}`; same item shape as search.
+- `images.preview`: `{id, version, size}` with size `small` (128 px), `medium` (256 px) or `large` (512 px, default) on the long edge. Requires the separate **View image previews** permission; existing pairings do not have it. Returns MCP image content (JPEG for opaque images, PNG when any pixel is transparent) plus a text and structured `meta` block with the preview and source dimensions. Previews come from the app's preview cache and check the version; a preview larger than the 2 MiB budget is refused rather than truncated. `NOT_READY` means the image has not been analyzed yet or the preview service is unavailable.
+- `images.annotate`: `{id, version, revision, add_tags, remove_tags}`; edit permission required, at least one change and at most 64 of each. `revision` is the item's annotation `revision`; a newer one is `ASSET_CHANGED`, never a silent merge. The change appears in the app's image undo history labeled "MCP client". Captions, notes and AI evidence are not writable through MCP.
+
+An ID outside the pairing's sources fails exactly like an unknown ID. Image search reads catalog rows only (no file system access): at the 100,000-image cap, an unfiltered page takes about 15–35 ms and a filtered one about 60–110 ms (release build, see the SS-080 review).
 
 Pagination defaults to 50, permits 1–100 items and offsets up to 1,000,000. Search/clip/job pages provide `next_offset`; null means end. Metadata can change between requests, so offset pagination is not a frozen snapshot. Read operations query indexed metadata without filesystem scanning, decoding or hashing. Availability reflects the catalog's last observation; resolve/export check current files and export verifies content hashes.
 
