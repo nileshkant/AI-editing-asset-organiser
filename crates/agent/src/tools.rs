@@ -33,16 +33,38 @@ fn authorization(context: &RequestContext<RoleServer>) -> Option<Authorization> 
         .cloned()
 }
 #[cfg(test)]
+mod ss080_preview_content {
+    use serde_json::json;
+    #[test]
+    fn previews_are_image_content_with_structured_meta_and_bounded() {
+        let ok = super::preview_result(json!({"image":{"mime_type":"image/png","data":"iVBORw0KGgo="},"meta":{"width":4}})).unwrap();
+        let blocks = serde_json::to_value(&ok.content).unwrap();
+        assert_eq!(blocks[0]["type"], "image");
+        assert_eq!((blocks[0]["mimeType"].as_str(), blocks[0]["data"].as_str()), (Some("image/png"), Some("iVBORw0KGgo=")));
+        assert_eq!(ok.structured_content, Some(json!({"meta":{"width":4}})));
+        assert_ne!(ok.is_error, Some(true));
+        let big = "A".repeat(super::MAX_RESPONSE_BYTES + 1);
+        let refused = super::preview_result(json!({"image":{"mime_type":"image/png","data":big},"meta":{}})).unwrap();
+        assert_eq!(refused.is_error, Some(true));
+        assert_eq!(refused.structured_content.unwrap()["code"], "RATE_LIMITED");
+        assert!(super::preview_result(json!({"meta":{}})).is_err());
+    }
+}
+#[cfg(test)]
 mod ss040_contract_surface {
     #[test]
-    fn audio_tool_surface_is_unchanged_and_images_are_not_advertised() {
+    fn audio_tool_surface_is_unchanged_and_only_the_image_slice_is_added() {
         let expected: serde_json::Value = serde_json::from_str(include_str!(
             "../../../fixtures/contracts/baseline-inventory.json"
         )).unwrap();
         let mut names: Vec<String> = super::definitions().iter().map(|t| t.name.to_string()).collect();
         names.sort();
-        assert_eq!(serde_json::json!(names), expected["mcp_methods"]);
-        assert!(!names.iter().any(|n| n.starts_with("images.") || n.starts_with("elements.")));
+        // SS-080 adds image tools; every baseline name stays exactly as it was.
+        let baseline: Vec<String> = serde_json::from_value(expected["mcp_methods"].clone()).unwrap();
+        let added: Vec<&String> = names.iter().filter(|n| !baseline.contains(n)).collect();
+        assert!(baseline.iter().all(|b| names.contains(b)));
+        assert_eq!(added, ["images.annotate", "images.get", "images.preview", "images.search"]);
+        assert!(!names.iter().any(|n| n.starts_with("elements.")));
     }
 }
 
@@ -120,6 +142,7 @@ impl ServerHandler for StatusService {
             ));
         };
         let method = request.name.to_string();
+        let preview = method == "images.preview";
         let result = tokio::task::spawn_blocking(move || {
             // Retain the request slot even if HTTP/SDK cancellation drops its caller.
             let _permit = auth.permit;
@@ -134,8 +157,9 @@ impl ServerHandler for StatusService {
         .await
         .map_err(|_| ErrorData::internal_error("Agent operation failed", None))?;
         match result {
+            Ok(value) if preview => preview_result(value).map(Into::into),
             Ok(value) => {
-                if value.to_string().len() > 2 * 1024 * 1024 {
+                if value.to_string().len() > MAX_RESPONSE_BYTES {
                     Ok(response(
                         json!({"code":"RATE_LIMITED","message":"Response exceeds 2 MiB; request a smaller page"}),
                         true,
@@ -151,6 +175,27 @@ impl ServerHandler for StatusService {
         }
     }
 }
+/// Pixels travel as MCP image content; metadata stays structured. The encoded
+/// image counts against the same 2 MiB budget as every other response.
+fn preview_result(value: Value) -> Result<CallToolResult, ErrorData> {
+    let (Some(data), Some(mime)) = (value["image"]["data"].as_str(), value["image"]["mime_type"].as_str()) else {
+        return Err(ErrorData::internal_error("Agent operation failed", None));
+    };
+    if data.len() > MAX_RESPONSE_BYTES {
+        let refusal = json!({"code":"RATE_LIMITED","message":"Preview exceeds 2 MiB; request a smaller size"});
+        let mut result = CallToolResult::error(vec![ContentBlock::text(refusal.to_string())]);
+        result.structured_content = Some(refusal);
+        return Ok(result);
+    }
+    let meta = value["meta"].clone();
+    let mut result = CallToolResult::success(vec![
+        ContentBlock::image(data.to_owned(), mime.to_owned()),
+        ContentBlock::text(meta.to_string()),
+    ]);
+    result.structured_content = Some(json!({"meta":meta}));
+    Ok(result)
+}
+const MAX_RESPONSE_BYTES: usize = 2 * 1024 * 1024;
 fn object(properties: Value, required: &[&str]) -> Value {
     json!({"type":"object","properties":properties,"required":required,"additionalProperties":false})
 }
@@ -190,9 +235,13 @@ fn definitions() -> Vec<Tool> {
         ("clips.list","Page clips for an authorized current sound",object(json!({"id":string,"version":version,"offset":page["offset"],"limit":page["limit"]}),&["id","version"])),
         ("clips.export","Start a bounded export job to a client-specific desktop-approved destination ID. Original media is immutable",object(json!({"clip_id":string,"revision":{"type":"integer","minimum":1},"destination_id":string,"options":options,"idempotency_key":key}),&["clip_id","revision","destination_id","options","idempotency_key"])),
         ("jobs.get","Get your export job or a permitted import job, with sanitized errors",object(json!({"id":string}),&["id"])),
-        ("jobs.list","List your export jobs and imports in authorized sources",object(page,&[])),
+        ("jobs.list","List your export jobs and imports in authorized sources",object(page.clone(),&[])),
         ("jobs.cancel","Cancel your own export job; publication already completed cannot be undone",object(json!({"id":string}),&["id"])),
-        ("catalog.export","Page an authorized portable catalog subset. Paths stay relative; root map is null without path permission",object(search,&[]))
+        ("catalog.export","Page an authorized portable catalog subset. Paths stay relative; root map is null without path permission",object(search,&[])),
+        ("images.search","Find images in authorized sources by path, caption or tag text, required tags, untagged or favorite. Metadata only; version is the content hash. Creator notes are never searched or returned",object(json!({"text":{"type":"string","maxLength":512},"source_ids":{"type":"array","maxItems":128,"items":string},"tags":{"type":"array","maxItems":64,"items":{"type":"string","maxLength":64}},"untagged_only":{"type":"boolean"},"favorites_only":{"type":"boolean"},"offset":{"type":"integer","minimum":0,"maximum":100000,"default":0},"limit":page["limit"]}),&[])),
+        ("images.get","Read an image's metadata by ID and expected version",object(json!({"id":string,"version":version}),&["id","version"])),
+        ("images.preview","View a bounded preview (long edge 128, 256 or 512 px) of an expected image version. Requires preview permission. Describe only what this preview shows",object(json!({"id":string,"version":version,"size":{"type":"string","enum":["small","medium","large"],"default":"large"}}),&["id","version"])),
+        ("images.annotate","Add or remove tags on an expected image version and annotation revision; recorded in the owner's undo history. Requires edit",object(json!({"id":string,"version":version,"revision":{"type":"integer","minimum":1},"add_tags":{"type":"array","maxItems":64,"items":{"type":"string","maxLength":64}},"remove_tags":{"type":"array","maxItems":64,"items":{"type":"string","maxLength":64}}}),&["id","version","revision"]))
     ];
     specs
         .into_iter()

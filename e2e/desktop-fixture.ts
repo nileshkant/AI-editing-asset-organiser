@@ -195,6 +195,10 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
             case 'mcp_status': return { endpoint: null, clients: [], startup_error: null };
             case 'ai_providers': return [{ id: 'local-vision', kind: 'openai_compatible', label: 'Local vision server', base_url: 'http://127.0.0.1:11434/v1', model: 'llava:13b', allow_local: true, key_storage: 'none', key_origin: null, revision: 2, locality: 'loopback', has_key: false,
               capabilities: { image_input: 'supported', structured_output: 'unsupported', embeddings: 'untested', tested_revision: 2, tested_at: 1792476930, model_version: 'llava:13b' } }];
+            case 'ai_features': return [
+              { feature: 'image_descriptions', state: 'unsupported', quality: { state: 'pending_evaluation' } },
+              { feature: 'semantic_search', state: 'unsupported', quality: { state: 'pending_evaluation' } },
+              { feature: 'offline_tagging', state: 'not_offered', quality: { state: 'pending_evaluation' } }];
             case 'relink_source': return source;
             case 'choose_folder': case 'choose_file': return null;
             case 'image_duplicate_groups': { const g = stackView(), listed = images && (args.includeHidden || !g.hidden) && args.offset === 0 ? [g] : [];

@@ -327,3 +327,11 @@ export type ProviderTestReport = {
   steps: { check: 'model_access' | 'image_input' | 'structured_output' | 'embeddings'; passed: boolean; error: { code: string; message: string } | null }[];
   usage: { input_tokens: number | null; output_tokens: number | null };
 };
+export type AiFeatureState =
+  | { state: 'ready'; provider_id: string; provider_label: string }
+  | { state: 'needs_key' | 'needs_test'; provider_id: string; provider_label: string }
+  | { state: 'needs_provider' | 'unsupported' | 'not_offered' };
+export type AiFeatureStatus = AiFeatureState & {
+  feature: 'image_descriptions' | 'semantic_search' | 'offline_tagging';
+  quality: { state: 'pending_evaluation' };
+};

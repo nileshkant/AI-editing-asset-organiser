@@ -307,6 +307,64 @@ mod tests {
         );
     }
 
+    #[test]
+    fn filtered_ids_follow_gallery_order_and_match_text_tags_and_flags() {
+        let (_d, c, sa, sb) = fixture();
+        for (s, path) in [(&sa, "b.png"), (&sa, "A.png"), (&sa, "a.png"), (&sa, "Ünïcode.png"), (&sb, "a.png"), (&sa, "c/z.webp")] {
+            bulk(&c, s, 1, path);
+        }
+        let set = |path: &str, json: &str| {
+            c.db.execute(
+                "UPDATE image_assets SET annotations=json_patch(annotations, ?2) WHERE id=(SELECT id FROM asset_registry WHERE relative_path=?1 AND source_id=?3)",
+                rusqlite::params![path, json, sa],
+            )
+            .unwrap();
+        };
+        set("b.png", r#"{"tags":["Blue Hour"],"favorite":true}"#);
+        set("c/z.webp", r#"{"caption":"A ZEBRA crossing","comment":"secret word"}"#);
+        let scope = [sa.clone()];
+        let run = |f: ImageFilter, offset, limit| c.filtered_image_ids(&scope, &f, offset, limit).unwrap();
+        let gallery: Vec<String> = c.image_gallery_page(Some(&scope), GallerySort::NameAsc, 0, 100).unwrap().items.into_iter().map(|i| i.header.id).collect();
+        assert_eq!(run(ImageFilter::default(), 0, 100).ids, gallery, "unfiltered matches the gallery");
+        let all = run(ImageFilter { text: Some(".".into()), ..Default::default() }, 0, 100);
+        assert_eq!((all.ids.clone(), all.total), (gallery.clone(), 5), "filtered order is the same gallery order");
+        let paged = run(ImageFilter { text: Some(".".into()), ..Default::default() }, 1, 2);
+        assert_eq!((paged.ids, paged.total), (gallery[1..3].to_vec(), 5));
+        let text = |t: &str| run(ImageFilter { text: Some(t.into()), ..Default::default() }, 0, 100).total;
+        assert_eq!((text("zebra"), text("HOUR"), text("üNÏ"), text("secret"), text("  ")), (1, 1, 1, 0, 5));
+        assert_eq!(run(ImageFilter { tags: vec!["blue_hour".into()], ..Default::default() }, 0, 100).total, 1);
+        assert_eq!(run(ImageFilter { favorites_only: true, ..Default::default() }, 0, 100).total, 1);
+        assert_eq!(run(ImageFilter { untagged_only: true, ..Default::default() }, 0, 100).total, 4);
+        assert!(c.filtered_image_ids(&scope, &ImageFilter { tags: vec!["".into()], ..Default::default() }, 0, 10).is_err());
+        assert_eq!(c.filtered_image_ids(&[], &ImageFilter::default(), 0, 10).unwrap().total, 0);
+        assert_eq!(c.filtered_image_ids(&[sb.clone()], &ImageFilter { text: Some("a".into()), ..Default::default() }, 0, 10).unwrap().total, 1);
+    }
+    /// SS-080 agent search cost at the 100,000-image cap. Release build:
+    /// `cargo test --release -p soundshelf-core --lib filtered_search_cost -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn filtered_search_cost_at_the_image_cap() {
+        let (_d, c, sa, _) = fixture();
+        bulk(&c, &sa, 100_000, "library/image%06d.png");
+        for (label, f, offset) in [
+            ("none", ImageFilter::default(), 0),
+            ("none deep", ImageFilter::default(), 99_000),
+            ("text zzz", ImageFilter { text: Some("zzz".into()), ..Default::default() }, 0),
+            ("text 1%", ImageFilter { text: Some("image0001".into()), ..Default::default() }, 0),
+            ("untagged deep", ImageFilter { untagged_only: true, ..Default::default() }, 99_000),
+            ("tag", ImageFilter { tags: vec!["sky".into()], ..Default::default() }, 0),
+        ] {
+            let mut times = vec![];
+            let mut total = 0;
+            for _ in 0..9 {
+                let start = Instant::now();
+                total = c.filtered_image_ids(&[sa.clone()], &f, offset, 50).unwrap().total;
+                times.push(start.elapsed());
+            }
+            times.sort();
+            eprintln!("filtered {label}: total {total} median {:?} max {:?}", times[4], times[8]);
+        }
+    }
     /// T3 scale check at the catalog's 100,000-image cap.
     #[test]
     fn full_catalog_windows_stay_bounded_at_the_image_cap() {
@@ -339,5 +397,141 @@ mod tests {
         let plan: Vec<String> = q.query_map([], |r| r.get(3)).unwrap().map(|r| r.unwrap()).collect();
         assert!(plan.iter().any(|p| p.contains("asset_registry_gallery")), "{plan:?}");
         assert!(!plan.iter().any(|p| p.contains("TEMP B-TREE")), "{plan:?}");
+    }
+}
+
+/// SS-080 agent filter over indexed rows. Notes are never matched, so a client
+/// cannot probe text it is not shown.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ImageFilter {
+    /// Case-insensitive substring of the relative path, caption or a tag.
+    pub text: Option<String>,
+    /// Every tag must be present (by tag identity).
+    pub tags: Vec<String>,
+    pub untagged_only: bool,
+    pub favorites_only: bool,
+}
+/// Matching image IDs in gallery order (path case-folded, path, ID) for one page,
+/// plus the total. Reads catalog rows only; never the file system.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilteredIds {
+    pub ids: Vec<String>,
+    pub total: u32,
+}
+
+/// Case-insensitive substring test against an already lowercased needle. ASCII
+/// text is compared in place; anything else is lowercased first.
+fn folded_contains(hay: &str, needle: &str) -> bool {
+    if hay.is_ascii() && needle.is_ascii() {
+        let (h, n) = (hay.as_bytes(), needle.as_bytes());
+        n.is_empty() || h.windows(n.len()).any(|w| w.eq_ignore_ascii_case(n))
+    } else {
+        hay.to_lowercase().contains(needle)
+    }
+}
+
+/// Image IDs are lowercase UUIDs (schema CHECK), so they key the in-memory join
+/// as integers without allocating.
+fn uuid_key(id: &str) -> Option<u128> {
+    let mut key = 0u128;
+    let mut digits = 0;
+    for b in id.bytes().filter(|&b| b != b'-') {
+        key = key << 4 | (b as char).to_digit(16)? as u128;
+        digits += 1;
+    }
+    (digits == 32).then_some(key)
+}
+
+/// The annotation fields the filter reads; the rest of the JSON is skipped.
+#[derive(Deserialize)]
+struct FilterFields {
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    favorite: bool,
+    #[serde(default)]
+    caption: Option<String>,
+}
+
+impl Catalog {
+    pub fn filtered_image_ids(&self, source_ids: &[String], filter: &ImageFilter, offset: u32, limit: u32) -> Result<FilteredIds> {
+        if limit == 0 || limit > MAX_PAGE_SIZE || offset > MAX_GALLERY_OFFSET {
+            return Err(invalid("Invalid image window"));
+        }
+        scoped(source_ids)?;
+        if source_ids.is_empty() {
+            return Ok(FilteredIds { ids: vec![], total: 0 });
+        }
+        let mut wanted = vec![];
+        for t in &filter.tags {
+            match crate::image_annotations::display_tag(t) {
+                Ok(Some(d)) => wanted.push(crate::image_annotations::tag_key(&d)),
+                _ => return Err(invalid("Invalid tag filter")),
+            }
+        }
+        let text = filter.text.as_deref().map(str::trim).filter(|t| !t.is_empty()).map(str::to_lowercase);
+        let marks = vec!["?"; source_ids.len()].join(",");
+        let member = "(r.source_id IN (SELECT id FROM sources WHERE scope='folder')
+                 OR EXISTS(SELECT 1 FROM source_files f WHERE f.source_id=r.source_id AND f.relative_path=r.relative_path))";
+        let params = rusqlite::params_from_iter(source_ids.iter());
+        if text.is_none() && wanted.is_empty() && !filter.untagged_only && !filter.favorites_only {
+            // No filter: the gallery index serves order and window directly. As in
+            // the gallery, a registry row without its image record is skipped by the caller.
+            let total: u32 = self.db.query_row(
+                &format!("SELECT count(*) FROM asset_registry r WHERE r.kind='image' AND r.source_id IN ({marks}) AND {member}"),
+                params.clone(),
+                |r| r.get(0),
+            )?;
+            let mut statement = self.db.prepare(&format!(
+                "SELECT r.id FROM asset_registry r WHERE r.kind='image' AND r.source_id IN ({marks}) AND {member}
+                 ORDER BY lower(r.relative_path), r.relative_path, r.id LIMIT {limit} OFFSET {offset}"
+            ))?;
+            let ids = statement.query_map(params, |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+            return Ok(FilteredIds { ids, total });
+        }
+        // Filtered: two sequential scans joined in memory. Annotations are read in
+        // storage order; order and paths come from the covering gallery index. A
+        // per-row lookup across the two tables cost ~0.3 s at 100K images.
+        let mut annotated: std::collections::HashMap<u128, bool> = std::collections::HashMap::with_capacity(1024);
+        let mut statement = self.db.prepare("SELECT id, annotations FROM image_assets")?;
+        let mut rows = statement.query([])?;
+        while let Some(row) = rows.next()? {
+            let a: FilterFields = serde_json::from_str(row.get_ref(1)?.as_str().map_err(rusqlite::Error::from)?)?;
+            if (filter.untagged_only && !a.tags.is_empty()) || (filter.favorites_only && !a.favorite) {
+                continue;
+            }
+            if !wanted.is_empty() {
+                let have: std::collections::HashSet<String> = a.tags.iter().map(|t| crate::image_annotations::tag_key(t)).collect();
+                if !wanted.iter().all(|w| have.contains(w)) {
+                    continue;
+                }
+            }
+            let text_hit = text.as_deref().is_some_and(|text| {
+                a.caption.as_deref().is_some_and(|c| folded_contains(c, text)) || a.tags.iter().any(|t| folded_contains(t, text))
+            });
+            if let Some(key) = uuid_key(row.get_ref(0)?.as_str().map_err(rusqlite::Error::from)?) {
+                annotated.insert(key, text_hit);
+            }
+        }
+        let mut statement = self.db.prepare(&format!(
+            "SELECT r.id, r.relative_path FROM asset_registry r WHERE r.kind='image' AND r.source_id IN ({marks}) AND {member}
+             ORDER BY lower(r.relative_path), r.relative_path, r.id"
+        ))?;
+        let mut rows = statement.query(params)?;
+        let (mut total, mut ids) = (0u32, vec![]);
+        while let Some(row) = rows.next()? {
+            let id = row.get_ref(0)?.as_str().map_err(rusqlite::Error::from)?;
+            let Some(&text_hit) = uuid_key(id).and_then(|k| annotated.get(&k)) else { continue };
+            if let Some(text) = &text {
+                if !text_hit && !folded_contains(row.get_ref(1)?.as_str().map_err(rusqlite::Error::from)?, text) {
+                    continue;
+                }
+            }
+            if total >= offset && ids.len() < limit as usize {
+                ids.push(id.to_owned());
+            }
+            total += 1;
+        }
+        Ok(FilteredIds { ids, total })
     }
 }
