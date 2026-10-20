@@ -8,7 +8,8 @@ it('explains actual capabilities and bundles the complete offline tool/access co
   expect(screen.getByText(/MCP cannot import files/)).toBeInTheDocument();
   expect(screen.getByText(/an audio-capable model that can actually listen/)).toBeInTheDocument();
   expect(screen.getByText(/Upgrading from alpha.5/)).toBeInTheDocument();
-  for (const tool of ['service_status', 'library.status', 'sources.list', 'sounds.facets', 'sounds.resolve', 'sounds.annotate', 'clips.create', 'clips.update', 'clips.get', 'clips.list', 'clips.export', 'jobs.get', 'jobs.list', 'jobs.cancel', 'catalog.export']) {
+  expect(screen.getByText(/describes only what that preview shows/)).toBeInTheDocument();
+  for (const tool of ['service_status', 'library.status', 'sources.list', 'sounds.facets', 'sounds.resolve', 'sounds.annotate', 'clips.create', 'clips.update', 'clips.get', 'clips.list', 'clips.export', 'jobs.get', 'jobs.list', 'jobs.cancel', 'catalog.export', 'images.search', 'images.get', 'images.preview', 'images.annotate']) {
     expect(screen.getAllByText(tool).length).toBeGreaterThan(0);
   }
   fireEvent.change(screen.getByLabelText('Reference document'), { target: { value: 'access' } });

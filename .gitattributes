@@ -1,2 +1,4 @@
 # Source-integrity hashes refer to upstream byte content, including line endings.
 vendor/glib/** -text
+# Evaluation inputs are compared and hashed byte for byte on every platform.
+eval/image-ai/** text eol=lf

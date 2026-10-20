@@ -17,6 +17,12 @@ beforeEach(() => {
   providers = [base];
   vi.mocked(call).mockImplementation(async (command, args) => {
     if (command === 'ai_providers') return providers;
+    if (command === 'ai_features') return [
+      providers.some(p => p.has_key)
+        ? { feature: 'image_descriptions', state: 'needs_test', provider_id: 'p1', provider_label: 'Studio OpenAI', quality: { state: 'pending_evaluation' } }
+        : { feature: 'image_descriptions', state: providers.length ? 'needs_key' : 'needs_provider', provider_id: 'p1', provider_label: 'Studio OpenAI', quality: { state: 'pending_evaluation' } },
+      { feature: 'offline_tagging', state: 'not_offered', quality: { state: 'pending_evaluation' } },
+    ];
     if (command === 'ai_provider_set_key') { providers = [{ ...base, key_storage: 'keychain', has_key: true, revision: 2 }]; return providers[0]; }
     if (command === 'ai_provider_test') {
       providers = [{ ...providers[0], capabilities: { ...base.capabilities, image_input: 'unsupported', structured_output: 'supported', tested_revision: 2, model_version: 'vision-model-2026' } }];
@@ -35,7 +41,8 @@ it('stores a key write-only, then tests explicitly and shows typed capability re
   const card = await screen.findByRole('article', { name: 'Provider Studio OpenAI' });
   expect(within(card).getByText(/No key/)).toBeVisible();
   expect(within(card).getByRole('button', { name: 'Test connection to Studio OpenAI' })).toBeDisabled();
-  expect(call).toHaveBeenCalledTimes(1);
+  expect(call).toHaveBeenCalledTimes(2);
+  expect(call).not.toHaveBeenCalledWith('ai_provider_test', expect.anything());
   const form = within(card).getByRole('form', { name: 'API key for Studio OpenAI' });
   const input = within(form).getByLabelText('API key');
   expect(input).toHaveAttribute('type', 'password');
@@ -87,4 +94,17 @@ it('requires an endpoint for compatible servers and reports refusals', async () 
   fireEvent.click(within(form).getByRole('button', { name: 'Add provider' }));
   await waitFor(() => expect(error).toHaveBeenCalledWith(expect.stringContaining('turn on local endpoints')));
   expect(screen.getByRole('form', { name: 'Add provider' })).toBeVisible();
+});
+
+it('keeps image AI features visible but disabled until a key is added and tested', async () => {
+  render(<AiProviderSettings onError={error} />);
+  const features = await screen.findByRole('region', { name: 'Image AI features' });
+  const item = within(features).getByText('Image descriptions and suggested tags').closest('li')!;
+  expect(item).toHaveAttribute('aria-disabled', 'true');
+  expect(item).toHaveTextContent('Add an API key for Studio OpenAI to enable');
+  expect(within(features).getByText(/Offline image tagging/).closest('li')).toHaveTextContent('Not available in this version');
+  const card = screen.getByRole('article', { name: 'Provider Studio OpenAI' });
+  fireEvent.change(within(card).getByLabelText('API key'), { target: { value: KEY } });
+  fireEvent.click(within(card).getByRole('button', { name: 'Save key for Studio OpenAI' }));
+  await waitFor(() => expect(within(screen.getByRole('region', { name: 'Image AI features' })).getByText(/Run Test connection for Studio OpenAI/)).toBeVisible());
 });

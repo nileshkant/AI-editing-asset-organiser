@@ -25,6 +25,9 @@ pub struct Access {
     pub edit: bool,
     pub export: bool,
     pub paths: bool,
+    /// SS-080: image pixels (bounded previews). Separate from metadata read;
+    /// absent in older pairings, so it defaults to off.
+    pub previews: bool,
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Failure {
@@ -32,7 +35,7 @@ pub struct Failure {
     pub message: &'static str,
 }
 type Result<T> = std::result::Result<T, Failure>;
-fn failure(code: &'static str) -> Failure {
+pub(crate) fn failure(code: &'static str) -> Failure {
     Failure {
         code,
         message: match code {
@@ -95,7 +98,7 @@ fn mapped(error: crate::Error) -> Failure {
         "INVALID_ARGUMENT"
     })
 }
-fn args<T: for<'de> Deserialize<'de>>(value: Value) -> Result<T> {
+pub(crate) fn args<T: for<'de> Deserialize<'de>>(value: Value) -> Result<T> {
     serde_json::from_value(value).map_err(|_| failure("INVALID_ARGUMENT"))
 }
 #[derive(Deserialize)]
@@ -194,6 +197,7 @@ pub struct AgentLibrary {
     pub exports: Arc<ExportService>,
     tools: Option<MediaTools>,
     operations: Mutex<Operations>,
+    pub(crate) image_previews: std::sync::OnceLock<Arc<crate::image_preview::PreviewService>>,
 }
 impl AgentLibrary {
     pub fn new(
@@ -206,12 +210,17 @@ impl AgentLibrary {
             exports,
             tools,
             operations: Mutex::new(Operations::default()),
+            image_previews: std::sync::OnceLock::new(),
         }
     }
     pub fn validate_access(&self, access: &Access) -> std::result::Result<(), String> {
         if access.source_ids.len() > 128
             || (!access.read
-                && (access.edit || access.export || access.paths || !access.source_ids.is_empty()))
+                && (access.edit
+                    || access.export
+                    || access.paths
+                    || access.previews
+                    || !access.source_ids.is_empty()))
         {
             return Err("Choose read access and at most 128 explicit sources".into());
         }
@@ -223,7 +232,11 @@ impl AgentLibrary {
         }
         Ok(())
     }
-    fn catalog(&self) -> Result<std::sync::MutexGuard<'_, Catalog>> {
+    /// The desktop's preview service; without it `images.preview` reports NOT_READY.
+    pub fn set_image_previews(&self, service: Arc<crate::image_preview::PreviewService>) {
+        let _ = self.image_previews.set(service);
+    }
+    pub(crate) fn catalog(&self) -> Result<std::sync::MutexGuard<'_, Catalog>> {
         self.catalog.lock().map_err(|_| failure("INTERNAL_ERROR"))
     }
     fn sound(c: &Catalog, access: &Access, id: &str, version: Option<&str>) -> Result<Sound> {
@@ -251,7 +264,8 @@ impl AgentLibrary {
     }
     pub fn allows(access: &Access, method: &str) -> bool {
         match method {
-            "sounds.annotate" | "clips.create" | "clips.update" => access.read && access.edit,
+            "sounds.annotate" | "clips.create" | "clips.update" | "images.annotate" => access.read && access.edit,
+            "images.preview" => access.read && access.previews,
             "clips.export" | "jobs.cancel" => access.read && access.export,
             "sounds.resolve" => access.read && access.paths,
             _ => access.read,
@@ -330,6 +344,9 @@ impl AgentLibrary {
         }
         if method.starts_with("jobs.") {
             return self.jobs(owner, access, method, value);
+        }
+        if method.starts_with("images.") {
+            return self.images(access, method, value);
         }
         let mut c = self.catalog()?;
         match method {
