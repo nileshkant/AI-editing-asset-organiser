@@ -252,7 +252,7 @@ notes stay private to the owner, and captions and AI evidence wait for SS-053's
 provenance model. Every client edit is in the image undo history labeled
 "MCP client".
 
-## SS-058 exact image search, saved searches and schema v16 (20 October 2026)
+## SS-058 exact image search, saved searches and schema v18 (20 October 2026)
 
 Image search uses a derived index (`image_search_docs`, `image_search_tags`, an
 FTS5 table) rather than querying annotation JSON. Triggers only queue asset ids

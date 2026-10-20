@@ -9,7 +9,7 @@
 //! selected-file membership) is applied before totals, facets, per-term counts
 //! and suggestions, so restricted sources never influence what a caller sees.
 //!
-//! The index (`image_search_*`, schema v16) is derived. Writers queue an
+//! The index (`image_search_*`, schema v18) is derived. Writers queue an
 //! identity in `image_search_dirty` inside their own transaction; `flush`
 //! rebuilds those documents before every read, so an edit is visible to the
 //! very next search without full scans, decodes or hashes.
@@ -1830,7 +1830,7 @@ mod tests {
         assert_eq!(db.query_row::<i64, _, _>("SELECT count(*) FROM sqlite_master WHERE name LIKE 'image_search%'", [], |r| r.get(0)).unwrap(), 0);
     }
     #[test]
-    fn v16_failure_rolls_back_and_keeps_the_v15_catalog_usable() {
+    fn v18_failure_rolls_back_and_keeps_the_v15_catalog_usable() {
         let d = tempfile::tempdir().unwrap();
         let path = d.path().join("v15.sqlite");
         let db = v15_database(&path);

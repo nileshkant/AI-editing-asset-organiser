@@ -1,4 +1,4 @@
--- Additive v16 (SS-058): exact image search index and saved image searches.
+-- Additive v18 (SS-058): exact image search index and saved image searches.
 -- The index is derived data. Writers only queue identities in image_search_dirty
 -- (same transaction as the change); image_search::flush rebuilds those documents
 -- in Rust before any search reads, so results always reflect committed edits.
