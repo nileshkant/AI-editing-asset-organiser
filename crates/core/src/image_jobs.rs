@@ -10,6 +10,10 @@ pub const MAX_JOB_BYTES: usize = 128 * 1024 * 1024;
 pub const LEASE_SECONDS: i64 = 180;
 pub const MAX_PATHS: usize = 256;
 pub const MAX_SELECTION_BYTES: usize = 1024 * 1024;
+/// Members recorded per discovery transaction. Each commit syncs the WAL, so a
+/// listed check of 100,000 members needs few, larger batches to fit its quantum
+/// on platforms where a sync costs milliseconds (Windows).
+pub(crate) const MAX_DISCOVERY_BATCH: usize = 256;
 const MAX_SEQUENCE: i64 = 9_007_199_254_740_991;
 pub type Result<T> = std::result::Result<T, ImportError>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
@@ -781,7 +785,7 @@ impl Catalog {
         owner: &str,
         entries: &[DiscoveredImport],
     ) -> Result<()> {
-        if entries.len() > 32
+        if entries.len() > MAX_DISCOVERY_BATCH
             || entries.iter().map(|e| e.relative_path.len()).sum::<usize>() > MAX_SELECTION_BYTES
         {
             return Err(ImportError::LimitExceeded);
@@ -827,16 +831,9 @@ impl Catalog {
             {
                 return Err(ImportError::PermissionDenied);
             }
-            let exists: bool = item_exists.query_row(params![id, e.relative_path], |r| r.get(0))?;
             upsert.execute(params![id, e.relative_path, wire(&e.media_kind)?, job.epoch])?;
-            if !exists {
-                tx.execute(
-                    "UPDATE image_import_jobs SET total=total+1 WHERE id=?1",
-                    [id],
-                )?;
-            }
         }
-        tx.execute("UPDATE image_import_jobs SET sequence=sequence+1,lease_until=?2,updated_at=?3 WHERE id=?1",params![id,now_secs()+LEASE_SECONDS,now_secs()])?;
+        tx.execute("UPDATE image_import_jobs SET total=total+?4,sequence=sequence+1,lease_until=?2,updated_at=?3 WHERE id=?1",params![id,now_secs()+LEASE_SECONDS,now_secs(),new_paths.len() as i64])?;
         drop((item_exists, in_scope, cataloged, upsert));
         tx.commit()?;
         Ok(())
