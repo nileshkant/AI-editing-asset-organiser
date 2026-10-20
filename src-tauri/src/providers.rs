@@ -81,6 +81,13 @@ pub async fn ai_provider_clear_key(state: tauri::State<'_, AppState>, id: String
     let p = state.providers.clone();
     blocking(move || p.clear_key(&id, revision)).await
 }
+/// SS-050: which image AI features a tested provider enables. Settings only;
+/// no keychain or network access.
+#[tauri::command]
+pub async fn ai_features(state: tauri::State<'_, AppState>) -> Result<Vec<soundshelf_core::image_ai::FeatureStatus>, String> {
+    let p = state.providers.clone();
+    blocking(move || p.list().map(|views| soundshelf_core::image_ai::feature_status(&views))).await
+}
 /// Explicit, user-initiated connection test; the only command that contacts a provider.
 #[tauri::command]
 pub async fn ai_provider_test(state: tauri::State<'_, AppState>, id: String, revision: u64, embeddings: bool) -> Result<TestReport, String> {
