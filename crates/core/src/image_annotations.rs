@@ -1313,11 +1313,11 @@ mod tests {
         let image = old.set_image_annotations(&image.header.id, Some(&"a".repeat(64)), &notes).unwrap();
         drop(old);
         let mut c = Catalog::open(&path).unwrap();
-        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 13);
+        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), crate::catalog::SCHEMA_VERSION);
         assert_eq!(c.image(&image.header.id, None).unwrap(), image, "existing annotations are untouched");
         let r = c.edit_image_annotations(&image.header.id, 2, &add(&["new"])).unwrap();
         assert_eq!(r.annotations.tags, ["kept", "new"]);
-        let backup = std::fs::read_dir(d.path()).unwrap().map(|e| e.unwrap().path()).find(|p| p.to_string_lossy().contains("pre-v13-")).unwrap();
+        let backup = std::fs::read_dir(d.path()).unwrap().map(|e| e.unwrap().path()).find(|p| p.to_string_lossy().contains(&format!("pre-v{}-", crate::catalog::SCHEMA_VERSION))).unwrap();
         let db = Connection::open(backup).unwrap();
         assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 12);
         assert_eq!(db.query_row("SELECT count(*) FROM sqlite_master WHERE name='image_tag_aliases'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);

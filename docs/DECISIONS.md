@@ -142,3 +142,38 @@ sources. Targets must be canonical, so aliases never chain.
 Schema v13 adds `image_tag_aliases` and `image_annotation_actions`. Aliases are
 durable user data that SS-048 must carry; until then they block audio-only
 portable export, like image rows. As with v12, v12 backups need the v12 binary.
+
+## SS-047 refresh, relink, opt-in watching and schema v14 (20 October 2026)
+
+Freshness is proven by bytes; stats only decide when bytes need reading.
+Imports and retries keep hashing every file (an existing test requires a
+same-size, same-mtime replacement to be detected). Quick checks trust a stored
+stat only when volume, file ID, size, modification time and change time all
+match and the file was written at least 2 s before the stat was recorded, the
+FAT timestamp resolution, to avoid the "racy timestamp" case. Change time (Unix
+`ctime`, NTFS `ChangeTime`) is included because ordinary tools cannot preserve
+it. Filesystems that hide it can still defeat a quick check, so exact byte
+verification is a separate, explicit action.
+
+Identity follows the OS file, never content alone. A new path keeps an existing
+record only if it is the same volume and file ID as exactly one record whose old
+path no longer exists as an exact directory entry. That covers renames and
+case-only renames, and rejects copies and hard links. Everything else is an
+explicit, revision-checked reattach that refuses to discard the duplicate's
+annotations. Missing members are inferred only from a complete walk or an
+individual not-found under a verified root. Absence and denied access no longer
+mark a member's technical state `failed`.
+
+Relink for image sources is two-phase: a bounded preview (stat every member,
+hash a sample) and a confirmation that re-reads the root identity and then
+queues an exact listed verification at the next generation. Asset IDs never
+change. The target comes only from the native picker, because a folder grant
+must be shown in a native selection.
+
+Watching uses `notify` 8.2.0 (the latest stable release; CC0-1.0, license texts
+retained) in the desktop adapter. The settling and coalescing logic is a pure
+core planner with injected time, so it is deterministic to test. Every way of
+losing events (bounded queue full, backend rescan flag, too many paths, app not
+running, drive away) collapses to one complete quick refresh rather than
+guesses. Watching is opt-in per source. Exact-file sources filter events to
+their listed members before queueing them.

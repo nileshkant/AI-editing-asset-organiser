@@ -32,6 +32,8 @@ pub static NATIVE_IMAGE_TESTS: Mutex<()> = Mutex::new(());
 
 pub struct AppState {
     pub image_imports: Arc<crate::image_import::ImageImports>,
+    pub image_watchers: Arc<crate::image_watch::ImageWatchers>,
+    pub image_relinks: Arc<soundshelf_core::image_relink::ImageRelinks>,
     pub image_previews: Arc<crate::image_preview::ImagePreviews>,
     pub agent: Arc<soundshelf_agent::Agent>,
     pub agent_library: Arc<soundshelf_core::agent::AgentLibrary>,
@@ -228,7 +230,11 @@ impl AppState {
         let agent_library=Arc::new(soundshelf_core::agent::AgentLibrary::new(catalog.clone(),exports.clone(),tools.clone()));
         let image_imports=Arc::new(crate::image_import::ImageImports::new(catalog.clone(),&resources,tools.clone()));
         let image_previews=Arc::new(crate::image_preview::ImagePreviews::new(&data_directory,&catalog,image_imports.helper.clone()));
+        let events=image_imports.clone();
+        let image_watchers=Arc::new(crate::image_watch::ImageWatchers::new(catalog.clone(),image_imports.enabled,Some(Arc::new(move|job|events.emit(job)))));
         let state = Self {
+            image_watchers,
+            image_relinks: Arc::new(Default::default()),
             image_imports,
             image_previews,
             agent: Arc::new(soundshelf_agent::Agent::persistent(data_directory.join("runtime/mcp.json"), data_directory.join("mcp-access.sqlite"), Some(agent_library.clone()))),
@@ -333,6 +339,7 @@ impl AppState {
     }
 
     pub fn shutdown(&self) {
+        self.image_watchers.shutdown();
         self.image_imports.shutdown();
         self.image_previews.shutdown();
         self.agent.stop();

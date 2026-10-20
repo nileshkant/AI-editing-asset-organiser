@@ -5,6 +5,8 @@ import { usePlayback } from './hooks/usePlayback';
 import { useAudioSearch } from './hooks/useAudioSearch';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useImageImports } from './hooks/useImageImports';
+import { useImageSources } from './hooks/useImageSources';
+import { ImageSources } from './components/views/ImageSources';
 import { ImageImports } from './components/views/ImageImports';
 import { useDragDrop } from './hooks/useDragDrop';
 import { Sidebar } from './components/layout/Sidebar';
@@ -39,6 +41,7 @@ export function App() {
   const imagesVisible = imageImports.enabled || imageImports.metadataPresent;
   const imageRevision = useMemo(() => imageImports.jobs.map(j => `${j.id}:${j.sequence}`).join(','), [imageImports.jobs]);
   const gallery = useImageGallery(imageRevision, imageImports.resets);
+  const imageSources = useImageSources(imageImports.enabled, imageImports.jobs, setError, page === 'imports');
   const { dropping } = useDragDrop(search.importPath, setError, { ready: imageImports.available, enabled: imageImports.enabled });
 
   const guard = useCallback(
@@ -385,6 +388,7 @@ export function App() {
 
         {page === 'imports' && (
           <div className="imports-workspace">
+          {imageImports.enabled && <ImageSources controller={imageSources} onRelink={id => setRelink(search.roots.find(r => r.id === id) || null)} />}
           <ImageImports controller={imageImports} sources={search.roots} />
           {(search.jobs.length > 0 || (!imageImports.enabled && !imageImports.metadataPresent && imageImports.jobs.length === 0)) && <ImportsView
             jobs={search.jobs}
@@ -432,10 +436,12 @@ export function App() {
       {relink && (
         <RelinkModal
           source={relink}
+          image={imageImports.enabled && imageSources.sources.some(s => s.source_id === relink.id)}
           onClose={() => setRelink(null)}
           onRelinked={async () => {
             setRelink(null);
             search.refresh();
+            void imageSources.refresh();
           }}
           onError={setError}
         />

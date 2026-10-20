@@ -177,7 +177,7 @@ describe('ImageGallery states', () => {
   const controller = (over = {}) => ({ version: 0, sourceId: '', setSourceId: vi.fn(), sort: 'name_asc' as const, setSort: vi.fn(), total: 0, error: '', item: () => undefined,
     ensure: vi.fn(), refresh: vi.fn(), selected: new Map<string, ImageSummary>(), toggle: vi.fn(), clearSelection: vi.fn(), ...over });
   const source: Source = { id: 's1', name: 'Shoot', root: '/shoot', generation: 0, available: true, scope: 'folder', files: [] };
-  const job = (over: Partial<ImageImportJob>): ImageImportJob => ({ id: 'j', source_id: 's1', source_generation: '0', sequence: '1', mode: 'images', state: 'running', phase: 'analysis', discovery_complete: true, history_truncated: false, total: 10, completed: 4, ready: 3, reused: 0, failed: 0, unsupported: 0, current: '', error_code: null, ...over });
+  const job = (over: Partial<ImageImportJob>): ImageImportJob => ({ id: 'j', source_id: 's1', source_generation: '0', sequence: '1', mode: 'images', state: 'running', phase: 'analysis', discovery_complete: true, history_truncated: false, total: 10, completed: 4, ready: 3, reused: 0, failed: 0, unsupported: 0, current: '', error_code: null, scan: 'discover', verify: true, origin: 'import', ...over });
   it('explains no sources, empty views, running imports and partial failures with actions', () => {
     const open = vi.fn();
     const { rerender } = render(<ImageGallery gallery={controller()} sources={[]} jobs={[]} onOpenImports={open} />);

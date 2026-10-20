@@ -31,10 +31,17 @@ function ItemDetails({ job }: { job: ImageImportJob }) {
     }}>More files</button>}
   </div>;
 }
+/** SS-047: say what a job checks, not only its media mode. */
+export function jobLabel(job: ImageImportJob) {
+  const media = job.mode === 'mixed' ? 'images and audio' : 'images';
+  if (job.origin === 'relink') return `Relink verification · ${media}`;
+  const what = job.scan === 'listed' ? (job.verify ? 'Byte verification' : 'File check') : job.origin === 'watch' ? 'Watched changes' : job.origin === 'refresh' ? 'Refresh' : '';
+  return what ? `${what} · ${media}` : job.mode === 'mixed' ? 'Images and audio' : 'Images';
+}
 function ImportJob({ job, controller }: { job: ImageImportJob; controller: ImageImportsController }) {
   const [expanded, setExpanded] = useState(false), [busy, setBusy] = useState(false);
   return <article className="job-row" aria-label={`${job.mode} import ${job.id}`}>
-    <div className="job-heading"><strong>{job.mode === 'mixed' ? 'Images and audio' : 'Images'}</strong><span className={job.state === 'failed' ? 'import-error' : undefined}>{job.state}{!importTerminal(job) ? ` · ${job.phase}` : ''}</span></div>
+    <div className="job-heading"><strong>{jobLabel(job)}</strong><span className={job.state === 'failed' ? 'import-error' : undefined}>{job.state}{!importTerminal(job) ? ` · ${job.phase}` : ''}</span></div>
     <progress aria-label="Media import progress" value={job.completed} max={Math.max(1, job.total)} />
     <p>{job.completed} / {job.total} files · {job.ready} ready · {job.reused} reused · {job.failed} failed · {job.unsupported} unsupported</p>
     <small className="path-text">{job.current}</small>

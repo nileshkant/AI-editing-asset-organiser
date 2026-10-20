@@ -103,6 +103,7 @@ impl Catalog {
         }
         crate::image_catalog::validate_image_database(&source)?;
         crate::image_jobs::validate_database(&source).map_err(|_|invalid("Backup image import metadata is inconsistent"))?;
+        crate::image_sources::validate_tables(&source).map_err(|_|invalid("Backup image source monitoring is inconsistent"))?;
         // Search metadata is derived: a valid SQLite file must also agree with
         // its authoritative profiles before it can replace the live catalog.
         let stale: i64 = source.query_row(

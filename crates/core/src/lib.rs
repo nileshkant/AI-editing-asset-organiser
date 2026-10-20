@@ -54,3 +54,7 @@ pub mod image_preview;
 pub mod image_gallery;
 pub mod image_annotations;
 mod image_preview_render;
+
+pub mod image_sources;
+pub mod image_relink;
+pub mod image_watch;

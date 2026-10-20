@@ -92,6 +92,12 @@
   margin: 0 0 24px;
 }
 
+/* Checkbox consent rows stay horizontal inside modal forms. */
+.modal label.settings-check {
+  flex-direction: row;
+  font-size: 13px;
+}
+
 .modal label {
   display: flex;
   flex-direction: column;

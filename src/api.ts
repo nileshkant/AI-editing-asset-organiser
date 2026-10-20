@@ -142,6 +142,20 @@ export const cancelImageImport = (job: import('./types').ImageImportJob) => call
 export const retryImageImport = (job: import('./types').ImageImportJob) => call<import('./types').ImageImportJob>('retry_image_import', { id: job.id, sourceGeneration: job.source_generation });
 export const importedImages = (sourceId: string, after: string | null = null) => call<import('./types').ImportedImagePage>('imported_images', { sourceId, after });
 
+// SS-047: refresh, opt-in watching, relink (native picker only) and explicit moves.
+export const imageSourceStatuses = () => call<import('./types').ImageSourceStatus[]>('image_source_statuses');
+export const checkImageSource = (id: string) => call<import('./types').ImageSourceStatus>('check_image_source', { id });
+export const refreshImageSource = (id: string, scan: 'discover' | 'listed', verify: boolean) =>
+  call<import('./types').ImageImportJob>('refresh_image_source', { id, scan, verify });
+export const setImageSourceWatch = (id: string, enabled: boolean) => call<import('./types').ImageSourceStatus>('set_image_source_watch', { id, enabled });
+export const chooseImageRelink = (id: string) => call<import('./types').ImageRelinkPreview | null>('choose_image_relink', { id });
+export const confirmImageRelink = (previewId: string, acknowledged: boolean) =>
+  call<import('./types').ImageImportJob>('confirm_image_relink', { previewId, acknowledged });
+export const cancelImageRelink = (previewId: string) => call<void>('cancel_image_relink', { previewId });
+export const imageMoveCandidates = (sourceId: string) => call<import('./types').ImageMoveCandidate[]>('image_move_candidates', { sourceId });
+export const reconcileImageMove = (c: import('./types').ImageMoveCandidate) =>
+  call<unknown>('reconcile_image_move', { missingId: c.missing_id, presentId: c.present_id, missingRevision: c.missing_revision, presentRevision: c.present_revision });
+
 type PreviewTarget = { assetId: string; version: string; tier: import('./types').ImagePreviewTier; tile: [number, number] | null };
 /**
  * Parses the SS-044 binary preview envelope (`CSPV`, u32 LE metadata length,

@@ -7,6 +7,11 @@ use crate::{
     image_jobs::{
         self, check_lease, finish_item_with_warnings_on, DiscoveredImport, ImageImportItem,
         ImageImportJob, ImportError as E, ImportItemState, ImportMedia, ImportPhase, Result,
+        ScanKind,
+    },
+    image_sources::{
+        app_owned_or_transient, exact_entry_exists, mark_root, record_stamp, root_state,
+        trusted_unchanged, FileStamp,
     },
     jobs::now_secs,
     media::MediaTools,
@@ -134,13 +139,10 @@ impl ImageImportEngine {
         let stamp = match stamp {
             Ok(s) => s,
             Err(e) => {
-                if e == E::SourceUnavailable {
+                if matches!(e, E::SourceUnavailable | E::Inaccessible) {
                     let c = lock(&self.catalog)?;
                     check_lease(c.db_connection(), &job.id, owner, now_secs())?;
-                    c.db_connection().execute(
-                        "UPDATE sources SET available=0 WHERE id=?1 AND generation=?2",
-                        params![source.id, source.generation],
-                    )?;
+                    mark_root(c.db_connection(), source, root_state(e))?;
                 }
                 return Err(e);
             }
@@ -149,10 +151,7 @@ impl ImageImportEngine {
             if !RootStamp::equivalent(expected, &stamp.json()?)? {
                 let c = lock(&self.catalog)?;
                 check_lease(c.db_connection(), &job.id, owner, now_secs())?;
-                c.db_connection().execute(
-                    "UPDATE sources SET available=0 WHERE id=?1 AND generation=?2",
-                    params![source.id, source.generation],
-                )?;
+                mark_root(c.db_connection(), source, root_state(E::SourceChanged))?;
                 return Err(E::SourceChanged);
             }
         }
@@ -200,6 +199,9 @@ impl ImageImportEngine {
         cancel: &AtomicBool,
     ) -> Result<()> {
         let end = Instant::now() + DISCOVERY_DEADLINE;
+        if job.scan == ScanKind::Listed {
+            return self.discover_listed(job, owner, source, end, cancel);
+        }
         let mut batch = vec![];
         let mut complete = true;
         let mut count = 0usize;
@@ -235,6 +237,15 @@ impl ImageImportEngine {
                 };
                 if entry.depth() > MAX_DEPTH {
                     complete = false;
+                    if entry.file_type().is_dir() {
+                        walk.skip_current_dir();
+                    }
+                    continue;
+                }
+                // App-owned sidecars, export staging and temporaries are never members.
+                if entry.depth() > 0
+                    && entry.file_name().to_str().is_none_or(app_owned_or_transient)
+                {
                     if entry.file_type().is_dir() {
                         walk.skip_current_dir();
                     }
@@ -386,7 +397,7 @@ impl ImageImportEngine {
         }
         drop(c);
         match kind {
-            ImportMedia::Image => self.image(j, owner, s, item, cancel),
+            ImportMedia::Image => self.image(j, owner, s, item, &path, cancel),
             ImportMedia::Audio => self.audio(j, owner, s, item, &path, cancel),
             ImportMedia::Unsupported => {
                 lock(&self.catalog)?.image_import_finish_item(
@@ -409,13 +420,31 @@ impl ImageImportEngine {
         owner: &str,
         s: &Source,
         item: &ImageImportItem,
+        path: &Path,
         cancel: Arc<AtomicBool>,
     ) -> Result<()> {
+        let before = FileStamp::read(path).ok();
+        if !j.verify {
+            if let Some(stamp) = &before {
+                if self.unchanged_image(j, owner, s, item, stamp)? {
+                    return Ok(());
+                }
+            }
+        }
         let selection =
             ImageSelection::capture(&*lock(&self.catalog)?, &s.id, &item.relative_path)?;
         let digest = selection.hash(&cancel)?;
+        // Record stat evidence only if nothing was written while hashing.
+        let stable = before.filter(|b| {
+            FileStamp::read(path)
+                .ok()
+                .is_some_and(|after| after.unchanged_since(b))
+        });
         self.verify_root(j, owner, s)?;
         check(&cancel)?;
+        if let Some(stamp) = &stable {
+            self.adopt_moved(j, owner, s, item, &digest, stamp)?;
+        }
         let image = lock(&self.catalog)?
             .register_image_when(s, &item.relative_path, Some(&digest), |db| {
                 fence(db, j, owner)
@@ -441,6 +470,9 @@ impl ImageImportEngine {
             add_extension_warning(&mut warnings, &item.relative_path, &profile);
             lock(&self.catalog)?
                 .publish_image_when(s, &image.header.id, &digest, &profile, |db| {
+                    if let Some(stamp) = &stable {
+                        record_stamp(db, &image.header.id, &digest, stamp)?;
+                    }
                     finish_item_with_warnings_on(
                         db,
                         &j.id,
@@ -470,6 +502,9 @@ impl ImageImportEngine {
                 .collect::<Vec<_>>();
             verified
                 .publish_when(&mut *lock(&self.catalog)?, |db| {
+                    if let Some(stamp) = &stable {
+                        record_stamp(db, &image.header.id, &digest, stamp)?;
+                    }
                     db.execute(
                         "INSERT OR IGNORE INTO image_analysis_warnings VALUES(?1,?2,?3)",
                         params![
@@ -506,6 +541,14 @@ impl ImageImportEngine {
         cancel: Arc<AtomicBool>,
     ) -> Result<()> {
         let end = Instant::now() + QUANTUM_DEADLINE;
+        let before = FileStamp::read(path).ok();
+        if !j.verify {
+            if let Some(stamp) = &before {
+                if self.unchanged_audio(j, owner, s, item, stamp)? {
+                    return Ok(());
+                }
+            }
+        }
         let digest = hash_audio(path, &cancel, end)?;
         self.verify_root(j, owner, s)?;
         let (id, cached) = {
@@ -534,10 +577,18 @@ impl ImageImportEngine {
         if hash_audio(&current, &cancel, end)? != digest {
             return Err(E::SourceChanged);
         }
+        let stable = before.filter(|b| {
+            FileStamp::read(&current)
+                .ok()
+                .is_some_and(|after| after.unchanged_since(b))
+        });
         self.verify_root(j, owner, s)?;
         check(&cancel)?;
         lock(&self.catalog)?
             .publish_when(s, &id, &digest, &profile, |db| {
+                if let Some(stamp) = &stable {
+                    record_stamp(db, &id, &digest, stamp)?;
+                }
                 finish_item_with_warnings_on(
                     db,
                     &j.id,
@@ -553,6 +604,179 @@ impl ImageImportEngine {
                 .map_err(|_| crate::invalid("Import publication rejected"))
             })
             .map_err(core_error)?;
+        Ok(())
+    }
+    /// Listed checks enumerate cataloged members in bounded batches; they never
+    /// walk the folder and so never infer missing members from absence.
+    fn discover_listed(
+        &self,
+        job: &ImageImportJob,
+        owner: &str,
+        source: &Source,
+        end: Instant,
+        cancel: &AtomicBool,
+    ) -> Result<()> {
+        let mixed = job.mode == image_jobs::ImportMode::Mixed;
+        let mut after = String::new();
+        loop {
+            check(cancel)?;
+            if Instant::now() >= end {
+                return Err(E::TimedOut);
+            }
+            let c = lock(&self.catalog)?;
+            let batch = c.db_connection().prepare_cached("SELECT relative_path,kind FROM asset_registry WHERE source_id=?1 AND relative_path>?2 AND (kind='image' OR (?3 AND kind='audio')) ORDER BY relative_path LIMIT 32")?
+                .query_map(params![source.id,after,mixed],|r|Ok(DiscoveredImport{relative_path:r.get(0)?,media_kind:if r.get::<_,String>(1)?=="audio"{ImportMedia::Audio}else{ImportMedia::Image}}))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let Some(last) = batch.last() else {
+                break;
+            };
+            after = last.relative_path.clone();
+            c.image_import_discovered(&job.id, owner, &batch)?;
+        }
+        let c = lock(&self.catalog)?;
+        let tx = Transaction::new_unchecked(c.db_connection(), TransactionBehavior::Immediate)?;
+        check_lease(&tx, &job.id, owner, now_secs())?;
+        tx.execute(
+            "DELETE FROM image_import_items WHERE job_id=?1 AND discovered_epoch!=?2",
+            params![job.id, job.epoch],
+        )?;
+        tx.execute("UPDATE image_import_jobs SET total=(SELECT count(*) FROM image_import_items WHERE job_id=?1) WHERE id=?1",[&job.id])?;
+        tx.commit()?;
+        c.image_import_discovery_finished(&job.id, owner, true)?;
+        Ok(())
+    }
+    /// Quick-check fast path: the trusted stat still matches the verified ready
+    /// version, so finish the member without reading or decoding its bytes.
+    fn unchanged_image(
+        &self,
+        j: &ImageImportJob,
+        owner: &str,
+        s: &Source,
+        item: &ImageImportItem,
+        stamp: &FileStamp,
+    ) -> Result<bool> {
+        let c = lock(&self.catalog)?;
+        let tx = Transaction::new_unchecked(c.db_connection(), TransactionBehavior::Immediate)?;
+        check_lease(&tx, &j.id, owner, now_secs())?;
+        let row: Option<(String, Option<String>, String, Option<String>)> = tx.query_row("SELECT r.id,i.content_hash,i.technical_state,i.analyzer_version FROM asset_registry r JOIN image_assets i ON i.id=r.id WHERE r.source_id=?1 AND r.relative_path=?2 AND r.kind='image'",params![s.id,item.relative_path],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
+        let Some((id, Some(hash), technical, Some(analyzer))) = row else {
+            return Ok(false);
+        };
+        if technical != "ready"
+            || analyzer != image_analysis::ANALYZER
+            || !trusted_unchanged(&tx, &id, &hash, stamp)?
+        {
+            return Ok(false);
+        }
+        let Some(profile) = c
+            .cached_image_profile(&hash, image_analysis::ANALYZER)
+            .map_err(core_error)?
+        else {
+            return Ok(false);
+        };
+        let stored:Option<String>=tx.query_row("SELECT warnings FROM image_analysis_warnings WHERE content_hash=?1 AND analyzer_version=?2",params![hash,image_analysis::ANALYZER],|r|r.get(0)).optional()?;
+        let mut warnings: Vec<AnalysisWarning> = stored
+            .map(|w| serde_json::from_str(&w))
+            .transpose()?
+            .unwrap_or_default();
+        add_extension_warning(&mut warnings, &item.relative_path, &profile);
+        tx.execute(
+            "UPDATE image_assets SET availability='available' WHERE id=?1 AND availability!='available'",
+            [&id],
+        )?;
+        finish_item_with_warnings_on(
+            &tx,
+            &j.id,
+            owner,
+            &item.relative_path,
+            ImportItemState::Ready,
+            Some(&id),
+            Some(&hash),
+            None,
+            true,
+            &warnings,
+        )?;
+        tx.commit()?;
+        Ok(true)
+    }
+    fn unchanged_audio(
+        &self,
+        j: &ImageImportJob,
+        owner: &str,
+        s: &Source,
+        item: &ImageImportItem,
+        stamp: &FileStamp,
+    ) -> Result<bool> {
+        let c = lock(&self.catalog)?;
+        let tx = Transaction::new_unchecked(c.db_connection(), TransactionBehavior::Immediate)?;
+        check_lease(&tx, &j.id, owner, now_secs())?;
+        let row: Option<(String, String, String)> = tx.query_row("SELECT id,content_hash,status FROM sounds WHERE source_id=?1 AND relative_path=?2",params![s.id,item.relative_path],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+        let Some((id, hash, status)) = row else {
+            return Ok(false);
+        };
+        if !matches!(status.as_str(), "ready" | "missing")
+            || !c.has_cached_profile(&hash).map_err(core_error)?
+            || !trusted_unchanged(&tx, &id, &hash, stamp)?
+        {
+            return Ok(false);
+        }
+        tx.execute(
+            "UPDATE sounds SET status='ready' WHERE id=?1 AND status!='ready'",
+            [&id],
+        )?;
+        finish_item_with_warnings_on(
+            &tx,
+            &j.id,
+            owner,
+            &item.relative_path,
+            ImportItemState::Ready,
+            Some(&id),
+            Some(&hash),
+            None,
+            true,
+            &[],
+        )?;
+        tx.commit()?;
+        Ok(true)
+    }
+    /// A new path that is provably the same OS file as exactly one record whose
+    /// old path no longer exists keeps that record's identity (rename, case-only
+    /// rename). Equal content alone, copies and hard links stay separate records.
+    fn adopt_moved(
+        &self,
+        j: &ImageImportJob,
+        owner: &str,
+        s: &Source,
+        item: &ImageImportItem,
+        digest: &str,
+        stamp: &FileStamp,
+    ) -> Result<()> {
+        let candidates: Vec<(String, String)> = {
+            let c = lock(&self.catalog)?;
+            let db = c.db_connection();
+            let taken: bool = db.query_row("SELECT EXISTS(SELECT 1 FROM asset_registry WHERE source_id=?1 AND relative_path=?2)",params![s.id,item.relative_path],|r|r.get(0))?;
+            if taken {
+                return Ok(());
+            }
+            let rows = db.prepare("SELECT r.id,r.relative_path FROM asset_file_stats f JOIN asset_registry r ON r.id=f.asset_id JOIN image_assets i ON i.id=r.id
+                WHERE f.volume=?1 AND f.file_id=?2 AND f.content_hash=?3 AND i.content_hash=?3 AND r.source_id=?4 AND r.kind='image' AND r.relative_path!=?5 LIMIT 2")?
+                .query_map(params![stamp.volume,stamp.file,digest,s.id,item.relative_path],|r|Ok((r.get(0)?,r.get(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            rows
+        };
+        let [(id, old)] = candidates.as_slice() else {
+            return Ok(());
+        };
+        if exact_entry_exists(Path::new(&s.root), old) {
+            return Ok(());
+        }
+        let c = lock(&self.catalog)?;
+        let tx = Transaction::new_unchecked(c.db_connection(), TransactionBehavior::Immediate)?;
+        check_lease(&tx, &j.id, owner, now_secs())?;
+        c.validate_source_entry(&s.id, &item.relative_path)
+            .map_err(|_| E::PermissionDenied)?;
+        tx.execute("UPDATE asset_registry SET relative_path=?3 WHERE id=?1 AND relative_path=?2 AND NOT EXISTS(SELECT 1 FROM asset_registry WHERE source_id=?4 AND relative_path=?3)",params![id,old,item.relative_path,s.id])?;
+        tx.commit()?;
         Ok(())
     }
     fn failed_item(
@@ -586,8 +810,22 @@ impl ImageImportEngine {
                         }
                     ],
                 )?;
+            } else if matches!(error, E::FileMissing | E::Inaccessible) {
+                // Absence or denied access says nothing about the bytes: keep the
+                // last verified technical facts, evidence and recipes intact.
+                tx.execute(
+                    "UPDATE image_assets SET availability=?2 WHERE id=?1",
+                    params![
+                        id,
+                        if error == E::FileMissing {
+                            "missing"
+                        } else {
+                            "inaccessible"
+                        }
+                    ],
+                )?;
             } else {
-                tx.execute("UPDATE image_assets SET technical_state='failed',analyzer_version=NULL,availability=?2,evidence=(SELECT COALESCE(json_group_array(json_set(value,'$.stale',json('true'))),'[]') FROM json_each(evidence)),enrichment_state='stale' WHERE id=?1",params![id,if error==E::FileMissing{"missing"}else if error==E::Inaccessible{"inaccessible"}else{"available"}])?;
+                tx.execute("UPDATE image_assets SET technical_state='failed',analyzer_version=NULL,availability='available',evidence=(SELECT COALESCE(json_group_array(json_set(value,'$.stale',json('true'))),'[]') FROM json_each(evidence)),enrichment_state='stale' WHERE id=?1",[id])?;
                 tx.execute("UPDATE image_assets SET recipes=(SELECT COALESCE(json_group_array(json_set(value,'$.stale',json('true'))),'[]') FROM json_each(recipes)) WHERE id=?1",[id])?;
             }
         }

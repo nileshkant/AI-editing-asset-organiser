@@ -67,6 +67,10 @@ pub enum ImportError {
     FilteredMedia,
     #[error("No eligible files found")]
     NoEligibleFiles,
+    #[error("None of this source's cataloged files are in that folder")]
+    NoMatchingFiles,
+    #[error("Library records changed; refresh and review before retrying")]
+    Conflict,
     #[error("Import operation failed; retry or inspect source access")]
     Internal,
 }
@@ -93,6 +97,14 @@ values!(ImportPhase {
     Discovery,
     Analysis,
     Complete
+});
+// SS-047: discovery walks the selection; listed checks only cataloged members.
+values!(ScanKind { Discover, Listed });
+values!(JobOrigin {
+    Import,
+    Refresh,
+    Watch,
+    Relink
 });
 values!(ImportMedia {
     Image,
@@ -126,6 +138,10 @@ pub struct ImageImportJob {
     pub unsupported: u32,
     pub current: String,
     pub error_code: Option<ImportError>,
+    pub scan: ScanKind,
+    /// False permits the unchanged-file stat fast path; imports always hash bytes.
+    pub verify: bool,
+    pub origin: JobOrigin,
     #[serde(skip)]
     pub(crate) paths: Option<Vec<String>>,
     #[serde(skip)]
@@ -171,7 +187,7 @@ pub struct ImageImportItemPage {
     pub items: Vec<ImageImportItem>,
     pub next_after: Option<String>,
 }
-const JOB_COLUMNS:&str="id,source_id,source_generation,mode,state,phase,discovery_complete,sequence,total,completed,ready,reused,failed,unsupported,current,error_code,paths,lease_owner,lease_until,discovery_epoch,root_stamp,history_truncated,folders,folder_stamps";
+const JOB_COLUMNS:&str="id,source_id,source_generation,mode,state,phase,discovery_complete,sequence,total,completed,ready,reused,failed,unsupported,current,error_code,paths,lease_owner,lease_until,discovery_epoch,root_stamp,history_truncated,folders,folder_stamps,scan_kind,verify,origin";
 fn enum_value<T: serde::de::DeserializeOwned>(
     v: String,
 ) -> std::result::Result<T, rusqlite::Error> {
@@ -240,6 +256,9 @@ fn map_job(r: &rusqlite::Row<'_>) -> rusqlite::Result<ImageImportJob> {
         folder_stamps: serde_json::from_str(&r.get::<_, String>(23)?).map_err(|e| {
             rusqlite::Error::FromSqlConversionFailure(23, rusqlite::types::Type::Text, Box::new(e))
         })?,
+        scan: enum_value(r.get(24)?)?,
+        verify: r.get(25)?,
+        origin: enum_value(r.get(26)?)?,
     })
 }
 pub(crate) fn load_job(db: &Connection, id: &str) -> Result<ImageImportJob> {
@@ -305,9 +324,47 @@ pub(crate) fn enqueue_selection_on(
     source_id: &str,
     generation: i64,
     mode: ImportMode,
-    mut paths: Option<Vec<String>>,
-    mut folders: Vec<String>,
+    paths: Option<Vec<String>>,
+    folders: Vec<String>,
 ) -> Result<ImageImportJob> {
+    enqueue_job_on(
+        db,
+        source_id,
+        generation,
+        JobSpec {
+            mode,
+            paths,
+            folders,
+            scan: ScanKind::Discover,
+            verify: true,
+            origin: JobOrigin::Import,
+        },
+    )
+}
+/// What one job examines and how strictly it proves that bytes are unchanged.
+#[derive(Debug, Clone)]
+pub(crate) struct JobSpec {
+    pub mode: ImportMode,
+    pub paths: Option<Vec<String>>,
+    pub folders: Vec<String>,
+    pub scan: ScanKind,
+    pub verify: bool,
+    pub origin: JobOrigin,
+}
+pub(crate) fn enqueue_job_on(
+    db: &Connection,
+    source_id: &str,
+    generation: i64,
+    spec: JobSpec,
+) -> Result<ImageImportJob> {
+    let JobSpec {
+        mode,
+        mut paths,
+        mut folders,
+        scan,
+        verify,
+        origin,
+    } = spec;
     if generation < 0 || source_id.is_empty() || source_id.len() > 256 {
         return Err(ImportError::InvalidArgument);
     }
@@ -351,7 +408,8 @@ pub(crate) fn enqueue_selection_on(
             validate_relative(folder).map_err(|_| ImportError::InvalidArgument)?;
         }
     }
-    if paths.is_none() && folders.is_empty() {
+    // A listed check enumerates the catalog itself; it never carries a selection.
+    if (scan == ScanKind::Listed) != (paths.is_none() && folders.is_empty()) {
         return Err(ImportError::InvalidArgument);
     }
     let encoded_folders = serde_json::to_string(&folders)?;
@@ -362,12 +420,17 @@ pub(crate) fn enqueue_selection_on(
     let key = format!(
         "{}:{}",
         wire(&mode)?,
-        blake3::hash(&serde_json::to_vec(&(&paths, &folders))?).to_hex()
+        blake3::hash(&serde_json::to_vec(&(&paths, &folders, scan, verify))?).to_hex()
     );
     let active:Option<String>=db.query_row("SELECT id FROM image_import_jobs WHERE source_id=?1 AND source_generation=?2 AND state IN ('queued','running')",params![source_id,generation],|r|r.get(0)).optional()?;
     if let Some(id) = active {
         let existing = load_job(db, &id)?;
-        if existing.mode == mode && existing.paths == paths && existing.folders == folders {
+        if existing.mode == mode
+            && existing.paths == paths
+            && existing.folders == folders
+            && existing.scan == scan
+            && existing.verify == verify
+        {
             return Ok(existing);
         }
         return Err(ImportError::SourceConflict);
@@ -404,7 +467,7 @@ pub(crate) fn enqueue_selection_on(
     )?;
     let id = Uuid::new_v4().to_string();
     let now = now_secs();
-    db.execute("INSERT INTO image_import_jobs(id,source_id,source_generation,selection_key,mode,paths,folders,state,phase,queue_order,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?9,'queued','discovery',?7,?8,?8)",params![id,source_id,generation,key,wire(&mode)?,encoded,next_order(db)?,now,encoded_folders])?;
+    db.execute("INSERT INTO image_import_jobs(id,source_id,source_generation,selection_key,mode,paths,folders,state,phase,queue_order,created_at,updated_at,scan_kind,verify,origin) VALUES(?1,?2,?3,?4,?5,?6,?9,'queued','discovery',?7,?8,?8,?10,?11,?12)",params![id,source_id,generation,key,wire(&mode)?,encoded,next_order(db)?,now,encoded_folders,wire(&scan)?,verify,wire(&origin)?])?;
     load_job(db, &id)
 }
 /// Evict only bounded transient terminal history. Asset records/annotations remain.
@@ -494,13 +557,18 @@ impl Catalog {
         if old.generation() != Ok(generation) {
             return Err(ImportError::SourceChanged);
         }
-        let next = enqueue_selection_on(
+        let next = enqueue_job_on(
             &tx,
             &old.source_id,
             generation,
-            old.mode,
-            old.paths,
-            old.folders,
+            JobSpec {
+                mode: old.mode,
+                paths: old.paths,
+                folders: old.folders,
+                scan: old.scan,
+                verify: old.verify,
+                origin: old.origin,
+            },
         )?;
         prune_budget(
             &tx,
@@ -724,8 +792,13 @@ impl Catalog {
             return Err(ImportError::InvalidArgument);
         }
         let mut new_paths = std::collections::BTreeSet::new();
+        // Cached statements: discovery runs these per member, up to 100,000 times.
+        let mut item_exists = tx.prepare_cached("SELECT EXISTS(SELECT 1 FROM image_import_items WHERE job_id=?1 AND relative_path=?2)")?;
+        let mut in_scope = tx.prepare_cached("SELECT EXISTS(SELECT 1 FROM sources s WHERE s.id=?1 AND (s.scope='folder' OR EXISTS(SELECT 1 FROM source_files f WHERE f.source_id=s.id AND f.relative_path=?2)))")?;
+        let mut cataloged = tx.prepare_cached("SELECT EXISTS(SELECT 1 FROM asset_registry WHERE source_id=?1 AND relative_path=?2)")?;
+        let mut upsert = tx.prepare_cached("INSERT INTO image_import_items(job_id,relative_path,media_kind,state,discovered_epoch) VALUES(?1,?2,?3,'pending',?4) ON CONFLICT(job_id,relative_path) DO UPDATE SET media_kind=excluded.media_kind,discovered_epoch=excluded.discovered_epoch")?;
         for entry in entries {
-            let exists:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM image_import_items WHERE job_id=?1 AND relative_path=?2)",params![id,entry.relative_path],|r|r.get(0))?;
+            let exists: bool = item_exists.query_row(params![id, entry.relative_path], |r| r.get(0))?;
             if !exists {
                 new_paths.insert(entry.relative_path.as_str());
             }
@@ -737,9 +810,13 @@ impl Catalog {
         )?;
         for e in entries {
             validate_relative(&e.relative_path).map_err(|_| ImportError::InvalidArgument)?;
-            let allowed:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM sources s WHERE s.id=?1 AND (s.scope='folder' OR EXISTS(SELECT 1 FROM source_files f WHERE f.source_id=s.id AND f.relative_path=?2)))",params![job.source_id,e.relative_path],|r|r.get(0))?;
+            let allowed: bool = in_scope.query_row(params![job.source_id, e.relative_path], |r| r.get(0))?;
+            let listed = job.scan == ScanKind::Listed;
+            let member: bool = listed && cataloged.query_row(params![job.source_id, e.relative_path], |r| r.get(0))?;
             if !allowed
-                || !job
+                || listed && !member
+                || !listed
+                    && !job
                     .paths
                     .as_ref()
                     .is_some_and(|p| p.contains(&e.relative_path))
@@ -750,8 +827,8 @@ impl Catalog {
             {
                 return Err(ImportError::PermissionDenied);
             }
-            let exists:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM image_import_items WHERE job_id=?1 AND relative_path=?2)",params![id,e.relative_path],|r|r.get(0))?;
-            tx.execute("INSERT INTO image_import_items(job_id,relative_path,media_kind,state,discovered_epoch) VALUES(?1,?2,?3,'pending',?4) ON CONFLICT(job_id,relative_path) DO UPDATE SET media_kind=excluded.media_kind,discovered_epoch=excluded.discovered_epoch",params![id,e.relative_path,wire(&e.media_kind)?,job.epoch])?;
+            let exists: bool = item_exists.query_row(params![id, e.relative_path], |r| r.get(0))?;
+            upsert.execute(params![id, e.relative_path, wire(&e.media_kind)?, job.epoch])?;
             if !exists {
                 tx.execute(
                     "UPDATE image_import_jobs SET total=total+1 WHERE id=?1",
@@ -760,6 +837,7 @@ impl Catalog {
             }
         }
         tx.execute("UPDATE image_import_jobs SET sequence=sequence+1,lease_until=?2,updated_at=?3 WHERE id=?1",params![id,now_secs()+LEASE_SECONDS,now_secs()])?;
+        drop((item_exists, in_scope, cataloged, upsert));
         tx.commit()?;
         Ok(())
     }
@@ -899,7 +977,9 @@ pub(crate) fn validate_database(db: &Connection) -> Result<()> {
         let mut sorted = job.folders.clone();
         sorted.sort();
         sorted.dedup();
-        if sorted != job.folders || job.paths.is_none() && job.folders.is_empty() {
+        if sorted != job.folders
+            || (job.scan == ScanKind::Listed) != (job.paths.is_none() && job.folders.is_empty())
+        {
             return Err(ImportError::InvalidArgument);
         }
         if job.folders.len() > MAX_PATHS {
