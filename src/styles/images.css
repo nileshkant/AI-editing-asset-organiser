@@ -101,3 +101,21 @@
 .image-tag-rename .modal-actions, .image-bulk-dialog .modal-actions { margin-block-start: .5rem; flex-wrap: wrap; }
 .image-aliases li, .image-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; overflow-wrap: anywhere; }
 .image-aliases h3 { margin: 0; font-size: .85rem; }
+
+/* SS-058 search */
+.image-search { display: grid; gap: .5rem; padding: 0 30px .5rem; flex-shrink: 0; }
+.image-search-row, .image-search-save { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.image-search-row input[type="search"] { flex: 1 1 14rem; min-width: 0; }
+.image-search-row select { max-width: 14rem; }
+.image-search-notice { margin: 0; color: var(--text-secondary); font-size: .85rem; }
+.image-filter-panel { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; max-height: min(22rem, 40dvh); overflow: auto;
+  padding: .75rem; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); }
+.image-filter-panel fieldset { display: flex; flex-direction: column; gap: .35rem; min-width: 12rem; margin: 0; padding: 0; border: 0; }
+.image-filter-panel legend { font-weight: 600; margin-block-end: .25rem; }
+.image-filter-panel small { color: var(--text-muted); max-width: 18rem; }
+.facet-list { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; }
+@container image-workspace (max-width: 700px) {
+  .image-search { padding-inline: 20px; }
+  /* Details replace the grid at this width; give their space back, as the audio library does. */
+  .image-workspace:has(.image-body.with-inspector) .image-search { display: none; }
+}

@@ -39,6 +39,7 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
     // SS-046 renderer contract: revisioned annotations, history with undo, tag rename/aliases.
     type Notes = { revision: number; tags: string[]; comment: string; favorite: boolean; rating: number | null };
     const notes = new Map<number, Notes>(), history: any[] = [], aliases: { alias: string; canonical: string }[] = [];
+    let savedSearches: any[] = [];
     const key = (t: string) => t.normalize('NFC').replace(/_/g, ' ').split(/\s+/).filter(Boolean).join(' ').toLowerCase();
     function notesFor(i: number): Notes {
       if (!notes.has(i)) notes.set(i, { revision: 1, tags: i === 3 ? ['very-long-tag-'.repeat(6), 'thumbnail'] : ['thumbnail'], comment: '', favorite: false, rating: null });
@@ -105,6 +106,28 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
               const total = images ? galleryTotal : 0, end = Math.min(total, args.offset + args.limit), items = [];
               for (let i = args.offset; i < end; ++i) items.push(galleryItem(args.sort === 'name_desc' ? total - 1 - i : i));
               return { items, offset: args.offset, total };
+            }
+            case 'image_search_capabilities': return ['name', 'tags', 'suggested_tags', 'caption', 'notes'].map(field => ({ field, available: true, owner: null }))
+              .concat([['ocr', 'SS-057'], ['generation', 'SS-055'], ['usage_notes', 'SS-056']].map(([field, owner]) => ({ field, available: false, owner })));
+            case 'saved_image_searches': return savedSearches;
+            case 'save_image_search': { const at = savedSearches.findIndex(x => key(x.name) === key(args.name));
+              if (at >= 0 && !args.replace) throw 'CONFLICT';
+              const saved = { id: at >= 0 ? savedSearches[at].id : `00000000-0000-4000-8000-${String(savedSearches.length).padStart(12, '0')}`, name: args.name.trim(), query: { version: 1, ...args.query }, created_at: 1, updated_at: 2 };
+              if (at >= 0) savedSearches[at] = saved; else savedSearches.push(saved); return saved; }
+            case 'delete_saved_image_search': savedSearches = savedSearches.filter(x => x.id !== args.id); return null;
+            case 'search_images': {
+              // Whole-token match on file name and confirmed tags, plus rating and favorites: enough to drive the UI.
+              const q = args.query, words: string[] = (q.text ?? '').toLowerCase().split(/\s+/).filter(Boolean), matches: any[] = [];
+              const total = images ? galleryTotal : 0;
+              for (let i = 0; i < total; ++i) {
+                const item = galleryItem(i), n = notesFor(i), tokens = [...item.header.relative_path.toLowerCase().split(/[^\p{L}\p{N}]+/u), ...n.tags.map((t: string) => t.toLowerCase())];
+                if (words.every((w: string) => w.startsWith('-') ? !tokens.includes(w.slice(1)) : tokens.includes(w))
+                  && (q.min_rating == null || (n.rating ?? 0) >= q.min_rating) && (q.favorite == null || n.favorite === q.favorite)) matches.push(item);
+              }
+              const items = matches.slice(args.offset, args.offset + args.limit);
+              return { items, explanations: items.map(i => ({ id: i.header.id, tier: words.length ? 3 : null, fields: words.length ? ['name'] : [] })), offset: args.offset, total: matches.length,
+                interpretation: { clauses: words.map((w: string) => ({ text: w.replace(/^-/, ''), kind: 'term', excluded: w.startsWith('-'), matches: matches.length })), fields: ['name', 'tags', 'caption', 'notes'], tags: [], exclude_tags: [], ignored: [], suggestions: [], text_only_matches: null },
+                facets: null };
             }
             case 'image_details': { const i = parseInt(args.id.slice(-12), 10), item = galleryItem(i);
               return { header: item.header, profile: item.header.technical_state === 'ready' ? { raw_width: 3000, raw_height: 4000, orientation: 6, width: 4000, height: 3000, format: 'png', encoded_bytes: 9_437_184, bit_depth: 8, source_color_profile: null, alpha_channel: true, transparency: 'partial', analyzer_version: 'creativeshelf-still-v1-image02510-mox091' } : null,

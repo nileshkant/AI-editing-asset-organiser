@@ -75,6 +75,7 @@ export function ImageSearchBar({ gallery: g }: Props) {
   return <div className="image-search">
     <div className="image-search-row">
       <input type="search" aria-label="Search images" aria-describedby={`${id}-help`} placeholder="Search names, tags, captions and notes"
+        title='Whole words. "quotes" for a phrase, -word to exclude, word* for a prefix.'
         value={text} maxLength={512} onChange={e => setText(e.target.value)}
         onKeyDown={e => { if (e.key === 'Enter') g.setFilters(x => ({ ...x, text })); if (e.key === 'Escape' && text) { setText(''); g.setFilters(x => ({ ...x, text: '' })); } }} />
       <button aria-expanded={open} aria-controls={`${id}-panel`} onClick={() => setOpen(o => !o)}>Filters{n ? ` (${n})` : ''}</button>
@@ -85,7 +86,7 @@ export function ImageSearchBar({ gallery: g }: Props) {
       </select>
       <button disabled={!n} onClick={() => setSaving('')}>Save search…</button>
     </div>
-    <p className="keyboard-help" id={`${id}-help`}>Words match whole words. Use "quotes" for a phrase, -word to exclude, word* for a prefix.</p>
+    <p className="sr-only" id={`${id}-help`}>Words match whole words. Use "quotes" for a phrase, -word to exclude, word* for a prefix.</p>
     {saving !== null && <div className="image-search-save" role="group" aria-label="Save search">
       <input aria-label="Saved search name" autoFocus value={saving} maxLength={256} onChange={e => setSaving(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void save(false); if (e.key === 'Escape') setSaving(null); }} />
       <button onClick={() => void save(false)} disabled={!saving.trim()}>Save</button>
