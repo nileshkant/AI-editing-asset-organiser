@@ -234,6 +234,7 @@ impl AppState {
         let agent_library=Arc::new(soundshelf_core::agent::AgentLibrary::new(catalog.clone(),exports.clone(),tools.clone()));
         let image_imports=Arc::new(crate::image_import::ImageImports::new(catalog.clone(),&resources,tools.clone()));
         let image_previews=Arc::new(crate::image_preview::ImagePreviews::new(&data_directory,&catalog,image_imports.helper.clone()));
+        if let Some(service)=&image_previews.service { agent_library.set_image_previews(service.clone()); }
         let events=image_imports.clone();
         let image_watchers=Arc::new(crate::image_watch::ImageWatchers::new(catalog.clone(),image_imports.enabled,Some(Arc::new(move|job|events.emit(job)))));
         let state = Self {

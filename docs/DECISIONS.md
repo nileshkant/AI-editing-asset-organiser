@@ -235,3 +235,19 @@ reproducible byte for byte and carries no third-party media; real photographs
 are a separate consented manifest kept outside the repository. Thresholds were
 committed alone before any result, and the embedding cut-off is fixed on the
 development split.
+
+## SS-080 image MCP tagging slice pulled forward (20 October 2026)
+
+Col chose to give AI clients a way to tag images over MCP straight after SS-050,
+so tagging works without an API key in CreativeShelf, as it already does for
+audio. The slice adds four tools (search, get, preview, annotate) on existing
+services. SS-067 and SS-068 extend these tools later instead of adding
+parallel ones.
+
+Pixels are a separate pairing permission. Metadata read never implies them, and
+pairings made before this change load with it off. A client that may describe
+images has to fetch a bounded preview (at most 512 px), so tags can come from
+what the model saw rather than from file names. Annotation is limited to tags:
+notes stay private to the owner, and captions and AI evidence wait for SS-053's
+provenance model. Every client edit is in the image undo history labeled
+"MCP client".

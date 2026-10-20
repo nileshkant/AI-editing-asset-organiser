@@ -31,6 +31,7 @@ pub mod image_ai;
 pub mod image_eval;
 
 pub mod agent;
+pub mod agent_images;
 
 pub mod source_catalog;
 

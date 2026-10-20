@@ -1,7 +1,7 @@
 # Image phase — strict execution queue
 
 Date: 16 October 2026
-Status: 39 tickets; SS-040–049 merged, SS-050 in review; SS-051–078 not-started
+Status: 40 tickets; SS-040–049 merged, SS-050 and SS-080 in review; SS-051–078 not-started
 Current: the user resumed the queue on 18 October 2026 after the SS-079 release candidate. SS-046 merged (PR #48) and SS-047 merged (PR #50). On 20 October 2026 the user asked for every remaining ticket in order, each as its own PR stacked on the previous one; SS-048 (PR #51) and SS-049 (PR #52) merged the same day; SS-050 is in review. Col decided the same day that AI features ship gated on an API key (real-model results pending a key), that an image MCP tagging slice is pulled forward right after SS-050, and that independent tickets may run in parallel threads.
 Parent: [SS-032](SS-032.md)
 Specification: [Image phase plan](../docs/IMAGE_ASSET_PHASE_PLAN.md)
@@ -63,7 +63,8 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 
 10. [SS-049: Shared AI provider configuration and secret handling](SS-049.md) — merged; [PR #52](https://github.com/nileshkant/AI-editing-asset-organiser/pull/52), see [review](../docs/reviews/SS-049.md); predecessor: SS-048 (merged).
 11. [SS-050: Image AI evaluation corpus and qualified adapters](SS-050.md) — in-review (real-model results pending a key); [PR #53](https://github.com/nileshkant/AI-editing-asset-organiser/pull/53), see [review](../docs/reviews/SS-050.md); predecessor: SS-049 (merged).
-12. [SS-051: Optional local model pack lifecycle](SS-051.md) — not-started; predecessor: SS-050.
+11a. [SS-080: Image MCP tagging slice (pulled forward)](SS-080.md) — in-review; [PR #56](https://github.com/nileshkant/AI-editing-asset-organiser/pull/56), see [review](../docs/reviews/SS-080.md); predecessor: SS-050. Pulled forward by Col on 20 October 2026 so AI clients can tag images without a key; SS-067/SS-068 extend it.
+12. [SS-051: Optional local model pack lifecycle](SS-051.md) — not-started; predecessor: SS-080.
 13. [SS-052: Consented image enrichment queue and usage budgets](SS-052.md) — not-started; predecessor: SS-051.
 14. [SS-053: Structured image descriptions and AI tag persistence](SS-053.md) — not-started; predecessor: SS-052.
 15. [SS-054: AI tag review corrections and selective reanalysis](SS-054.md) — not-started; predecessor: SS-053.

@@ -16,7 +16,7 @@ use std::{
 pub struct ImagePreviews {
     cache: Arc<PreviewCache>,
     /// Present only when the trusted image worker is enabled for this build.
-    service: Option<Arc<PreviewService>>,
+    pub(crate) service: Option<Arc<PreviewService>>,
     refresher: Mutex<Option<JoinHandle<()>>>,
 }
 impl ImagePreviews {
