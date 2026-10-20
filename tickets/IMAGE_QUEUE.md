@@ -57,7 +57,7 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 6. [SS-045: Image gallery and inspection workspace](SS-045.md) — complete; [PR #47](https://github.com/nileshkant/AI-editing-asset-organiser/pull/47) merged as e6b24eb, see [review](../docs/reviews/SS-045.md); predecessor: SS-044 (merged).
 7. [SS-046: Image annotations and reversible bulk tagging](SS-046.md) — complete; [PR #48](https://github.com/nileshkant/AI-editing-asset-organiser/pull/48) merged as 09eb726, see [review](../docs/reviews/SS-046.md); predecessor: SS-045 (merged).
 8. [SS-047: Image relinking refresh and opt-in folder watching](SS-047.md) — merged; [PR #50](https://github.com/nileshkant/AI-editing-asset-organiser/pull/50), see [review](../docs/reviews/SS-047.md); predecessor: SS-046 (merged).
-9. [SS-048: Mixed image catalogs backup and restore](SS-048.md) — in-review; predecessor: SS-047.
+9. [SS-048: Mixed image catalogs backup and restore](SS-048.md) — in-review; [PR #51](https://github.com/nileshkant/AI-editing-asset-organiser/pull/51), see [review](../docs/reviews/SS-048.md); predecessor: SS-047 (merged).
 
 ### 2. AI configuration, analysis, and provenance
 
