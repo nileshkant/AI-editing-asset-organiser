@@ -185,6 +185,14 @@ export const cancelImagePreview = (requestId: string) => call<boolean>('cancel_i
 /** Gallery window; `sourceId` null means every registered source. */
 export const imageGalleryPage = (sourceId: string | null, sort: import('./types').GallerySort, offset: number, limit: number) =>
   call<import('./types').GalleryPage>('image_gallery_page', { sourceId, sort, offset, limit });
+/** SS-058 exact search window; `facets` adds counts for the whole matching set. */
+export const searchImages = (query: import('./types').ImageQuery, offset: number, limit: number, facets: boolean) =>
+  call<import('./types').ImageSearchPage>('search_images', { query, offset, limit, facets });
+export const imageSearchCapabilities = () => call<import('./types').FieldCapability[]>('image_search_capabilities');
+export const savedImageSearches = () => call<import('./types').SavedImageSearch[]>('saved_image_searches');
+export const saveImageSearch = (name: string, query: import('./types').ImageQuery, replace: boolean) =>
+  call<import('./types').SavedImageSearch>('save_image_search', { name, query, replace });
+export const deleteSavedImageSearch = (id: string) => call<null>('delete_saved_image_search', { id });
 export const imageDetails = (id: string) => call<import('./types').ImageDetails>('image_details', { id });
 /** SS-046: one image, from the revision the editor last read (CONFLICT otherwise). */
 export const editImageAnnotations = (id: string, expectedRevision: number, patch: import('./types').AnnotationPatch) =>

@@ -74,6 +74,7 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 ### 3. Search and creator organization
 
 19. [SS-058: Exact image search filters and deterministic ranking](SS-058.md) — not-started; predecessor: SS-057.
+    - 20 October 2026: implemented on main after SS-048/049 merged, ahead of SS-050–057 (searches existing fields; OCR, generation and usage-notes fields reserved). In review, see [review](../docs/reviews/SS-058.md). The user stopped the queue after this ticket; SS-059 onward are not started.
 20. [SS-059: Versioned image embeddings and semantic retrieval](SS-059.md) — not-started; predecessor: SS-058.
 21. [SS-060: Reference-image subject palette and style search](SS-060.md) — not-started; predecessor: SS-059.
 22. [SS-061: Composition analysis and non-destructive crop recipes](SS-061.md) — not-started; predecessor: SS-060.

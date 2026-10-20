@@ -168,6 +168,7 @@ impl Snapshot {
         if self.catalog.sources.len() != 1
             || self.catalog.sources[0].scope != "folder"
             || !self.catalog.saved_searches.is_empty()
+            || !self.catalog.saved_image_searches.is_empty()
         {
             return Err(invalid(
                 "Source catalog must contain exactly one folder and no global saved searches",
@@ -442,6 +443,7 @@ fn save_inner(
         data.clips.retain(|s| ids.contains(&s.sound_id));
         data.legacy_evidence.retain(|s| ids.contains(&s.sound_id));
         data.saved_searches.clear();
+        data.saved_image_searches.clear();
         let mut q=c.db.prepare("SELECT r.clip_id,r.revision,r.asset_version_id,r.source_sample_rate_hz,r.start_frame,r.end_frame,r.channel_policy,r.gain_db,r.fade_in_ms,r.fade_out_ms,r.created_at,c.sound_id FROM clip_revisions r JOIN clips c ON c.id=r.clip_id JOIN sounds s ON s.id=c.sound_id WHERE s.source_id=?1 AND s.status!='missing' ORDER BY r.clip_id,r.revision")?;
         let history = q
             .query_map([&source.id], |r| {

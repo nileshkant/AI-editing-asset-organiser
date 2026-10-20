@@ -22,12 +22,14 @@ type Props = {
   version: number; total: number; cell: number; item: (index: number) => ImageSummary | undefined; ensure: (first: number, last: number) => void;
   focusIndex: number; setFocusIndex: (index: number) => void; selected: ReadonlyMap<string, ImageSummary>; activeId: string | null;
   onOpen: (index: number, summary: ImageSummary) => void; onToggle: (summary: ImageSummary) => void; onStale: () => void; busy: boolean;
+  /** Optional search explanation for a result (SS-058). */
+  explain?: (id: string) => string;
 };
 /**
  * Virtualized ARIA grid: only visible rows (plus one row of overscan) render, so
  * preview requests and DOM nodes stay bounded by the viewport, not the library.
  */
-export const ImageGrid = memo(function ImageGrid({ total, cell, item, ensure, focusIndex, setFocusIndex, selected, activeId, onOpen, onToggle, onStale, busy }: Props) {
+export const ImageGrid = memo(function ImageGrid({ total, cell, item, ensure, focusIndex, setFocusIndex, selected, activeId, onOpen, onToggle, onStale, busy, explain }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
   const [scrollTop, setScrollTop] = useState(0);
@@ -106,7 +108,8 @@ export const ImageGrid = memo(function ImageGrid({ total, cell, item, ensure, fo
       const common = { role: 'gridcell', 'aria-colindex': col + 1, tabIndex: tabbable ? 0 : -1, 'data-index': index, style: { left: GAP + col * (cell + GAP), width: cell } } as const;
       if (!s) { children.push(<div key={index} {...common} className="image-cell placeholder" aria-label={`Loading image ${index + 1}`} onFocus={() => setFocusIndex(index)}><span className="image-cell-thumb" /></div>); continue; }
       const ready = s.header.technical_state === 'ready' && !!s.header.content_hash;
-      children.push(<div key={s.header.id} {...common} aria-selected={isSelected} aria-label={describe(s)} title={`${s.header.relative_path}${s.width && s.height ? ` · ${s.width} × ${s.height}` : ''}`}
+      const reason = explain?.(s.header.id) ?? '';
+      children.push(<div key={s.header.id} {...common} aria-selected={isSelected} aria-label={reason ? `${describe(s)}, ${reason}` : describe(s)} title={`${s.header.relative_path}${s.width && s.height ? ` · ${s.width} × ${s.height}` : ''}${reason ? `\n${reason}` : ''}`}
         className={`image-cell${isSelected ? ' selected' : ''}${activeId === s.header.id ? ' active' : ''}`}
         onFocus={() => setFocusIndex(index)}
         onClick={e => { setFocusIndex(index); if (e.metaKey || e.ctrlKey) onToggle(s); else onOpen(index, s); }}>

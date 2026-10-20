@@ -56,6 +56,9 @@ pub struct PortableCatalog {
     /// v2 only: library-wide creator tag aliases (SS-046). Undo history stays local.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub image_tag_aliases: Vec<crate::mixed_catalog::PortableTagAlias>,
+    /// v2 only: library-wide saved image searches (SS-058). Never in source snapshots.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub saved_image_searches: Vec<crate::image_search::PortableSavedImageSearch>,
 }
 #[derive(Debug, Serialize)]
 pub struct Preview {
@@ -89,7 +92,7 @@ impl PortableCatalog {
         if !mixed && self.schema != PORTABLE_SCHEMA {
             return Err(invalid(newer_or_unsupported(&self.schema)));
         }
-        if !mixed && (!self.images.is_empty() || !self.image_tag_aliases.is_empty()) {
+        if !mixed && (!self.images.is_empty() || !self.image_tag_aliases.is_empty() || !self.saved_image_searches.is_empty()) {
             return Err(invalid("Image records require the soundshelf-catalog/v2 schema"));
         }
         if self.sounds.len() > 100_000 || self.sources.len() > 10_000 || self.clips.len() > 100_000
@@ -194,6 +197,7 @@ impl PortableCatalog {
             }
             crate::search::interpret(&search.query)?;
         }
+        crate::image_search::validate_portable_searches(&self.saved_image_searches, &sources)?;
         for note in &self.legacy_evidence {
             if !sounds.contains_key(&note.sound_id)
                 || note.provenance != "legacy_filename_inference"
@@ -263,10 +267,11 @@ impl Catalog {
         // Source snapshots carry one folder's members; aliases are library-wide.
         let images = crate::mixed_catalog::export_images(&self.db, source_id, source_id.is_some())?;
         let image_tag_aliases = if source_id.is_some() { vec![] } else { crate::mixed_catalog::export_aliases(&self.db)? };
+        let saved_image_searches = if source_id.is_some() { vec![] } else { crate::image_search::export_portable_searches(&self.db)? };
         let sounds=if let Some(id)=source_id { self.scoped_sounds(&[id.to_owned()])? } else { self.all_sounds()? };
         let ids:HashSet<_>=sounds.iter().map(|s|s.id.clone()).collect();
         let result = PortableCatalog {
-            schema: if images.is_empty() && image_tag_aliases.is_empty() { PORTABLE_SCHEMA } else { PORTABLE_SCHEMA_V2 }.into(),
+            schema: if images.is_empty() && image_tag_aliases.is_empty() && saved_image_searches.is_empty() { PORTABLE_SCHEMA } else { PORTABLE_SCHEMA_V2 }.into(),
             sources: self
                 .sources()?
                 .into_iter()
@@ -284,6 +289,7 @@ impl Catalog {
             legacy_evidence: self.legacy_evidence()?.into_iter().filter(|e|ids.contains(&e.sound_id)).collect(),
             images,
             image_tag_aliases,
+            saved_image_searches,
         };
         tx.commit()?;
         result.validate()?;
@@ -413,6 +419,7 @@ impl Catalog {
             )?;
         }
         crate::mixed_catalog::import_images(&tx, &data.images, &data.image_tag_aliases)?;
+        crate::image_search::import_portable_searches(&tx, &data.saved_image_searches)?;
         tx.commit()?;
         Ok(ImportReport {
             sources: data.sources.len(),
@@ -586,6 +593,7 @@ pub fn prepare_import(
         legacy_evidence: vec![],
         images: vec![],
         image_tag_aliases: vec![],
+        saved_image_searches: vec![],
     };
     for s in old.sounds {
         let root = roots

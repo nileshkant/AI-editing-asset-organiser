@@ -437,6 +437,17 @@ mod persistence_inventory {
         ("image_source_identity", "B: machine-local volume and inode binding", &["source_id", "source_generation", "root_stamp"]),
         ("asset_file_stats", "B: machine-local stat evidence (SS-047)", &["asset_id", "content_hash", "volume", "file_id", "size", "modified", "changed", "recorded"]),
         ("image_source_monitor", "B: watching is re-enabled deliberately per machine", &["source_id", "watch", "mode", "root_state", "checked_at"]),
+        ("image_search_docs", "R: derived search index (SS-058), rebuilt from image records", &["doc", "asset_id", "kind", "favorite", "rating", "width", "height", "orientation", "alpha", "transparency", "format", "technical", "availability", "enrichment", "suggestions", "origins", "added_at"]),
+        ("image_search_tags", "R", &["doc", "key", "tag", "state"]),
+        ("image_search_dirty", "R", &["asset_id"]),
+        ("image_search_fts", "R", &["name", "tags", "suggested", "caption", "notes"]),
+        ("image_search_fts_data", "R", &["id", "block"]),
+        ("image_search_fts_idx", "R", &["segid", "term", "pgno"]),
+        ("image_search_fts_content", "R", &["id", "c0", "c1", "c2", "c3", "c4"]),
+        ("image_search_fts_docsize", "R", &["id", "sz"]),
+        ("image_search_fts_config", "R", &["k", "v"]),
+        ("saved_image_searches", "P", &["id", "name", "query", "created_at", "updated_at"]),
+        ("saved_image_searches", "R: derived from name", &["name_key"]),
     ];
 
     #[test]

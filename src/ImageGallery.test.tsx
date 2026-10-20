@@ -16,7 +16,7 @@ const summary = (i: number, over: Partial<ImageSummary['header']> = {}): ImageSu
     technical_state: 'ready', availability: 'available', enrichment_state: 'disabled', ...over }, width: 800, height: 600, annotation_revision: 1 });
 const page = (offset: number, limit: number, total: number, start = 0): GalleryPage => ({ offset, total, items: Array.from({ length: Math.max(0, Math.min(limit, total - offset)) }, (_, i) => summary(start + offset + i)) });
 const profile = (over: Partial<ImageProfile> = {}): ImageProfile => ({ raw_width: 800, raw_height: 600, orientation: 1, width: 800, height: 600, format: 'png', encoded_bytes: 2048, bit_depth: 8, source_color_profile: null, alpha_channel: false, transparency: 'none', analyzer_version: 'v', ...over });
-beforeEach(() => { invoke.mockReset(); URL.createObjectURL = vi.fn(() => 'blob:x'); URL.revokeObjectURL = vi.fn(); });
+beforeEach(() => { localStorage.clear(); invoke.mockReset(); URL.createObjectURL = vi.fn(() => 'blob:x'); URL.revokeObjectURL = vi.fn(); });
 afterEach(cleanup);
 
 describe('useImageGallery windows', () => {
@@ -175,7 +175,8 @@ describe('inspector and viewer', () => {
 
 describe('ImageGallery states', () => {
   const controller = (over = {}) => ({ version: 0, sourceId: '', setSourceId: vi.fn(), sort: 'name_asc' as const, setSort: vi.fn(), total: 0, error: '', item: () => undefined,
-    ensure: vi.fn(), refresh: vi.fn(), selected: new Map<string, ImageSummary>(), toggle: vi.fn(), clearSelection: vi.fn(), ...over });
+    ensure: vi.fn(), refresh: vi.fn(), selected: new Map<string, ImageSummary>(), toggle: vi.fn(), clearSelection: vi.fn(),
+    filters: {}, setFilters: vi.fn(), resetFilters: vi.fn(), query: {}, interpretation: null, facets: null, loadFacets: vi.fn(), explain: () => undefined, ...over });
   const source: Source = { id: 's1', name: 'Shoot', root: '/shoot', generation: 0, available: true, scope: 'folder', files: [] };
   const job = (over: Partial<ImageImportJob>): ImageImportJob => ({ id: 'j', source_id: 's1', source_generation: '0', sequence: '1', mode: 'images', state: 'running', phase: 'analysis', discovery_complete: true, history_truncated: false, total: 10, completed: 4, ready: 3, reused: 0, failed: 0, unsupported: 0, current: '', error_code: null, scan: 'discover', verify: true, origin: 'import', ...over });
   it('explains no sources, empty views, running imports and partial failures with actions', () => {
