@@ -157,6 +157,7 @@ impl Catalog {
             tx.execute_batch(include_str!("image_refresh_schema.sql"))?;
             tx.execute_batch(include_str!("mixed_catalog_schema.sql"))?;
             tx.execute_batch(include_str!("image_search_schema.sql"))?;
+            tx.execute_batch(include_str!("image_duplicate_schema.sql"))?;
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             tx.commit()?;
         } else {
@@ -238,8 +239,9 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
             if version < 13 { tx.execute_batch(include_str!("annotation_schema.sql"))?; }
             if version < 14 { tx.execute_batch(include_str!("image_refresh_schema.sql"))?; }
             if version < 15 { tx.execute_batch(include_str!("mixed_catalog_schema.sql"))?; }
+            if version < 16 { tx.execute_batch(include_str!("image_duplicate_schema.sql"))?; }
             if version < 18 {
-                // v16 and v17 belong to PRs #54 and #55, which merge before this one.
+                // v17 belongs to PR #55, which merges before this one.
                 tx.execute_batch(include_str!("image_search_schema.sql"))?;
                 // Index existing images inside the upgrade so the first search is fast.
                 crate::image_search::flush(&tx).map_err(|e| invalid(&e.to_string()))?;

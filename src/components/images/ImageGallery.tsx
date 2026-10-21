@@ -8,6 +8,7 @@ import { CompareDialog, MAX_COMPARE } from './CompareDialog';
 import { BulkAnnotationDialog } from './BulkAnnotationDialog';
 import { TagManagerDialog } from './TagManagerDialog';
 import { AnnotationHistoryDialog } from './AnnotationHistoryDialog';
+import { DuplicatesDialog } from './DuplicatesDialog';
 import { MAX_BULK } from './annotationText';
 import { ImageSearchBar, NoMatches, describeSearch, FIELD_LABELS } from './ImageSearchBar';
 import { activeFilters } from '../../hooks/useImageGallery';
@@ -23,7 +24,7 @@ export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props
   const [cell, setCell] = useState(144), [focusIndex, setFocusIndex] = useState(0);
   const [active, setActive] = useState<{ index: number; summary: ImageSummary } | null>(null);
   const [background, setBackground] = useState<PreviewBackground>('checkerboard'), [comparing, setComparing] = useState(false);
-  const [dialog, setDialog] = useState<'bulk' | 'tags' | 'history' | null>(null), [annotationsVersion, setAnnotationsVersion] = useState(0);
+  const [dialog, setDialog] = useState<'bulk' | 'tags' | 'history' | 'duplicates' | null>(null), [annotationsVersion, setAnnotationsVersion] = useState(0);
   /** After any annotation change, reload visible windows and the open inspector. */
   const annotated = useCallback(() => { g.refresh(); setAnnotationsVersion(n => n + 1); }, [g]);
   const total = g.total ?? 0;
@@ -65,6 +66,7 @@ export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props
         title={`Tag, favorite or rate up to ${MAX_BULK.toLocaleString()} selected images`}>Edit selected…</button>
       <button onClick={() => setDialog('tags')} title="Rename image tags and manage aliases">Tags…</button>
       <button onClick={() => setDialog('history')} title="Recent annotation changes with undo">History…</button>
+      <button onClick={() => setDialog('duplicates')} title="Review files with identical bytes">Duplicates…</button>
     </div>
     <ImageSearchBar gallery={g} />
     <p className="keyboard-help" id="image-grid-help">Arrow keys move · Space selects · Enter opens details · Escape closes · Ctrl or ⌘ click adds to selection</p>
@@ -86,6 +88,8 @@ export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props
     {dialog === 'bulk' && <BulkAnnotationDialog ids={selected.map(s => s.header.id)} onClose={() => setDialog(null)} onChanged={annotated} />}
     {dialog === 'tags' && <TagManagerDialog sourceId={g.sourceId || null} sourceName={sources.find(s => s.id === g.sourceId)?.name ?? 'all sources'} onClose={() => setDialog(null)} onChanged={annotated} />}
     {dialog === 'history' && <AnnotationHistoryDialog onClose={() => setDialog(null)} onChanged={annotated} />}
+    {dialog === 'duplicates' && <DuplicatesDialog sourceId={g.sourceId || null} sourceName={sources.find(s => s.id === g.sourceId)?.name ?? 'all sources'}
+      background={background} setBackground={setBackground} onClose={() => setDialog(null)} />}
     {comparing && <CompareDialog candidates={selected.slice(0, MAX_COMPARE)} background={background} setBackground={setBackground} onClose={() => setComparing(false)} />}
   </section>;
 }

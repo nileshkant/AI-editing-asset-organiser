@@ -53,6 +53,8 @@ pub const SCHEMA: &str = "creativeshelf-source/v1";
 /// Folder snapshots that also carry image records (SS-048). Audio-only folders
 /// keep writing v1, so an older app still reads them.
 pub const SCHEMA_V2: &str = "creativeshelf-source/v2";
+/// v2 plus the folder's own exact-duplicate decisions (SS-062).
+pub const SCHEMA_V3: &str = "creativeshelf-source/v3";
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Fingerprint {
@@ -141,14 +143,15 @@ pub fn read(root: &Path) -> Result<Option<Snapshot>> {
 }
 impl Snapshot {
     pub fn validate(&self) -> Result<()> {
-        let mixed = self.schema == SCHEMA_V2;
+        let mixed = self.schema == SCHEMA_V2 || self.schema == SCHEMA_V3;
         if !mixed && self.schema != SCHEMA && self.schema.starts_with("creativeshelf-source/") {
             return Err(invalid("Source catalog was written by a newer CreativeShelf; update the app. The folder catalog was left unchanged."));
         }
         if !mixed && self.schema != SCHEMA
             || self.analyzer != crate::catalog::ANALYZER
             || Uuid::parse_str(&self.revision).is_err()
-            || mixed != (self.catalog.schema == crate::portable::PORTABLE_SCHEMA_V2)
+            || (self.schema == SCHEMA_V2) != (self.catalog.schema == crate::portable::PORTABLE_SCHEMA_V2)
+            || (self.schema == SCHEMA_V3) != (self.catalog.schema == crate::portable::PORTABLE_SCHEMA_V3)
         {
             return Err(invalid(
                 "Unsupported source catalog; use Rebuild catalog to recover",
@@ -386,6 +389,8 @@ fn image_import_idle(c: &Catalog, source_id: &str) -> Result<()> {
     }
     Ok(())
 }
+/// How long a save waits for a transiently held folder lock.
+const LOCK_PATIENCE: std::time::Duration = std::time::Duration::from_secs(2);
 fn lock(root: &Path) -> Result<(PathBuf, File)> {
     let dir = safe_dir(root, true)?;
     let mut options = OpenOptions::new();
@@ -395,9 +400,24 @@ fn lock(root: &Path) -> Result<(PathBuf, File)> {
     if !file.metadata()?.is_file() {
         return Err(invalid("Invalid catalog lock file"));
     }
-    file.try_lock()
-        .map_err(|_| invalid("Another application is updating the source catalog; retry later"))?;
-    Ok((dir, file))
+    // A child process spawned elsewhere in this app (FFmpeg, the image worker)
+    // can briefly share the lock's open file description between fork and exec,
+    // so a just-released lock may still read as held. Retry for a bounded moment
+    // before reporting a real competing writer.
+    let deadline = std::time::Instant::now() + LOCK_PATIENCE;
+    loop {
+        match file.try_lock() {
+            Ok(()) => return Ok((dir, file)),
+            Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(std::time::Duration::from_millis(20))
+            }
+            Err(_) => {
+                return Err(invalid(
+                    "Another application is updating the source catalog; retry later",
+                ))
+            }
+        }
+    }
 }
 /// I/O happens outside the catalog mutex. A concurrent user edit remains dirty for retry.
 pub fn save(db: &Arc<Mutex<Catalog>>, source: &Source) -> Result<()> {
@@ -527,7 +547,8 @@ fn save_inner(
         fingerprints.insert(h.relative_path.clone(), stat);
     }
     let snapshot = Snapshot {
-        schema: if catalog.images.is_empty() { SCHEMA } else { SCHEMA_V2 }.into(),
+        schema: if !catalog.image_duplicate_decisions.is_empty() { SCHEMA_V3 }
+            else if catalog.images.is_empty() { SCHEMA } else { SCHEMA_V2 }.into(),
         analyzer: crate::catalog::ANALYZER.into(),
         revision: Uuid::new_v4().to_string(),
         catalog,

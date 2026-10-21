@@ -13,6 +13,8 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
         "Only empty image import storage can be removed from legacy fixtures");
     assert_eq!(db.query_row("SELECT (SELECT count(*) FROM image_tag_aliases)+(SELECT count(*) FROM image_annotation_actions)", [], |r| r.get::<_,i64>(0)).unwrap(), 0,
         "Only empty annotation storage can be removed from legacy fixtures");
+    assert_eq!(db.query_row("SELECT count(*) FROM image_duplicate_groups", [], |r| r.get::<_,i64>(0)).unwrap(), 0,
+        "Only empty duplicate decisions can be removed from legacy fixtures");
     db.execute_batch(
         "
       DROP TRIGGER image_search_asset_insert;
@@ -26,6 +28,8 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
       DROP TABLE image_search_docs;
       DROP TABLE image_search_dirty;
       DROP TABLE saved_image_searches;
+      DROP TABLE image_duplicate_marks;
+      DROP TABLE image_duplicate_groups;
       DROP TABLE asset_file_stats;
       DROP TABLE image_source_monitor;
       DROP TABLE image_tag_aliases;
