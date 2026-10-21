@@ -101,6 +101,24 @@
 .image-tag-rename .modal-actions, .image-bulk-dialog .modal-actions { margin-block-start: .5rem; flex-wrap: wrap; }
 .image-aliases li, .image-history li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; overflow-wrap: anywhere; }
 .image-aliases h3 { margin: 0; font-size: .85rem; }
+/* SS-062 exact-duplicate stacks. */
+.image-duplicates-dialog { inline-size: min(760px, calc(100% - 32px)); }
+.image-duplicate-summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem 1rem; margin-block-end: .75rem; }
+.image-duplicate-group { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: .75rem; padding: .75rem 0; border-block-start: 1px solid var(--border-default); }
+.image-duplicate-thumb { inline-size: 4.5rem; block-size: 4.5rem; display: grid; place-items: center; overflow: hidden; border-radius: var(--radius-sm); background: var(--bg-elevated, #0003); }
+.image-duplicate-body h3 { margin: 0 0 .25rem; font-size: .9rem; overflow-wrap: anywhere; }
+.image-duplicate-body > p { margin: 0 0 .5rem; }
+.image-duplicate-members { display: grid; gap: .35rem; padding: 0; margin: 0 0 .5rem; list-style: none; }
+.image-duplicate-members li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .25rem .5rem; align-items: center; }
+.image-duplicate-members li.separated .image-duplicate-name { opacity: .7; }
+.image-duplicate-name { display: grid; min-inline-size: 0; }
+.image-duplicate-name > * { overflow-wrap: anywhere; }
+.image-duplicate-badges { display: flex; flex-wrap: wrap; gap: .25rem; }
+.image-duplicate-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .35rem; }
+.image-duplicate-group .modal-actions { flex-wrap: wrap; justify-content: flex-start; }
+@media (max-width: 520px) { .image-duplicate-group { grid-template-columns: minmax(0, 1fr); } }
+.image-duplicates-dialog .badge { display: inline-block; padding: 0 .4rem; border: 1px solid var(--border-default); border-radius: 999px; font-size: .75rem; font-weight: 500; }
+.image-duplicates-dialog .badge.warning { border-color: var(--warning, #d9a400); }
 
 /* SS-055 generation provenance */
 .image-generation { display: grid; gap: .5rem; }

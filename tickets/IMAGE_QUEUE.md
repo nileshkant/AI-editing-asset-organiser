@@ -188,6 +188,16 @@ No new tickets are added here for collaboration/cloud sync, additional formats,
 generator connectors, generative editing, video indexing, public marketplace,
 or executable presets. They remain the phase plan's explicitly later ideas.
 
+## 20 October 2026: SS-062 split
+
+At the user's request to work the queue in parallel, the exact-duplicate half of
+SS-062 (identical verified digests, decisions, persistence) was built ahead of
+SS-050–061 from reviewed main. Its variation-family half (R1 near-duplicate
+suggestions, R2 thresholds and bounded clustering, the related T1 fixtures and A2)
+depends on SS-060 visual retrieval and stays open on SS-062. Schema v16 and the
+v3 portable and folder formats are taken by this half; a ticket merged later
+bumps to the next free version.
+
 ## Progress notes (append-only)
 
 - 20 October 2026: [SS-055](SS-055.md) in review as [PR #55](https://github.com/nileshkant/AI-editing-asset-organiser/pull/55) from main `31bb956` while SS-050–054 run in parallel, as the user directed; see [review](../docs/reviews/SS-055.md). Schema v16. Merge it after SS-054 in queue order; the second of the two to merge takes the next free schema version.

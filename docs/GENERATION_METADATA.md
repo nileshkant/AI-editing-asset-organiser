@@ -118,7 +118,7 @@ that setting marks affected snapshots for rewrite. Markdown exports carry no
 generation data. Database backups are complete local copies and keep everything.
 
 Portable JSON carries generation data as an optional `generation` field on each
-v2 image record: `embedded` (this version's extraction), `sidecar` and
+v2 or v3 image record: `embedded` (this version's extraction), `sidecar` and
 `provenance` (your entries and review). Older v2 documents without it import
 unchanged.
 

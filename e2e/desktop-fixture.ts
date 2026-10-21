@@ -36,6 +36,19 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
       relative_path: `shoot/${i === 3 ? '長い名前-'.repeat(10) : ''}image-${pad(i, 6)}.png`, content_hash: (i.toString(16) + 'a'.repeat(64)).slice(0, 64),
       technical_state: i % 37 === 5 ? 'pending' : 'ready', availability: i % 50 === 7 ? 'offline' : 'available', enrichment_state: 'disabled' },
       width: 4000, height: 3000, annotation_revision: notesFor(i).revision });
+    // SS-062 renderer contract: one exact stack of images 1, 2 and 7 (7 is offline), revision-fenced.
+    const stack = { revision: 0, preferred: null as string | null, separated: new Set<string>(), dismissed: false };
+    const stackHash = 'c'.repeat(64);
+    const stackView = () => {
+      const members = [1, 2, 7].map(i => galleryItem(i)).map(image => ({ image: { ...image, header: { ...image.header, content_hash: stackHash, technical_state: 'ready' } },
+        source_name: source.name, separated: stack.separated.has(image.header.id), new_since_dismissed: false }))
+        .sort((a, b) => Number(a.separated) - Number(b.separated));
+      const active = members.filter(m => !m.separated), count = active.length;
+      const preferred = stack.preferred && active.find(m => m.image.header.id === stack.preferred);
+      return { kind: 'exact', content_hash: stackHash, revision: stack.revision, member_count: count, separated_count: members.length - count, members, members_truncated: false,
+        preferred_id: stack.preferred, preferred_state: !stack.preferred ? 'none' : preferred ? preferred.image.header.availability : 'separated',
+        representative_id: (preferred ?? active[0])?.image.header.id ?? null, dismissed: stack.dismissed, hidden: count < 2 || stack.dismissed };
+    };
     // SS-046 renderer contract: revisioned annotations, history with undo, tag rename/aliases.
     type Notes = { revision: number; tags: string[]; comment: string; favorite: boolean; rating: number | null };
     const notes = new Map<number, Notes>(), history: any[] = [], aliases: { alias: string; canonical: string }[] = [];
@@ -211,6 +224,20 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
               { feature: 'offline_tagging', state: 'not_offered', quality: { state: 'pending_evaluation' } }];
             case 'relink_source': return source;
             case 'choose_folder': case 'choose_file': return null;
+            case 'image_duplicate_groups': { const g = stackView(), listed = images && (args.includeHidden || !g.hidden) && args.offset === 0 ? [g] : [];
+              return { groups: listed, offset: args.offset, total: images && (args.includeHidden || !g.hidden) ? 1 : 0, open_groups: g.hidden ? 0 : 1, extra_copies: g.hidden ? 0 : g.member_count - 1, hidden_groups: g.hidden ? 1 : 0 }; }
+            case 'image_duplicate_group': return stackView();
+            case 'update_image_duplicate_group': {
+              if (args.expectedRevision !== stack.revision) throw 'CONFLICT';
+              const a = args.action;
+              if (a.action === 'prefer') stack.preferred = a.asset_id;
+              if (a.action === 'clear_preferred') stack.preferred = null;
+              if (a.action === 'separate') { stack.separated.add(a.asset_id); if (stack.preferred === a.asset_id) stack.preferred = null; }
+              if (a.action === 'rejoin') stack.separated.delete(a.asset_id);
+              if (a.action === 'dismiss') stack.dismissed = true;
+              if (a.action === 'restore') stack.dismissed = false;
+              stack.revision += 1;
+              return stackView(); }
             default: throw new Error(`Unmodeled fixture command: ${command}`);
           }
         },

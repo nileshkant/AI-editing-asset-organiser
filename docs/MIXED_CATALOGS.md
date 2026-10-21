@@ -14,10 +14,12 @@ the feature gate.
 | --- | --- | --- |
 | Portable JSON | `soundshelf-catalog/v1`, unchanged | `soundshelf-catalog/v2` |
 | Folder snapshot `.creativeshelf/catalog.json` | `creativeshelf-source/v1`, unchanged | `creativeshelf-source/v2` |
-| SQLite | schema v17 (adds SS-055 generation tables; v16 is SS-062's) | schema v17 |
+| SQLite | schema v17 (v16 SS-062 duplicates, v17 SS-055 generation tables) | schema v17 |
 
 - v2 is v1 plus two arrays: `images` and (portable only) `image_tag_aliases`.
   Every audio field keeps its v1 meaning and shape.
+- v3 (SS-062) is v2 plus `image_duplicate_decisions`, written only when a library
+  has exact-duplicate decisions. See [IMAGE_DUPLICATES.md](IMAGE_DUPLICATES.md).
 - Writers choose the lowest version that can hold the data. An audio-only
   library keeps writing v1, so an older app keeps reading it.
 - An older app reading v2 fails on the schema string with its existing
@@ -67,6 +69,7 @@ test fails when a column has no classification (see "Hooks for later tickets").
 | Annotations (tags, notes, favorite, rating, caption, revision) | yes | yes | yes |
 | Evidence and recipes (stale flags included); lineage | yes | yes | yes |
 | Tag aliases | yes | no: library-wide, like saved searches | yes |
+| Exact-duplicate decisions (SS-062) | yes (v3) | yes, this folder's copies only (v3) | yes |
 | Generation extractions, sidecar evidence and your provenance (SS-055) | yes; prompts and private references only when chosen | yes; prompts and private references only per the library setting | yes |
 | Sidecar stat and provenance edit time (SS-055) | no: machine-local | no | yes |
 | Annotation undo history (SS-046) | no: local undo | no | yes |
@@ -210,7 +213,8 @@ Measured sizes and times are in the [SS-048 review](reviews/SS-048.md). A
   validation in the same PR.
 - `portable_image_payload_names_every_portable_image_field` pins the contract
   fields the payload carries.
-- New fields go into a new schema version (`…/v3`). Never change the meaning of
-  a v1 or v2 field. Exception while no release reads v2: an optional field that
-  older v2 documents may omit can be added to v2, as SS-055 did with
-  `generation` (see DECISIONS.md). Once a release ships v2, use v3.
+- New fields go into a new schema version. Never change the meaning of a v1, v2
+  or v3 field. Exception while no release reads v2 or v3: an optional image
+  field that older documents may omit can be added to the shared image record,
+  as SS-055 did with `generation` (see DECISIONS.md). Once a release ships them,
+  use the next version.
