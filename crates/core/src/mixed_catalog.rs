@@ -436,6 +436,9 @@ mod persistence_inventory {
         ("image_import_budget", "R", &["id", "rows", "bytes"]),
         ("image_source_identity", "B: machine-local volume and inode binding", &["source_id", "source_generation", "root_stamp"]),
         ("asset_file_stats", "B: machine-local stat evidence (SS-047)", &["asset_id", "content_hash", "volume", "file_id", "size", "modified", "changed", "recorded"]),
+        ("image_duplicate_groups", "P", &["content_hash", "preferred_id", "dismissed"]),
+        ("image_duplicate_groups", "B: local edit fence (SS-062); imports start at revision 1", &["revision", "updated_at"]),
+        ("image_duplicate_marks", "P", &["content_hash", "asset_id", "mark"]),
         ("image_source_monitor", "B: watching is re-enabled deliberately per machine", &["source_id", "watch", "mode", "root_state", "checked_at"]),
     ];
 

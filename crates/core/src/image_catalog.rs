@@ -627,5 +627,6 @@ pub(crate) fn validate_image_database(db: &Connection) -> Result<()> {
         }
         done.extend(chain);
     }
-    crate::image_annotations::validate_annotation_tables(db)
+    crate::image_annotations::validate_annotation_tables(db)?;
+    crate::image_duplicates::validate_duplicate_tables(db)
 }

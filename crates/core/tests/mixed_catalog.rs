@@ -191,7 +191,7 @@ fn unsupported_newer_and_malformed_mixed_catalogs_fail_without_changes() {
         assert!(error.contains(expected), "{error} should contain {expected}");
     };
     let mut newer = doc.clone();
-    newer["schema"] = "soundshelf-catalog/v3".into();
+    newer["schema"] = "soundshelf-catalog/v4".into();
     reject(&newer, "newer CreativeShelf");
     let mut downgraded = doc.clone();
     downgraded["schema"] = "soundshelf-catalog/v1".into();

@@ -187,3 +187,13 @@ Do not wait for merge; preserve predecessor-first merge order. If blocked, recor
 No new tickets are added here for collaboration/cloud sync, additional formats,
 generator connectors, generative editing, video indexing, public marketplace,
 or executable presets. They remain the phase plan's explicitly later ideas.
+
+## 20 October 2026: SS-062 split
+
+At the user's request to work the queue in parallel, the exact-duplicate half of
+SS-062 (identical verified digests, decisions, persistence) was built ahead of
+SS-050–061 from reviewed main. Its variation-family half (R1 near-duplicate
+suggestions, R2 thresholds and bounded clustering, the related T1 fixtures and A2)
+depends on SS-060 visual retrieval and stays open on SS-062. Schema v16 and the
+v3 portable and folder formats are taken by this half; a ticket merged later
+bumps to the next free version.

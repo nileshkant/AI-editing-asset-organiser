@@ -295,6 +295,23 @@ export type AnnotationAction = { id: string; kind: 'edit' | 'bulk' | 'rename'; l
 export type TagAlias = { alias: string; canonical: string };
 export type TagList = { tags: { tag: string; count: number }[]; truncated: boolean; aliases: TagAlias[] };
 export type RenamePreview = { from: string; to: string; images: number; merged: number; unavailable: number; audio_unchanged: number };
+/** SS-062 exact-duplicate stacks. Membership is identical bytes only; grouping never deletes or merges. */
+export type DuplicatePreferredState = 'none' | 'available' | 'offline' | 'inaccessible' | 'missing' | 'changed' | 'separated';
+export type DuplicateMember = { image: ImageSummary; source_name: string; separated: boolean; new_since_dismissed: boolean };
+export type DuplicateGroup = {
+  kind: 'exact'; content_hash: string;
+  /** 0 until the first decision; sent back as the expected revision. */
+  revision: number;
+  member_count: number; separated_count: number; members: DuplicateMember[]; members_truncated: boolean;
+  preferred_id: string | null; preferred_state: DuplicatePreferredState; representative_id: string | null;
+  dismissed: boolean; hidden: boolean;
+};
+export type DuplicatePage = { groups: DuplicateGroup[]; offset: number; total: number; open_groups: number; extra_copies: number; hidden_groups: number };
+export type DuplicateAction =
+  | { action: 'prefer'; asset_id: string } | { action: 'clear_preferred' }
+  | { action: 'separate'; asset_id: string } | { action: 'rejoin'; asset_id: string }
+  | { action: 'dismiss' } | { action: 'restore' };
+export type DuplicateError = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'PERMISSION_DENIED' | 'CONFLICT' | 'INTERNAL';
 /** SS-049 provider settings. Keys are write-only: no command ever returns one. */
 export type ProviderKind = 'openai' | 'anthropic' | 'gemini' | 'openai_compatible';
 export type CapabilityState = 'untested' | 'supported' | 'unsupported' | 'inconclusive';

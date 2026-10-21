@@ -14,10 +14,12 @@ the feature gate.
 | --- | --- | --- |
 | Portable JSON | `soundshelf-catalog/v1`, unchanged | `soundshelf-catalog/v2` |
 | Folder snapshot `.creativeshelf/catalog.json` | `creativeshelf-source/v1`, unchanged | `creativeshelf-source/v2` |
-| SQLite | schema v15 | schema v15 |
+| SQLite | schema v16 | schema v16 |
 
 - v2 is v1 plus two arrays: `images` and (portable only) `image_tag_aliases`.
   Every audio field keeps its v1 meaning and shape.
+- v3 (SS-062) is v2 plus `image_duplicate_decisions`, written only when a library
+  has exact-duplicate decisions. See [IMAGE_DUPLICATES.md](IMAGE_DUPLICATES.md).
 - Writers choose the lowest version that can hold the data. An audio-only
   library keeps writing v1, so an older app keeps reading it.
 - An older app reading v2 fails on the schema string with its existing
@@ -67,6 +69,7 @@ test fails when a column has no classification (see "Hooks for later tickets").
 | Annotations (tags, notes, favorite, rating, caption, revision) | yes | yes | yes |
 | Evidence and recipes (stale flags included); lineage | yes | yes | yes |
 | Tag aliases | yes | no: library-wide, like saved searches | yes |
+| Exact-duplicate decisions (SS-062) | yes (v3) | yes, this folder's copies only (v3) | yes |
 | Annotation undo history (SS-046) | no: local undo | no | yes |
 | File stats (SS-047), root identity, watch preference, root state | no: machine-local | no | yes |
 | Import/check job history | no | no | yes |
