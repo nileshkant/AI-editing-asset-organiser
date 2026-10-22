@@ -312,6 +312,33 @@ export type DuplicateAction =
   | { action: 'separate'; asset_id: string } | { action: 'rejoin'; asset_id: string }
   | { action: 'dismiss' } | { action: 'restore' };
 export type DuplicateError = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'PERMISSION_DENIED' | 'CONFLICT' | 'INTERNAL';
+/** SS-055 generation metadata. Every value is a claim with an origin; `null` is unknown, `''` is recorded as empty. */
+export type GenerationField = 'prompt' | 'negative_prompt' | 'generator' | 'model' | 'seed' | 'sampler' | 'created' | 'settings' | 'references' | 'digital_source_type' | 'ai_generated';
+export type GenerationFormat = 'a1111_parameters' | 'comfyui_prompt' | 'invokeai_metadata' | 'novelai_comment' | 'xmp_digital_source' | 'software_tag' | 'exif_datetime';
+export type GenerationContainer = 'png_text' | 'png_compressed_text' | 'png_international_text' | 'png_exif' | 'jpeg_exif' | 'jpeg_xmp' | 'webp_exif' | 'webp_xmp' | 'sidecar';
+export type ClaimSource = { format: GenerationFormat; container: GenerationContainer; key: string };
+export type GenerationReference = { kind: 'model_hash' | 'lora' | 'image' | 'other'; value: string; private: boolean };
+export type GenerationClaim = {
+  source: ClaimSource;
+  fields: { prompt: string | null; negative_prompt: string | null; generator: string | null; model: string | null; seed: string | null; sampler: string | null;
+    created: { value: string; utc_offset: string | null } | null; settings: Record<string, string>; references: GenerationReference[]; digital_source_type: string | null };
+};
+export type ExtractionIssue = { container: GenerationContainer | null; key: string; code: 'malformed' | 'limit_exceeded' | 'unsupported_encoding' | 'ambiguous' | 'inexact_number'; field: GenerationField | null };
+export type GenerationExtraction = {
+  parser: string; status: 'none' | 'found' | 'malformed' | 'limit_exceeded'; claims: GenerationClaim[]; issues: ExtractionIssue[];
+  uninterpreted: { container: GenerationContainer; key: string; bytes: number }[]; redacted: GenerationField[];
+};
+export type GenerationFieldView = { field: GenerationField; value: string | null; origin: 'user' | 'imported' | 'inherited' | 'unknown'; source: ClaimSource | null; conflicting: boolean; redacted: boolean; uncertain: boolean };
+export type GenerationSharing = { prompts: boolean; private_references: boolean };
+export type GenerationSettings = { search: 'exclude' | 'metadata' | 'prompts'; snapshot: GenerationSharing };
+export type GenerationView = {
+  asset_id: string; revision: number; embedded: GenerationExtraction | null;
+  sidecar: { relative_path: string; present: boolean; revision: number; extraction: GenerationExtraction } | null;
+  fields: GenerationFieldView[]; claims: GenerationClaim[]; confirmed: boolean; confirmation_outdated: boolean;
+  inherited_from: string | null; editable: boolean; settings: GenerationSettings;
+};
+/** A value sets the field; `null` removes the person's value so imported claims show again. */
+export type GenerationPatch = { set?: Partial<Record<GenerationField, string | null>>; confirm?: boolean };
 /** SS-049 provider settings. Keys are write-only: no command ever returns one. */
 export type ProviderKind = 'openai' | 'anthropic' | 'gemini' | 'openai_compatible';
 export type CapabilityState = 'untested' | 'supported' | 'unsupported' | 'inconclusive';

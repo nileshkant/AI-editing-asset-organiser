@@ -119,3 +119,16 @@
 @media (max-width: 520px) { .image-duplicate-group { grid-template-columns: minmax(0, 1fr); } }
 .image-duplicates-dialog .badge { display: inline-block; padding: 0 .4rem; border: 1px solid var(--border-default); border-radius: 999px; font-size: .75rem; font-weight: 500; }
 .image-duplicates-dialog .badge.warning { border-color: var(--warning, #d9a400); }
+
+/* SS-055 generation provenance */
+.image-generation { display: grid; gap: .5rem; }
+.image-generation h3 { margin: 0; font-size: .95rem; }
+.image-generation p { margin: 0; }
+.image-generation-field { display: contents; }
+.image-generation-field dd { display: grid; gap: .1rem; }
+.image-generation-text { white-space: pre-wrap; max-height: 12rem; overflow: auto; }
+.image-generation-form { display: grid; gap: .5rem; }
+.image-generation-input { display: grid; gap: .2rem; }
+.image-generation-input textarea, .image-generation-input input, .image-generation-input select { width: 100%; box-sizing: border-box; }
+.image-generation-details ul { margin: .3rem 0 0; padding-left: 1rem; font-size: .85rem; display: grid; gap: .2rem; }
+.image-generation-details li { overflow-wrap: anywhere; }

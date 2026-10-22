@@ -14,7 +14,7 @@ the feature gate.
 | --- | --- | --- |
 | Portable JSON | `soundshelf-catalog/v1`, unchanged | `soundshelf-catalog/v2` |
 | Folder snapshot `.creativeshelf/catalog.json` | `creativeshelf-source/v1`, unchanged | `creativeshelf-source/v2` |
-| SQLite | schema v16 | schema v16 |
+| SQLite | schema v17 (v16 SS-062 duplicates, v17 SS-055 generation tables) | schema v17 |
 
 - v2 is v1 plus two arrays: `images` and (portable only) `image_tag_aliases`.
   Every audio field keeps its v1 meaning and shape.
@@ -70,6 +70,8 @@ test fails when a column has no classification (see "Hooks for later tickets").
 | Evidence and recipes (stale flags included); lineage | yes | yes | yes |
 | Tag aliases | yes | no: library-wide, like saved searches | yes |
 | Exact-duplicate decisions (SS-062) | yes (v3) | yes, this folder's copies only (v3) | yes |
+| Generation extractions, sidecar evidence and your provenance (SS-055) | yes; prompts and private references only when chosen | yes; prompts and private references only per the library setting | yes |
+| Sidecar stat and provenance edit time (SS-055) | no: machine-local | no | yes |
 | Annotation undo history (SS-046) | no: local undo | no | yes |
 | File stats (SS-047), root identity, watch preference, root state | no: machine-local | no | yes |
 | Import/check job history | no | no | yes |
@@ -175,6 +177,16 @@ backup. A failure leaves v14 intact (tested). An upgraded schema is identical to
 a fresh one, as restore requires (tested). A v14 binary cannot open a v15
 database; restore the pre-upgrade backup to go back.
 
+## Schema v17
+
+`generation_schema.sql` adds three tables for [generation metadata](GENERATION_METADATA.md):
+extractions keyed by content hash and parser version, one sidecar record per
+image, and one provenance record per image. Their triggers mark the folder
+snapshot dirty. The upgrade adds tables only, is transactional with a
+`*.pre-v17-<uuid>.sqlite` backup, and leaves the older version intact on failure (tested). An
+upgraded schema equals a fresh one (tested). Existing images are read for
+metadata on their next check.
+
 ## Limits
 
 | Limit | Value | Behavior when exceeded |
@@ -201,5 +213,8 @@ Measured sizes and times are in the [SS-048 review](reviews/SS-048.md). A
   validation in the same PR.
 - `portable_image_payload_names_every_portable_image_field` pins the contract
   fields the payload carries.
-- New fields go into a new schema version (`…/v3`). Never change the meaning of
-  a v1 or v2 field.
+- New fields go into a new schema version. Never change the meaning of a v1, v2
+  or v3 field. Exception while no release reads v2 or v3: an optional image
+  field that older documents may omit can be added to the shared image record,
+  as SS-055 did with `generation` (see DECISIONS.md). Once a release ships them,
+  use the next version.

@@ -438,3 +438,6 @@
 .catalog-data .header-actions { flex-wrap: wrap; justify-content: flex-start; }
 .catalog-preview { padding: 16px; border: 1px solid var(--border-default); border-radius: 8px; }
 .catalog-data article { padding: 12px; border-bottom: 1px solid var(--border-default); }
+.catalog-generation { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--border-default); border-radius: 8px; font-size: 12px; }
+.catalog-generation legend { font-weight: 600; padding: 0 4px; }
+.catalog-generation select { max-width: 24rem; }
