@@ -217,3 +217,10 @@ export const imageDuplicateGroup = (sourceId: string | null, contentHash: string
 /** One decision from the revision last read (CONFLICT otherwise). */
 export const updateImageDuplicateGroup = (sourceId: string | null, group: import('./types').DuplicateGroup, action: import('./types').DuplicateAction) =>
   call<import('./types').DuplicateGroup>('update_image_duplicate_group', { sourceId, contentHash: group.content_hash, expectedRevision: group.revision, action });
+/** SS-055: attributed generation provenance for one image. */
+export const imageGeneration = (id: string) => call<import('./types').GenerationView>('image_generation', { id });
+export const editImageGeneration = (id: string, expectedRevision: number, patch: import('./types').GenerationPatch) =>
+  call<import('./types').GenerationView>('edit_image_generation', { id, expectedRevision, patch });
+export const imageGenerationSettings = () => call<import('./types').GenerationSettings>('image_generation_settings');
+export const setImageGenerationSettings = (settings: import('./types').GenerationSettings) =>
+  call<import('./types').GenerationSettings>('set_image_generation_settings', { settings });

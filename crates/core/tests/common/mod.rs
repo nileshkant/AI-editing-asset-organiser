@@ -28,6 +28,9 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
       DROP TABLE image_search_docs;
       DROP TABLE image_search_dirty;
       DROP TABLE saved_image_searches;
+      DROP TABLE image_generation_provenance;
+      DROP TABLE image_generation_sidecars;
+      DROP TABLE image_generation_extractions;
       DROP TABLE image_duplicate_marks;
       DROP TABLE image_duplicate_groups;
       DROP TABLE asset_file_stats;

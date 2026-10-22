@@ -3,6 +3,7 @@ use crate::{
     catalog::{contained, Catalog, Source},
     image_analysis::{self, AnalysisError, AnalysisWarning, ImageAnalysisRequest, ImageSelection},
     image_contracts::{ImageFormat, ImageProfile},
+    image_generation, image_provenance,
     image_import_preview::{candidate, RootStamp, DISCOVERY_DEADLINE, MAX_DEPTH, MAX_FILES},
     image_jobs::{
         self, check_lease, finish_item_with_warnings_on, DiscoveredImport, ImageImportItem,
@@ -426,14 +427,51 @@ impl ImageImportEngine {
         let before = FileStamp::read(path).ok();
         if !j.verify {
             if let Some(stamp) = &before {
-                if self.unchanged_image(j, owner, s, item, stamp)? {
+                if let Some((id, hash)) = self.unchanged_image(j, owner, s, item, stamp)? {
+                    self.generation_followup(j, owner, s, &item.relative_path, &id, &hash, &cancel);
                     return Ok(());
                 }
             }
         }
         let selection =
             ImageSelection::capture(&*lock(&self.catalog)?, &s.id, &item.relative_path)?;
-        let digest = selection.hash(&cancel)?;
+        // SS-055: keep the bytes only when this path's content may need a metadata
+        // read, so the common re-check streams the hash as before.
+        let prior_needs = {
+            let c = lock(&self.catalog)?;
+            let prior: Option<Option<String>> = c.db_connection().query_row(
+                "SELECT i.content_hash FROM asset_registry r JOIN image_assets i ON i.id=r.id WHERE r.source_id=?1 AND r.relative_path=?2",
+                params![s.id, item.relative_path],
+                |r| r.get(0),
+            ).optional()?;
+            match prior.flatten() {
+                Some(h) => image_provenance::needs_extraction(c.db_connection(), &h).map_err(core_error)?,
+                None => true,
+            }
+        };
+        let (digest, bytes) = if prior_needs {
+            let (d, b) = selection.read(&cancel)?;
+            (d, Some(b))
+        } else {
+            (selection.hash(&cancel)?, None)
+        };
+        let needs = image_provenance::needs_extraction(lock(&self.catalog)?.db_connection(), &digest).map_err(core_error)?;
+        let generation = if needs {
+            let bytes = match bytes {
+                Some(b) => b,
+                None => {
+                    let (d, b) = selection.read(&cancel)?;
+                    if d != digest {
+                        return Err(E::SourceChanged);
+                    }
+                    b
+                }
+            };
+            Some(image_generation::extract(&bytes))
+        } else {
+            drop(bytes);
+            None
+        };
         // Record stat evidence only if nothing was written while hashing.
         let stable = before.filter(|b| {
             FileStamp::read(path)
@@ -473,6 +511,9 @@ impl ImageImportEngine {
                     if let Some(stamp) = &stable {
                         record_stamp(db, &image.header.id, &digest, stamp)?;
                     }
+                    if let Some(g) = &generation {
+                        image_provenance::store_extraction(db, &digest, g)?;
+                    }
                     finish_item_with_warnings_on(
                         db,
                         &j.id,
@@ -505,6 +546,9 @@ impl ImageImportEngine {
                     if let Some(stamp) = &stable {
                         record_stamp(db, &image.header.id, &digest, stamp)?;
                     }
+                    if let Some(g) = &generation {
+                        image_provenance::store_extraction(db, &digest, g)?;
+                    }
                     db.execute(
                         "INSERT OR IGNORE INTO image_analysis_warnings VALUES(?1,?2,?3)",
                         params![
@@ -529,6 +573,57 @@ impl ImageImportEngine {
                 })
                 .map_err(E::from)?;
         }
+        // Metadata never decides readiness: a sidecar failure leaves the image ready.
+        let _ = self.refresh_sidecar(j, owner, s, &image.header.id, &item.relative_path);
+        Ok(())
+    }
+    /// SS-055 work for a member the quick check left untouched: read metadata
+    /// once for content never read by this parser, and pick up sidecar-only
+    /// changes. Failures stay metadata-only; the member is already finished.
+    #[allow(clippy::too_many_arguments)]
+    fn generation_followup(
+        &self,
+        j: &ImageImportJob,
+        owner: &str,
+        s: &Source,
+        relative: &str,
+        id: &str,
+        hash: &str,
+        cancel: &AtomicBool,
+    ) {
+        let embedded = || -> Result<()> {
+            if !image_provenance::needs_extraction(lock(&self.catalog)?.db_connection(), hash).map_err(core_error)? {
+                return Ok(());
+            }
+            let selection = ImageSelection::capture(&*lock(&self.catalog)?, &s.id, relative)?;
+            let (digest, bytes) = selection.read(cancel)?;
+            if digest != hash {
+                // Same stat, different bytes: Verify file bytes owns this case.
+                return Ok(());
+            }
+            let g = image_generation::extract(&bytes);
+            drop(bytes);
+            let c = lock(&self.catalog)?;
+            let tx = Transaction::new_unchecked(c.db_connection(), TransactionBehavior::Immediate)?;
+            check_lease(&tx, &j.id, owner, now_secs())?;
+            let current: Option<String> = tx.query_row("SELECT content_hash FROM image_assets WHERE id=?1", [id], |r| r.get(0)).optional()?.flatten();
+            if current.as_deref() == Some(hash) {
+                image_provenance::store_extraction(&tx, hash, &g).map_err(core_error)?;
+            }
+            tx.commit()?;
+            Ok(())
+        };
+        let _ = embedded();
+        let _ = self.refresh_sidecar(j, owner, s, id, relative);
+    }
+    fn refresh_sidecar(&self, j: &ImageImportJob, owner: &str, s: &Source, id: &str, relative: &str) -> Result<()> {
+        let prior = image_provenance::sidecar_row(lock(&self.catalog)?.db_connection(), id).map_err(core_error)?;
+        let seen = image_provenance::observe_sidecar(Path::new(&s.root), s.scope == "folder", relative, prior.as_ref());
+        let c = lock(&self.catalog)?;
+        let tx = Transaction::new_unchecked(c.db_connection(), TransactionBehavior::Immediate)?;
+        check_lease(&tx, &j.id, owner, now_secs())?;
+        image_provenance::apply_sidecar(&tx, id, relative, prior.as_ref(), seen).map_err(core_error)?;
+        tx.commit()?;
         Ok(())
     }
     fn audio(
@@ -654,25 +749,25 @@ impl ImageImportEngine {
         s: &Source,
         item: &ImageImportItem,
         stamp: &FileStamp,
-    ) -> Result<bool> {
+    ) -> Result<Option<(String, String)>> {
         let c = lock(&self.catalog)?;
         let tx = Transaction::new_unchecked(c.db_connection(), TransactionBehavior::Immediate)?;
         check_lease(&tx, &j.id, owner, now_secs())?;
         let row: Option<(String, Option<String>, String, Option<String>)> = tx.query_row("SELECT r.id,i.content_hash,i.technical_state,i.analyzer_version FROM asset_registry r JOIN image_assets i ON i.id=r.id WHERE r.source_id=?1 AND r.relative_path=?2 AND r.kind='image'",params![s.id,item.relative_path],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
         let Some((id, Some(hash), technical, Some(analyzer))) = row else {
-            return Ok(false);
+            return Ok(None);
         };
         if technical != "ready"
             || analyzer != image_analysis::ANALYZER
             || !trusted_unchanged(&tx, &id, &hash, stamp)?
         {
-            return Ok(false);
+            return Ok(None);
         }
         let Some(profile) = c
             .cached_image_profile(&hash, image_analysis::ANALYZER)
             .map_err(core_error)?
         else {
-            return Ok(false);
+            return Ok(None);
         };
         let stored:Option<String>=tx.query_row("SELECT warnings FROM image_analysis_warnings WHERE content_hash=?1 AND analyzer_version=?2",params![hash,image_analysis::ANALYZER],|r|r.get(0)).optional()?;
         let mut warnings: Vec<AnalysisWarning> = stored
@@ -697,7 +792,7 @@ impl ImageImportEngine {
             &warnings,
         )?;
         tx.commit()?;
-        Ok(true)
+        Ok(Some((id, hash)))
     }
     fn unchanged_audio(
         &self,

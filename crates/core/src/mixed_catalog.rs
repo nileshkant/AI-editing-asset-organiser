@@ -32,6 +32,10 @@ pub struct PortableImage {
     pub asset: ImageAsset,
     pub technical_warnings: Vec<AnalysisWarning>,
     pub versions: Vec<PortableImageVersion>,
+    /// SS-055 generation claims and user provenance, after export redaction.
+    /// Absent when there is none, so documents without it keep their shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<crate::image_provenance::PortableGeneration>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -99,6 +103,9 @@ pub(crate) fn validate_images(
         if h.content_hash.as_ref().is_some_and(|c| !seen.contains(c.as_str())) {
             return Err(invalid("Image version history lacks its current content"));
         }
+        if let Some(g) = &image.generation {
+            crate::image_provenance::validate_portable(g, &h.relative_path, h.content_hash.is_some())?;
+        }
         match &asset.profile {
             None if !image.technical_warnings.is_empty() => {
                 return Err(invalid("Technical warnings require an analysis"))
@@ -141,6 +148,7 @@ pub(crate) fn export_images(
     db: &Connection,
     source_id: Option<&str>,
     members_only: bool,
+    sharing: crate::image_generation::GenerationSharing,
 ) -> Result<Vec<PortableImage>> {
     let mut q = db.prepare(
         "SELECT r.id FROM asset_registry r JOIN image_assets i ON i.id=r.id
@@ -188,10 +196,12 @@ pub(crate) fn export_images(
                 .unwrap_or_default(),
             _ => vec![],
         };
+        let generation = crate::image_provenance::export_generation(db, &id, asset.header.content_hash.as_deref(), sharing)?;
         images.push(PortableImage {
             asset,
             technical_warnings,
             versions: history,
+            generation,
         });
     }
     Ok(images)
@@ -298,6 +308,9 @@ pub(crate) fn import_images(
                 "INSERT INTO image_asset_versions(asset_id,content_hash,first_seen) VALUES(?1,?2,?3)",
                 params![h.id, v.content_hash, v.first_seen],
             )?;
+        }
+        if let Some(g) = &image.generation {
+            crate::image_provenance::import_generation(tx, &h.id, h.content_hash.as_deref(), g)?;
         }
     }
     // Watching is never implied: monitoring rows start off, as after an import.
@@ -451,6 +464,11 @@ mod persistence_inventory {
         ("image_search_fts_config", "R", &["k", "v"]),
         ("saved_image_searches", "P", &["id", "name", "query", "created_at", "updated_at"]),
         ("saved_image_searches", "R: derived from name", &["name_key"]),
+        ("image_generation_extractions", "P", &["content_hash", "parser_version", "extraction"]),
+        ("image_generation_sidecars", "P", &["asset_id", "relative_path", "present", "sidecar_hash", "revision", "extraction"]),
+        ("image_generation_sidecars", "B: machine-local sidecar stat (SS-055)", &["observed_at", "size", "modified"]),
+        ("image_generation_provenance", "P", &["asset_id", "revision", "record"]),
+        ("image_generation_provenance", "B: local edit time", &["updated_at"]),
     ];
 
     #[test]
@@ -498,6 +516,7 @@ mod persistence_inventory {
             .unwrap(),
             technical_warnings: vec![],
             versions: vec![],
+            generation: None,
         })
         .unwrap();
         let asset = &fields["asset"];
@@ -562,6 +581,49 @@ mod persistence_inventory {
         c.register_image(&source, "new.png", Some(&"b".repeat(64))).unwrap();
         let error: String = c.db.query_row("SELECT last_error FROM source_catalog_state WHERE source_id=?1", [&source.id], |r| r.get(0)).unwrap();
         assert_eq!(error, "");
+    }
+
+    fn v15_database(path: &std::path::Path) -> Connection {
+        let db = v14_database(path);
+        db.execute_batch(include_str!("mixed_catalog_schema.sql")).unwrap();
+        db.pragma_update(None, "user_version", 15).unwrap();
+        db
+    }
+
+    #[test]
+    fn genuine_v15_upgrade_adds_generation_storage_and_matches_a_fresh_schema() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("v15.sqlite");
+        let mut old = Catalog { db: v15_database(&path) };
+        let source = old.add_source(d.path()).unwrap();
+        let image = old.register_image(&source, "kept.png", Some(&"a".repeat(64))).unwrap();
+        drop(old);
+        let c = Catalog::open(&path).unwrap();
+        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), crate::catalog::SCHEMA_VERSION);
+        assert_eq!(c.image(&image.header.id, None).unwrap(), image, "v15 records are unchanged");
+        let view = c.image_generation(&image.header.id).unwrap();
+        assert_eq!((view.revision, view.embedded.is_none(), view.claims.len()), (0, true, 0), "not read yet, never fabricated");
+        let fresh = Catalog::open(std::path::Path::new(":memory:")).unwrap();
+        assert_eq!(master(&c.db), master(&fresh.db), "restore compares schemas exactly");
+        let backup = std::fs::read_dir(d.path()).unwrap().map(|e| e.unwrap().path())
+            .find(|p| p.to_string_lossy().contains(&format!("pre-v{}-", crate::catalog::SCHEMA_VERSION))).unwrap();
+        let db = Connection::open(backup).unwrap();
+        assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 15);
+    }
+
+    #[test]
+    fn v17_failure_rolls_back_and_keeps_the_v15_catalog_usable() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("v15.sqlite");
+        let db = v15_database(&path);
+        // An object the v17 script creates already exists, so it fails mid-migration.
+        db.execute_batch("CREATE TABLE image_generation_sidecars(x);").unwrap();
+        drop(db);
+        assert!(Catalog::open(&path).is_err());
+        let db = Connection::open(&path).unwrap();
+        assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 15);
+        let created: i64 = db.query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('image_generation_extractions','image_generation_provenance')", [], |r| r.get(0)).unwrap();
+        assert_eq!(created, 0, "nothing from v17 survives the rollback");
     }
 
     #[test]

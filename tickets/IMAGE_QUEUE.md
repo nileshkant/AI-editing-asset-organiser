@@ -198,3 +198,9 @@ suggestions, R2 thresholds and bounded clustering, the related T1 fixtures and A
 depends on SS-060 visual retrieval and stays open on SS-062. Schema v16 and the
 v3 portable and folder formats are taken by this half; a ticket merged later
 bumps to the next free version.
+
+## Progress notes (append-only)
+
+- 20 October 2026: [SS-055](SS-055.md) in review as [PR #55](https://github.com/nileshkant/AI-editing-asset-organiser/pull/55) from main `31bb956` while SS-050–054 run in parallel, as the user directed; see [review](../docs/reviews/SS-055.md). Schema v16. Merge it after SS-054 in queue order; the second of the two to merge takes the next free schema version.
+- 20 October 2026: the user asked to finish the tickets in progress and start no new ones. SS-056 is not started; the queue stops after SS-055.
+- 20 October 2026: schema versions agreed for the open PRs, in merge order: SS-062 (#54) v16, SS-055 (#55) v17, SS-058 (#57) v18.

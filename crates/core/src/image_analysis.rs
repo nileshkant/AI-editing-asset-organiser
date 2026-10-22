@@ -135,6 +135,11 @@ impl ImageSelection {
     pub fn hash(&self, cancel: &AtomicBool) -> Result<String> {
         hash_path(&self.path()?, cancel, Instant::now() + DEADLINE)
     }
+    /// The same bounded read, keeping the bytes so generation metadata (SS-055)
+    /// is read from exactly the hashed content without a second pass.
+    pub fn read(&self, cancel: &AtomicBool) -> Result<(String, Vec<u8>)> {
+        read_path(&self.path()?, cancel, Instant::now() + DEADLINE)
+    }
 }
 /// A known image version must be registered before decoding (SS-043 owns discovery).
 pub struct ImageAnalysisRequest {
@@ -271,6 +276,35 @@ fn checkpoint(cancel: &AtomicBool, end: Instant) -> Result<()> {
         return Err(AnalysisError::TimedOut);
     }
     Ok(())
+}
+pub(crate) fn read_path(path: &Path, cancel: &AtomicBool, end: Instant) -> Result<(String, Vec<u8>)> {
+    let mut file = File::open(path).map_err(|_| AnalysisError::SourceUnavailable)?;
+    let size = file
+        .metadata()
+        .map_err(|_| AnalysisError::SourceUnavailable)?
+        .len();
+    if size == 0 || size > MAX_ENCODED {
+        return Err(AnalysisError::LimitExceeded);
+    }
+    let mut bytes = Vec::with_capacity(size as usize);
+    let mut buffer = [0; 65536];
+    loop {
+        checkpoint(cancel, end)?;
+        let n = file
+            .read(&mut buffer)
+            .map_err(|_| AnalysisError::SourceUnavailable)?;
+        if n == 0 {
+            break;
+        }
+        if (bytes.len() + n) as u64 > MAX_ENCODED {
+            return Err(AnalysisError::LimitExceeded);
+        }
+        bytes.extend_from_slice(&buffer[..n]);
+    }
+    if bytes.len() as u64 != size {
+        return Err(AnalysisError::SourceChanged);
+    }
+    Ok((blake3::hash(&bytes).to_hex().to_string(), bytes))
 }
 pub(crate) fn hash_path(path: &Path, cancel: &AtomicBool, end: Instant) -> Result<String> {
     let mut file = File::open(path).map_err(|_| AnalysisError::SourceUnavailable)?;
