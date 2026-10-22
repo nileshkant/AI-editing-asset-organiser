@@ -129,3 +129,27 @@ test('a 100,000-image library stays windowed while scrolling', async ({ page }, 
   expect(windows).toBeLessThan(200);
   expect(await page.locator('.image-cell img').count()).toBeLessThanOrEqual(120);
 });
+
+test('search and filters work by keyboard and stay accessible at 720×560', async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 560 });
+  await installDesktopFixture(page, true); await page.goto('/');
+  await openImages(page);
+  await expect(page.getByText('240 images')).toBeVisible();
+  const box = page.getByRole('searchbox', { name: 'Search images' });
+  await box.focus();
+  await page.keyboard.type('000002');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('1 image match')).toBeVisible();
+  await expect(page.getByText('Matching 000002 in file names, tags, captions, notes')).toBeVisible();
+  const search = (await calls(page)).filter(c => c.command === 'search_images').at(-1)!;
+  expect(search.args.query).toMatchObject({ text: '000002', sort: 'relevance' });
+  await page.keyboard.press('Tab'); await page.keyboard.press('Enter');
+  const panel = page.getByRole('group', { name: 'Image filters' });
+  await expect(panel).toBeVisible();
+  // Reserved fields with no data behind them are not offered.
+  await expect(panel.getByLabel('Text in images')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  await axe(page);
+  await page.getByRole('button', { name: 'Clear all' }).click();
+  await expect(page.getByText('240 images')).toBeVisible();
+});

@@ -17,6 +17,17 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
         "Only empty duplicate decisions can be removed from legacy fixtures");
     db.execute_batch(
         "
+      DROP TRIGGER image_search_asset_insert;
+      DROP TRIGGER image_search_asset_update;
+      DROP TRIGGER image_search_asset_delete;
+      DROP TRIGGER image_search_path_update;
+      DROP TRIGGER image_search_version_insert;
+      DROP TRIGGER image_search_version_delete;
+      DROP TABLE image_search_fts;
+      DROP TABLE image_search_tags;
+      DROP TABLE image_search_docs;
+      DROP TABLE image_search_dirty;
+      DROP TABLE saved_image_searches;
       DROP TABLE image_generation_provenance;
       DROP TABLE image_generation_sidecars;
       DROP TABLE image_generation_extractions;

@@ -453,6 +453,17 @@ mod persistence_inventory {
         ("image_duplicate_groups", "B: local edit fence (SS-062); imports start at revision 1", &["revision", "updated_at"]),
         ("image_duplicate_marks", "P", &["content_hash", "asset_id", "mark"]),
         ("image_source_monitor", "B: watching is re-enabled deliberately per machine", &["source_id", "watch", "mode", "root_state", "checked_at"]),
+        ("image_search_docs", "R: derived search index (SS-058), rebuilt from image records", &["doc", "asset_id", "kind", "favorite", "rating", "width", "height", "orientation", "alpha", "transparency", "format", "technical", "availability", "enrichment", "suggestions", "origins", "added_at"]),
+        ("image_search_tags", "R", &["doc", "key", "tag", "state"]),
+        ("image_search_dirty", "R", &["asset_id"]),
+        ("image_search_fts", "R", &["name", "tags", "suggested", "caption", "notes"]),
+        ("image_search_fts_data", "R", &["id", "block"]),
+        ("image_search_fts_idx", "R", &["segid", "term", "pgno"]),
+        ("image_search_fts_content", "R", &["id", "c0", "c1", "c2", "c3", "c4"]),
+        ("image_search_fts_docsize", "R", &["id", "sz"]),
+        ("image_search_fts_config", "R", &["k", "v"]),
+        ("saved_image_searches", "P", &["id", "name", "query", "created_at", "updated_at"]),
+        ("saved_image_searches", "R: derived from name", &["name_key"]),
         ("image_generation_extractions", "P", &["content_hash", "parser_version", "extraction"]),
         ("image_generation_sidecars", "P", &["asset_id", "relative_path", "present", "sidecar_hash", "revision", "extraction"]),
         ("image_generation_sidecars", "B: machine-local sidecar stat (SS-055)", &["observed_at", "size", "modified"]),
@@ -588,14 +599,14 @@ mod persistence_inventory {
         let image = old.register_image(&source, "kept.png", Some(&"a".repeat(64))).unwrap();
         drop(old);
         let c = Catalog::open(&path).unwrap();
-        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 17);
+        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), crate::catalog::SCHEMA_VERSION);
         assert_eq!(c.image(&image.header.id, None).unwrap(), image, "v15 records are unchanged");
         let view = c.image_generation(&image.header.id).unwrap();
         assert_eq!((view.revision, view.embedded.is_none(), view.claims.len()), (0, true, 0), "not read yet, never fabricated");
         let fresh = Catalog::open(std::path::Path::new(":memory:")).unwrap();
         assert_eq!(master(&c.db), master(&fresh.db), "restore compares schemas exactly");
         let backup = std::fs::read_dir(d.path()).unwrap().map(|e| e.unwrap().path())
-            .find(|p| p.to_string_lossy().contains("pre-v17-")).unwrap();
+            .find(|p| p.to_string_lossy().contains(&format!("pre-v{}-", crate::catalog::SCHEMA_VERSION))).unwrap();
         let db = Connection::open(backup).unwrap();
         assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 15);
     }

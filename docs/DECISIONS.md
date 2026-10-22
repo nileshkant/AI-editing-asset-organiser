@@ -301,3 +301,30 @@ reads v2 or v3 (neither v0.9.0-beta.1 nor v0.1.0-alpha.6 contains mixed
 catalogs), and readers in this tree accept its
 absence. Schema v17 is additive. Parallel tickets agreed on version numbers in
 merge order: SS-062 takes v16, SS-055 v17 and SS-058 v18.
+
+## SS-058 exact image search, saved searches and schema v18 (20 October 2026)
+
+Image search uses a derived index (`image_search_docs`, `image_search_tags`, an
+FTS5 table) rather than querying annotation JSON. Triggers only queue asset ids
+in `image_search_dirty` inside the writer's own transaction; Rust rebuilds the
+queued documents before every search. Keeping the derivation in Rust means the
+effective-tag, alias, evidence and transparency rules exist once, and a search
+can never read an index older than the last committed edit.
+
+Ranking is a fixed tier (exact tag, tag token, caption, file name, notes, other
+field) and then file name and id. No score from FTS5 is used, so the same
+catalog always gives the same order. Pages are offset windows over a live
+result; a per-connection cache of the ordered ids is reused only while the
+database is unchanged (`total_changes()` and `PRAGMA data_version`), so later
+windows are cheap and an edit simply produces a new order.
+
+Unknown is never a match: an image with unknown width, alpha or rating does not
+satisfy any size, transparency or rating filter, and stale or rejected evidence
+never counts as confirmed. OCR, generation metadata and usage notes are reserved
+query fields that return `UNSUPPORTED_FIELD` until SS-055, SS-056 and SS-057
+populate them, so the UI never offers a field with no data behind it.
+
+Saved image searches are library data: they travel in portable catalog v2 but
+never in per-source snapshots, which describe one folder. The renderer remembers
+only structural filters and sort order, never typed words or tag names, so no
+query history is written to disk.

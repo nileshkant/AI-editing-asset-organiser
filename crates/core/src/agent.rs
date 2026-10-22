@@ -536,6 +536,7 @@ impl AgentLibrary {
                     // MCP image tools are SS-067/068; this tool stays audio-only.
                     images: vec![],
                     image_tag_aliases: vec![],
+                    saved_image_searches: vec![],
                     image_duplicate_decisions: vec![],
                 };
                 document.validate().map_err(mapped)?;

@@ -272,6 +272,43 @@ export type ImagePreviewCacheStatus = {
 };
 export type ImageSummary = ImportedImagePage['items'][number];
 export type GallerySort = 'name_asc' | 'name_desc';
+/** SS-058 canonical image query (the core's `ImageQuery`, snake_case on the wire). */
+export type ImageSort = 'relevance' | 'name_asc' | 'name_desc' | 'rating_desc' | 'added_desc' | 'added_asc' | 'pixels_desc';
+export type TextField = 'name' | 'tags' | 'suggested_tags' | 'caption' | 'notes' | 'ocr' | 'generation' | 'usage_notes';
+export type TagState = 'confirmed' | 'suggested' | 'any';
+export type Orientation = 'landscape' | 'portrait' | 'square';
+export type ImageQuery = {
+  version?: number; text?: string; fields?: TextField[]; kinds?: ('image' | 'element')[]; source_ids?: string[];
+  tags?: string[]; exclude_tags?: string[]; tag_state?: TagState; favorite?: boolean | null;
+  min_rating?: number | null; max_rating?: number | null; rated?: boolean | null;
+  min_width?: number | null; max_width?: number | null; min_height?: number | null; max_height?: number | null;
+  orientations?: Orientation[]; alpha_channel?: boolean | null; transparency?: ('none' | 'binary' | 'partial')[];
+  formats?: ('jpeg' | 'png' | 'webp')[]; technical?: import('./contracts/imageV1').TechnicalState[];
+  availability?: import('./contracts/imageV1').Availability[]; ready_only?: boolean;
+  enrichment?: import('./contracts/imageV1').EnrichmentState[]; review?: 'needs_review' | 'no_pending_suggestions' | null;
+  provenance?: ('model' | 'filename' | 'imported' | 'user')[]; added_after?: number | null; added_before?: number | null; sort?: ImageSort;
+};
+export type SearchErrorCode = 'INVALID_ARGUMENT' | 'UNSUPPORTED_FIELD' | 'UNSUPPORTED_VERSION' | 'LIMIT_EXCEEDED' | 'NOT_FOUND' | 'CONFLICT' | 'INTERNAL';
+export type SearchClause = { text: string; kind: 'term' | 'phrase' | 'prefix'; excluded: boolean; matches: number | null };
+export type ResolvedTag = { requested: string; tag: string; via_alias: boolean };
+export type SearchInterpretation = {
+  clauses: SearchClause[]; fields: TextField[]; tags: ResolvedTag[]; exclude_tags: ResolvedTag[]; ignored: string[];
+  suggestions: { term: string; candidates: string[] }[]; text_only_matches: number | null;
+};
+/** Why a result matched: tier 0 exact tag, 1 tags, 2 caption, 3 name, 4 notes, 5 across fields; null without text. */
+export type HitExplanation = { id: string; tier: number | null; fields: TextField[] };
+export type FacetCount = { value: string; count: number };
+export type ImageFacets = {
+  tags: FacetCount[]; suggested_tags: FacetCount[]; orientations: FacetCount[]; transparency: FacetCount[]; ratings: FacetCount[];
+  formats: FacetCount[]; availability: FacetCount[]; technical: FacetCount[]; sources: FacetCount[]; favorites: number; needs_review: number;
+};
+export type ImageSearchPage = {
+  items: ImageSummary[]; explanations: HitExplanation[]; offset: number; total: number;
+  interpretation: SearchInterpretation; facets: ImageFacets | null;
+};
+export type FieldCapability = { field: TextField; available: boolean; owner: string | null };
+/** `query` is null when it was saved by a newer version (kept, never rewritten). */
+export type SavedImageSearch = { id: string; name: string; query: ImageQuery | null; created_at: number; updated_at: number };
 /** SS-045 window: a live observation in a deterministic order (sort, then asset ID). */
 export type GalleryPage = { items: ImageSummary[]; offset: number; total: number };
 export type ImageDetails = {
