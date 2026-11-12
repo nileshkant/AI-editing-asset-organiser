@@ -100,3 +100,36 @@ it('coalesces rapid seeks and ignores status captured before seeking', async () 
   expect(result.current.playback?.position_seconds).toBe(3);
   expect(result.current.isPlayPending).toBe(false);
 });
+
+it('does not re-render while the polled status is unchanged, and updates when it changes',async()=>{
+    const stopped={sound_id:null,state:'stopped',position_seconds:0,duration_seconds:0,volume:1,peak:0,error:null};
+    invoke.mockImplementation((cmd:string)=>Promise.resolve(cmd==='playback_status'?{...stopped}:null));
+    let renders=0;
+    const {result}=renderHook(()=>{++renders;return usePlayback(null,[]);});
+    // React may run the hook once more before it bails out of an unchanged update.
+    for(let i=0;i<3;i++)await act(async()=>vi.advanceTimersByTimeAsync(120));
+    const first=result.current.playback,settled=renders;
+    expect(first?.state).toBe('stopped');
+    await act(async()=>vi.advanceTimersByTimeAsync(1200));
+    expect(invoke.mock.calls.filter(c=>c[0]==='playback_status').length).toBeGreaterThan(5);
+    expect(renders).toBe(settled);
+    expect(result.current.playback).toBe(first);
+    invoke.mockImplementation((cmd:string)=>Promise.resolve(cmd==='playback_status'?{...stopped,peak:0.4}:null));
+    await act(async()=>vi.advanceTimersByTimeAsync(120));
+    expect(result.current.playback?.peak).toBe(0.4);
+  });
+
+it('unmutes to the last audible level after the slider was dragged to zero',async()=>{
+  const {result}=renderHook(()=>usePlayback(null,[]));
+  const volumes=()=>invoke.mock.calls.filter(c=>c[0]==='playback_set_volume').map(c=>c[1].volume);
+  await act(async()=>{await result.current.changeVolume(0.6);});
+  await act(async()=>{await result.current.changeVolume(0);});
+  expect(result.current.muted).toBe(true);
+  await act(async()=>{await result.current.toggleMute();});
+  expect(result.current.muted).toBe(false);
+  expect(result.current.volume).toBe(0.6);
+  expect(volumes()).toEqual([0.6,0,0.6]);
+  await act(async()=>{await result.current.toggleMute();});
+  expect(volumes().at(-1)).toBe(0);
+  expect(result.current.volume).toBe(0.6);
+});
