@@ -18,7 +18,13 @@ published with credit to the reporter, unless you'd rather stay anonymous.
 
 ## What CreativeShelf does and doesn't do
 
-- It makes no internet connections and has no telemetry.
+- It has no telemetry and makes no internet connections on its own. The one
+  exception is optional: if you add an AI provider in Settings, CreativeShelf
+  contacts that provider's endpoint, and only when you test the connection or
+  run an AI feature. Remote endpoints must use HTTPS, redirects and proxies are
+  not followed, and local or private addresses need an explicit opt-in.
+- Provider API keys are kept in the operating system's credential store (or in
+  memory for the session), never in the catalog, backups or exports.
 - Agent access (MCP) is off by default. When enabled, it listens only on
   `127.0.0.1` and requires a per-client token with scoped permissions.
 - Original audio files are never modified.
