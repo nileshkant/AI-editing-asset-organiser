@@ -67,3 +67,23 @@ it('shows the reported version without falsely labelling release builds Developm
   expect(screen.getByText('0.1.0-alpha.5')).toBeVisible();
   expect(screen.queryByText(/Development/)).not.toBeInTheDocument();
 });
+it('opens AI providers on demand and keeps a typed key when another settings tab is visited', async () => {
+  vi.mocked(call).mockImplementation(async command => {
+    if (command === 'ai_providers') return [{ id: 'p1', revision: 1, kind: 'openai', label: 'Studio', base_url: 'https://api.openai.com/v1', model: 'm', allow_local: false, locality: 'remote', key_storage: 'none', has_key: false,
+      capabilities: { image_input: 'untested', structured_output: 'untested', embeddings: 'untested', model_version: null } }];
+    if (command === 'ai_features') return [];
+    if (command === 'folder_catalog_states') return [];
+    if (command === 'mcp_status') return { endpoint: null, clients: [] };
+    return null;
+  });
+  render(<SettingsView {...props} />);
+  await waitFor(() => expect(call).toHaveBeenCalledWith('mcp_status'));
+  expect(call).not.toHaveBeenCalledWith('ai_providers');
+  fireEvent.click(screen.getByRole('tab', { name: 'AI providers' }));
+  const key = await screen.findByLabelText('API key');
+  fireEvent.change(key, { target: { value: 'sk-typed-not-saved' } });
+  fireEvent.click(screen.getByRole('tab', { name: 'Sources' }));
+  fireEvent.click(screen.getByRole('tab', { name: 'AI providers' }));
+  expect(screen.getByLabelText('API key')).toHaveValue('sk-typed-not-saved');
+  expect(vi.mocked(call).mock.calls.filter(c => c[0] === 'ai_providers')).toHaveLength(1);
+});

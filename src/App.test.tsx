@@ -377,6 +377,21 @@ describe('App', () => {
     );
   });
 
+  it('says no sounds match when only the duration filter excludes everything', async () => {
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'search_sounds') return Promise.resolve({ ...MOCK_RESULTS, items: [], total: 0 });
+      if (cmd === 'playback_status') return Promise.resolve(STOPPED_PLAYBACK);
+      if (cmd === 'jobs' || cmd === 'sources') return Promise.resolve([]);
+      return Promise.resolve(null);
+    });
+    render(<App />);
+    await waitFor(() => expect(screen.getByText('No sounds yet')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
+    fireEvent.change(screen.getByLabelText('Duration under seconds'), { target: { value: '0.5' } });
+    await waitFor(() => expect(screen.getByText('No matching sounds')).toBeInTheDocument());
+    expect(screen.queryByText('No sounds yet')).toBeNull();
+  });
+
   // ─── Long Title Safety ───
   it('renders ultra-long sound titles without crash', async () => {
     const longTitle = 'A'.repeat(500);

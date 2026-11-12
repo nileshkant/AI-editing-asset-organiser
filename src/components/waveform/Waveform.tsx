@@ -73,6 +73,7 @@ export function Waveform({
   const [clipName, setClipName] = useState('');
   const [clipSaveSuccess, setClipSaveSuccess] = useState<string | null>(null);
   const [clipSaveError, setClipSaveError] = useState<string | null>(null);
+  const savingClip = useRef(false);
 
   const activeSelection =
     controlledSelection !== undefined
@@ -537,34 +538,13 @@ export function Waveform({
     const minFrameSec = 1 / sampleRate;
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      if (isDurationLocked) {
-        const curSpan = activeSelection.end - activeSelection.start;
-        const start = Math.max(0, activeSelection.start - step);
-        updateSelection({ start, end: start + curSpan });
-      } else {
-        const start = Math.max(0, activeSelection.start - step);
-        const end = Math.max(start + minFrameSec, activeSelection.end - step);
-        updateSelection({ start, end });
-      }
+      // A nudge moves the whole selection; at the file start it stops instead of shrinking.
+      const move = Math.min(step, activeSelection.start);
+      updateSelection({ start: activeSelection.start - move, end: activeSelection.end - move });
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
-      if (isDurationLocked) {
-        const curSpan = activeSelection.end - activeSelection.start;
-        let end = Math.min(safeDuration, activeSelection.end + step);
-        let start = end - curSpan;
-        if (start < 0) {
-          start = 0;
-          end = curSpan;
-        }
-        updateSelection({ start, end });
-      } else {
-        const end = Math.min(safeDuration, activeSelection.end + step);
-        const start = Math.min(
-          end - minFrameSec,
-          activeSelection.start + step,
-        );
-        updateSelection({ start, end });
-      }
+      const move = Math.max(0, Math.min(step, safeDuration - activeSelection.end));
+      updateSelection({ start: activeSelection.start + move, end: activeSelection.end + move });
     } else if (e.key === 'i' || e.key === 'I') {
       e.preventDefault();
       if (isDurationLocked) {
@@ -1064,7 +1044,7 @@ export function Waveform({
                 className="save-clip-form"
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  if (!soundId || !activeSelection) return;
+                  if (!soundId || !activeSelection || savingClip.current) return;
                   const trimmed = clipName.trim();
                   if (!trimmed) {
                     setClipSaveError('Please enter a clip name.');
@@ -1089,6 +1069,8 @@ export function Waveform({
                     fade_in_ms: 0,
                     fade_out_ms: 0,
                   };
+                  // One save at a time: a second Enter or click must not create a duplicate clip.
+                  savingClip.current = true;
                   try {
                     const saved = await createClip(soundId, trimmed, recipe);
                     setClipSaveSuccess(`Clip "${trimmed}" saved!`);
@@ -1099,6 +1081,8 @@ export function Waveform({
                     setTimeout(() => setClipSaveSuccess(null), 3000);
                   } catch (err) {
                     setClipSaveError(String(err));
+                  } finally {
+                    savingClip.current = false;
                   }
                 }}
               >
@@ -1152,8 +1136,8 @@ export function Waveform({
         ) : (
           <div className="selection-prompt">
             <small className="muted">
-              Shift+drag or click on the waveform to create a selection
-              region
+              Shift+drag on the waveform to create a selection region.
+              Click to seek.
             </small>
             <button
               className="compact-button"

@@ -17,6 +17,35 @@ beforeEach(() => { invoke.mockReset(); });
 afterEach(cleanup);
 
 describe('annotation editor', () => {
+  it('starts a second quick edit from its own first write, before details reload', async () => {
+    // The core fences every edit by revision; the details on screen still say 3 after the first edit.
+    let stored = 3;
+    invoke.mockImplementation((cmd: string, args: any) => {
+      if (cmd !== 'edit_image_annotations') return Promise.resolve(null);
+      if (args.expectedRevision !== stored) return Promise.reject('CONFLICT');
+      return Promise.resolve({ annotations: { revision: ++stored }, action_id: `act-${stored}` });
+    });
+    const onChanged = vi.fn();
+    const { rerender } = render(<AnnotationEditor details={details()} name="hero.png" onChanged={onChanged} />);
+    fireEvent.click(screen.getByRole('radio', { name: '4 of 5 stars' }));
+    await waitFor(() => expect(screen.getByText('Rated 4 of 5.')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Favorite' }));
+    await waitFor(() => expect(screen.getByText('Marked favorite.')).toBeInTheDocument());
+    expect(calls('edit_image_annotations').map(c => c.expectedRevision)).toEqual([3, 4]);
+    expect(screen.queryByRole('alert')).toBeNull();
+    // Reloaded details take over again, including a newer revision written elsewhere.
+    rerender(<AnnotationEditor details={details({ annotation_revision: 9, rating: 4, favorite: true })} name="hero.png" onChanged={onChanged} />);
+    stored = 9;
+    fireEvent.click(screen.getByRole('button', { name: 'Remove tag old' }));
+    await waitFor(() => expect(calls('edit_image_annotations').at(-1).expectedRevision).toBe(9));
+    // A real conflict drops our own number and asks for a reload.
+    stored = 20;
+    fireEvent.click(screen.getByRole('radio', { name: '5 of 5 stars' }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Changed elsewhere'));
+    rerender(<AnnotationEditor details={details({ annotation_revision: 20 })} name="hero.png" onChanged={onChanged} />);
+    fireEvent.click(screen.getByRole('radio', { name: '5 of 5 stars' }));
+    await waitFor(() => expect(calls('edit_image_annotations').at(-1).expectedRevision).toBe(20));
+  });
   it('sends explicit operations from the revision it read', async () => {
     invoke.mockResolvedValue({ annotations: {}, action_id: 'act-1' });
     const onChanged = vi.fn();

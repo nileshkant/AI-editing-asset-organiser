@@ -317,7 +317,7 @@ export function App() {
                   onFavorite={favorite}
                   onFocusIndex={setFocusedIndex}
                   onAddFolder={search.addFolder}
-                  hasSearchOrFilter={!!(search.text || search.source)}
+                  hasSearchOrFilter={!!(search.text || search.source || search.max)}
                   isFavoritesPage={page === 'favorites'}
                 />}
               </section>
