@@ -156,16 +156,17 @@ pub async fn database_restore(
     let rendered_previews = state.image_previews.clone();
     tauri::async_runtime::spawn_blocking(move || {
         player.stop();
-        agent.stop();
         let rollback = data.join(format!("restore-rollback-{}.sqlite", uuid::Uuid::new_v4()));
-        exports
-            .while_idle(|| {
-                catalog
-                    .lock()
-                    .map_err(|_| soundshelf_core::invalid("Catalog lock unavailable"))?
-                    .restore_previewed(&path, &rollback, &summary)
-            })
-            .map_err(|e| e.to_string())?;
+        with_mcp_stopped(&agent, || {
+            exports
+                .while_idle(|| {
+                    catalog
+                        .lock()
+                        .map_err(|_| soundshelf_core::invalid("Catalog lock unavailable"))?
+                        .restore_previewed(&path, &rollback, &summary)
+                })
+                .map_err(|e| e.to_string())
+        })?;
         image_previews.invalidate().map_err(|e|e.to_string())?;
         rendered_previews.refresh(&catalog);
         let _=app.emit("image-import-reset",());
@@ -184,6 +185,56 @@ pub async fn database_restore(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+/// MCP clients must not read the catalog while it is replaced. A restore that
+/// succeeds leaves MCP stopped until the app restarts; one that is refused
+/// changed nothing, so MCP comes back on its remembered port.
+fn with_mcp_stopped<T>(
+    agent: &soundshelf_agent::Agent,
+    restore: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let was_running = agent.status().is_ok_and(|s| s.endpoint.is_some());
+    agent.stop();
+    let result = restore();
+    if result.is_err() && was_running {
+        // Best effort: the restore error is the one the user needs to see.
+        let _ = agent.start(0);
+    }
+    result
+}
+#[cfg(test)]
+mod tests {
+    use super::with_mcp_stopped;
+    use soundshelf_agent::Agent;
+
+    fn running() -> (Agent, std::path::PathBuf) {
+        let root = std::env::temp_dir().join(format!("soundshelf-restore-mcp-{}", uuid::Uuid::new_v4()));
+        let agent = Agent::with_discovery(root.join("mcp.json"));
+        assert!(agent.start(0).unwrap().endpoint.is_some());
+        (agent, root)
+    }
+    #[test]
+    fn a_refused_restore_brings_mcp_back() {
+        let (agent, root) = running();
+        let refused: Result<(), String> = with_mcp_stopped(&agent, || {
+            assert!(agent.status().unwrap().endpoint.is_none(), "MCP is stopped during the restore");
+            Err("Finish or cancel imports before restoring".into())
+        });
+        assert_eq!(refused.unwrap_err(), "Finish or cancel imports before restoring");
+        assert!(agent.status().unwrap().endpoint.is_some(), "a refused restore must not leave MCP stopped");
+        agent.stop();
+        let _ = std::fs::remove_dir_all(root);
+    }
+    #[test]
+    fn a_successful_restore_leaves_mcp_stopped_and_a_stopped_mcp_is_never_started() {
+        let (agent, root) = running();
+        with_mcp_stopped(&agent, || Ok(())).unwrap();
+        assert!(agent.status().unwrap().endpoint.is_none());
+        let refused: Result<(), String> = with_mcp_stopped(&agent, || Err("refused".into()));
+        assert!(refused.is_err());
+        assert!(agent.status().unwrap().endpoint.is_none(), "MCP was off before the restore and stays off");
+        let _ = std::fs::remove_dir_all(root);
+    }
 }
 #[tauri::command]
 pub async fn purge_waveform_cache(
