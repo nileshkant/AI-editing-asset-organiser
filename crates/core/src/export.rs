@@ -570,11 +570,12 @@ pub fn render(
     // Windows FlushFileBuffers requires a handle opened with write access.
     OpenOptions::new().write(true).open(&media)?.sync_all()?;
     check_cancel(&cancel)?;
-    // hard_link is an atomic create-if-absent, unlike rename on Unix. A race
-    // with an existing destination can never replace that file (or a symlink).
-    fs::hard_link(&manifest_file, sidecar(&path))?;
+    // Create-if-absent, unlike rename on Unix. A race with an existing
+    // destination can never replace that file (or a symlink). Volumes without
+    // hard links (exFAT, FAT) receive an exclusive copy instead.
+    crate::publish::publish_new(&manifest_file, &sidecar(&path))?;
     if let Err(e) =
-        check_cancel(&cancel).and_then(|_| fs::hard_link(&media, &path).map_err(Into::into))
+        check_cancel(&cancel).and_then(|_| crate::publish::publish_new(&media, &path).map_err(Into::into))
     {
         let _ = fs::remove_file(sidecar(&path));
         return Err(e);

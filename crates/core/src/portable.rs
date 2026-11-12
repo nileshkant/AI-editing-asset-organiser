@@ -670,7 +670,8 @@ pub fn prepare_import(
     data.validate()?;
     Ok(data)
 }
-/// Stage beside the destination; publish with an atomic, no-replace hard link.
+/// Stage beside the destination; publish under a new name, never replacing a file
+/// (an atomic hard link, or an exclusive copy on volumes without hard links).
 /// A failed or interrupted write never leaves a partial final catalog.
 pub fn write_document(path: &Path, text: &str) -> Result<()> {
     if text.len() as u64 > MAX_BYTES {
@@ -688,7 +689,7 @@ pub fn write_document(path: &Path, text: &str) -> Result<()> {
         .write_all(text.as_bytes())
         .and_then(|_| file.sync_all());
     drop(file);
-    let result = result.and_then(|_| fs::hard_link(&staging, path));
+    let result = result.and_then(|_| crate::publish::publish_new(&staging, path));
     // Only this operation's random staging file is cleaned, never the final pathname.
     let _ = fs::remove_file(&staging);
     result?;
