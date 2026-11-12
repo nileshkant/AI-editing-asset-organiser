@@ -104,6 +104,43 @@ fn endpoint_policy_requires_https_and_explicit_local_opt_in() {
     assert_eq!(wire::check_addresses([addr("169.254.169.254:80")], true), Err(ProviderError::AddressNotAllowed));
 }
 
+/// An IPv6 spelling of an IPv4 target follows the IPv4 target's policy, both
+/// in the typed endpoint and in every address a hostname resolves to.
+#[test]
+fn ipv6_forms_that_carry_an_ipv4_address_follow_that_address() {
+    let ok = |url: &str, local: bool| validate_endpoint(url, local).map(|e| e.locality);
+    let addr = |s: &str| s.parse::<SocketAddr>().unwrap();
+    // Link-local metadata (169.254.169.254 = a9fe:a9fe) is never contacted.
+    for blocked in ["[::ffff:169.254.169.254]", "[64:ff9b::a9fe:a9fe]", "[2002:a9fe:a9fe::1]", "[::169.254.169.254]", "[2001:0:4136:e378:8000:63bf:3fff:fdd2]", "[2001:db8::1]"] {
+        assert_eq!(ok(&format!("http://{blocked}/v1"), true), Err(ProviderError::AddressNotAllowed), "{blocked}");
+        assert_eq!(wire::check_addresses([addr(&format!("{blocked}:443"))], true), Err(ProviderError::AddressNotAllowed), "{blocked}");
+    }
+    // Private and loopback IPv4 targets need the local opt-in in any spelling.
+    for (private, locality) in [
+        ("[64:ff9b::a00:1]", Locality::Private),
+        ("[64:ff9b::c0a8:101]", Locality::Private),
+        ("[2002:c0a8:0101::1]", Locality::Private),
+        ("[::10.0.0.1]", Locality::Private),
+        ("[64:ff9b::7f00:1]", Locality::Loopback),
+        ("[2002:7f00:0001::]", Locality::Loopback),
+        ("[64:ff9b:1::1]", Locality::Private),
+        ("[fec0::1]", Locality::Private),
+    ] {
+        assert_eq!(ok(&format!("http://{private}/v1"), false), Err(ProviderError::LocalNotPermitted), "{private}");
+        assert_eq!(ok(&format!("http://{private}/v1"), true), Ok(locality), "{private}");
+        assert_eq!(wire::check_addresses([addr(&format!("{private}:443"))], false), Err(ProviderError::LocalNotPermitted), "{private}");
+        assert_eq!(wire::check_addresses([addr(&format!("{private}:443"))], true), Ok(()), "{private}");
+    }
+    // DNS64 on an IPv6-only network synthesizes NAT64 addresses for public
+    // providers; those, and ordinary global IPv6, still work without opt-in.
+    for public in ["[64:ff9b::5db8:d822]", "[2002:5db8:d822::1]", "[2606:4700:4700::1111]", "[::ffff:93.184.216.34]"] {
+        assert_eq!(ok(&format!("https://{public}/v1"), false), Ok(Locality::Remote), "{public}");
+        assert_eq!(wire::check_addresses([addr(&format!("{public}:443"))], false), Ok(()), "{public}");
+    }
+    assert_eq!(ok("http://[::1]:8080", true), Ok(Locality::Loopback));
+    assert_eq!(ok("http://[::]", true), Err(ProviderError::AddressNotAllowed));
+}
+
 #[test]
 fn four_wire_contracts_verify_capabilities_from_observed_answers() {
     for (kind, base, model) in [

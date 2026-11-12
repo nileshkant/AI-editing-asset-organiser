@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rmcp = { version = "=3.5.0", features = ["client", "transport-streamable-http-server", "transport-streamable-http-client-reqwest", "transport-io"] }
+rmcp = { version = "=3.9.0", features = ["client", "transport-streamable-http-server", "transport-streamable-http-client-reqwest", "transport-io"] }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "sync", "time", "process", "io-util"] }
 tokio-util = "0.7"
 axum = "0.8"
@@ -15,7 +15,7 @@ blake3 = "1"
 subtle = "2"
 reqwest = { version = "0.13", default-features = false, features = ["json", "stream"] }
 
-rusqlite = { version = "0.38", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 
 soundshelf-core = { path = "../core" }
 

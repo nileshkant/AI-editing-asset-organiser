@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt,
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -169,20 +169,52 @@ pub fn address_locality(ip: IpAddr) -> Option<Locality> {
     match ip {
         IpAddr::V4(v4) => v4_locality(v4),
         IpAddr::V6(v6) => {
-            if let Some(v4) = v6.to_ipv4_mapped() {
+            if let Some(v4) = embedded_v4(v6) {
                 return v4_locality(v4);
             }
-            let first = v6.segments()[0];
+            let s = v6.segments();
+            let first = s[0];
             if v6.is_loopback() {
                 Some(Locality::Loopback)
-            } else if v6.is_unspecified() || v6.is_multicast() || first & 0xffc0 == 0xfe80 {
+            } else if v6.is_unspecified()
+                || v6.is_multicast()
+                || first & 0xffc0 == 0xfe80
+                // Teredo hides an IPv4 endpoint behind an obfuscated relay
+                // address, and 2001:db8::/32 is documentation only.
+                || (first == 0x2001 && (s[1] == 0 || s[1] == 0x0db8))
+            {
                 None
-            } else if first & 0xfe00 == 0xfc00 {
+            } else if first & 0xfe00 == 0xfc00
+                // Deprecated site-local and the local-use NAT64 prefix.
+                || first & 0xffc0 == 0xfec0
+                || (first == 0x0064 && s[1] == 0xff9b && s[2] == 1)
+            {
                 Some(Locality::Private)
             } else {
                 Some(Locality::Remote)
             }
         }
+    }
+}
+/// The IPv4 address an IPv6 address stands for, when a translator or tunnel
+/// would deliver the connection there: IPv4-mapped (`::ffff:a.b.c.d`),
+/// IPv4-compatible (`::a.b.c.d`), well-known NAT64 (`64:ff9b::/96`) and 6to4
+/// (`2002::/16`). The embedded address decides the policy, so a private or
+/// link-local IPv4 target cannot be reached by spelling it as IPv6.
+fn embedded_v4(v6: Ipv6Addr) -> Option<Ipv4Addr> {
+    if let Some(v4) = v6.to_ipv4_mapped() {
+        return Some(v4);
+    }
+    let s = v6.segments();
+    let low = || Ipv4Addr::new((s[6] >> 8) as u8, s[6] as u8, (s[7] >> 8) as u8, s[7] as u8);
+    if s[..6] == [0; 6] && !v6.is_unspecified() && !v6.is_loopback() {
+        Some(low())
+    } else if s[..6] == [0x0064, 0xff9b, 0, 0, 0, 0] {
+        Some(low())
+    } else if s[0] == 0x2002 {
+        Some(Ipv4Addr::new((s[1] >> 8) as u8, s[1] as u8, (s[2] >> 8) as u8, s[2] as u8))
+    } else {
+        None
     }
 }
 fn v4_locality(ip: Ipv4Addr) -> Option<Locality> {

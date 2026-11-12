@@ -21,6 +21,24 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 pub fn invalid(message: &str) -> Error { Error::Invalid(message.into()) }
 
+/// Create the folder that holds the catalog, caches, MCP pairings and provider
+/// settings, and keep it private to the current user. Files inside are created
+/// with the process umask, so on Unix the folder itself is what stops other
+/// local accounts reading file paths, notes and prompts. An existing folder
+/// with wider access is narrowed. Windows profiles are already per-user.
+pub fn private_directory(path: &std::path::Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(path)?.permissions().mode();
+        if mode & 0o077 != 0 {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode & 0o7700))?;
+        }
+    }
+    Ok(())
+}
+
 pub mod sources;
 
 pub mod portable;
@@ -69,3 +87,31 @@ mod image_preview_render;
 pub mod image_sources;
 pub mod image_relink;
 pub mod image_watch;
+
+#[cfg(all(test, unix))]
+mod private_directory_tests {
+    use std::os::unix::fs::PermissionsExt;
+    #[test]
+    fn data_folder_is_owner_only_and_an_open_one_is_narrowed() {
+        let base = std::env::temp_dir().join(format!("creativeshelf-private-{}", uuid::Uuid::new_v4()));
+        let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        // A folder left world-readable by an earlier version is narrowed in place.
+        let existing = base.join("existing");
+        std::fs::create_dir_all(&existing).unwrap();
+        std::fs::set_permissions(&existing, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::write(existing.join("library.sqlite"), b"kept").unwrap();
+        super::private_directory(&existing).unwrap();
+        assert_eq!(mode(&existing), 0o700);
+        assert_eq!(std::fs::read(existing.join("library.sqlite")).unwrap(), b"kept");
+        // A new folder, including missing parents, ends up owner-only.
+        let fresh = base.join("a/b/fresh");
+        super::private_directory(&fresh).unwrap();
+        assert_eq!(mode(&fresh), 0o700);
+        // Already-private folders are left exactly as they are.
+        std::fs::set_permissions(&fresh, std::fs::Permissions::from_mode(0o500)).unwrap();
+        super::private_directory(&fresh).unwrap();
+        assert_eq!(mode(&fresh), 0o500);
+        std::fs::set_permissions(&fresh, std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::remove_dir_all(base).unwrap();
+    }
+}

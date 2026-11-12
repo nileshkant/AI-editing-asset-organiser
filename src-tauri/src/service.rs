@@ -61,7 +61,8 @@ impl AppState {
         data_directory: PathBuf,
         resources: PathBuf,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        std::fs::create_dir_all(&data_directory)?;
+        // Owner-only on Unix: the catalog holds file paths, notes and prompts.
+        soundshelf_core::private_directory(&data_directory)?;
         let cache_dir = data_directory.join("cache").join("waveforms");
         std::fs::create_dir_all(&cache_dir)?;
         let waveforms = Arc::new(WaveformService::new(cache_dir));
@@ -403,6 +404,32 @@ mod tests {
             state: Some(state),
             root,
         }
+    }
+    /// The renderer may load only its own bundle and talk only to the app:
+    /// no plugins, no <base> rewriting, no form posts and no embedding.
+    #[test]
+    fn content_security_policy_keeps_the_renderer_closed() {
+        let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let csp = config["app"]["security"]["csp"].as_str().unwrap();
+        let directives: Vec<&str> = csp.split(';').map(str::trim).collect();
+        for required in ["default-src 'self'", "connect-src ipc: http://ipc.localhost", "object-src 'none'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'"] {
+            assert!(directives.contains(&required), "missing `{required}` in {csp}");
+        }
+        assert!(!csp.contains("unsafe-eval") && !csp.contains("https:") && !csp.contains('*'), "{csp}");
+        assert!(!directives.iter().any(|d| d.starts_with("script-src")), "scripts stay on default-src 'self'");
+    }
+    #[cfg(unix)]
+    #[test]
+    fn data_directory_is_private_to_the_user() {
+        use std::os::unix::fs::PermissionsExt;
+        let root=std::env::temp_dir().join(format!("soundshelf-private-{}",Uuid::new_v4()));
+        fs::create_dir_all(root.join("app")).unwrap();
+        fs::set_permissions(root.join("app"), fs::Permissions::from_mode(0o755)).unwrap();
+        let state=AppState::new(root.join("app"),root.join("resources")).unwrap();
+        assert_eq!(fs::metadata(root.join("app")).unwrap().permissions().mode()&0o777, 0o700);
+        state.shutdown();
+        drop(state);
+        let _=fs::remove_dir_all(root);
     }
     #[test]
     fn desktop_shutdown_closes_mcp_and_preserves_pairings() {
