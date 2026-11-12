@@ -80,11 +80,11 @@ Linux x86_64 container, Rust 1.97.0, system FFmpeg as the fixture tools.
   nine unmaintained warnings in finding 12.
 - `npm audit`: before, 1 high (undici); after, 0.
 - `cargo test --workspace --locked --no-fail-fast -- --include-ignored`:
-  434 tests ran, 429 passed. The 5 that did not pass are environmental and
-  unrelated to this change: 4 need `SOUNDSHELF_FFMPEG`/`SOUNDSHELF_FFPROBE`
-  and pass when those are set (17 of 17 in `import` and `file_scopes`); 2
-  (`real_backup_write_failure_cancels_upgrade_before_schema_mutation`, skipped,
-  and `read_only_snapshot_failure_is_retryable_and_member_access_denial_never_prunes`)
+  434 tests ran, 429 passed, and 1 was skipped. None of the 6 is related to
+  this change: 4 need `SOUNDSHELF_FFMPEG`/`SOUNDSHELF_FFPROBE` and pass when
+  those are set (17 of 17 in `import` and `file_scopes`); the failed
+  `read_only_snapshot_failure_is_retryable_and_member_access_denial_never_prunes`
+  and the skipped `real_backup_write_failure_cancels_upgrade_before_schema_mutation`
   rely on read-only folders, which do not restrict the root user this
   container runs as. CI runs them as a normal user.
 - `cargo test -p soundshelf --features image-development --locked image_`: 4 passed.
