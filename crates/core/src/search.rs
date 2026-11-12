@@ -108,12 +108,44 @@ pub fn deaccent(text: &str) -> String {
     }).collect()
 }
 
-pub fn tokens(text: &str) -> Vec<String> {
+fn is_apostrophe(c: char) -> bool {
+    c == '\'' || c == '\u{2019}'
+}
+
+/// An apostrophe between two letters or digits belongs to its word ("dog's").
+fn inner_apostrophe(chars: &[char], i: usize) -> bool {
+    is_apostrophe(chars[i])
+        && i > 0
+        && chars[i - 1].is_alphanumeric()
+        && chars.get(i + 1).is_some_and(|c| c.is_alphanumeric())
+}
+
+/// Drop apostrophes inside words, so "dog's" and "dogs" are one token.
+fn join_apostrophes(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    (0..chars.len()).filter(|&i| !inner_apostrophe(&chars, i)).map(|i| chars[i]).collect()
+}
+
+fn split_tokens(text: &str) -> Vec<String> {
     text.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
         .filter(|s| !s.is_empty())
         .map(canonical)
         .collect()
+}
+
+/// Document tokens. A word with an inner apostrophe ("baby's") yields its parts
+/// ("baby", "s") and its joined form ("babys"), so either spelling finds it.
+pub fn tokens(text: &str) -> Vec<String> {
+    let mut out = split_tokens(text);
+    if text.chars().any(is_apostrophe) {
+        for token in split_tokens(&join_apostrophes(text)) {
+            if !out.contains(&token) {
+                out.push(token);
+            }
+        }
+    }
+    out
 }
 
 pub fn interpret(query: &SearchQuery) -> Result<Interpretation> {
@@ -186,11 +218,12 @@ pub fn interpret(query: &SearchQuery) -> Result<Interpretation> {
             }
         } else {
             let start = i;
-            while i < chars.len() && !chars[i].is_whitespace() && chars[i] != '"' && chars[i] != '\'' {
+            // An apostrophe inside a word ("dog's", "don't") is not an opening quote.
+            while i < chars.len() && !chars[i].is_whitespace() && chars[i] != '"' && (chars[i] != '\'' || inner_apostrophe(&chars, i)) {
                 i += 1;
             }
             let word_str: String = chars[start..i].iter().collect();
-            let word_tokens = tokens(&word_str);
+            let word_tokens = split_tokens(&join_apostrophes(&word_str));
             for term in word_tokens {
                 if ["without", "not", "no", "excluding"].contains(&term.as_str()) {
                     negate = true;
@@ -436,9 +469,11 @@ pub fn search(sounds: Vec<Sound>, query: &SearchQuery, online_sources: &[String]
     let mut long_count = 0;
 
     for (_, sound) in &ranked {
+        // A facet counts sounds: the same tag from the user and from analysis is one.
+        let mut counted = HashSet::new();
         for tag in sound.user_tags.iter().chain(sound.profile.as_ref().map(|p| p.tags.as_slice()).unwrap_or(&[])) {
             let clean = tag.replace('_', " ").trim().to_lowercase();
-            if !clean.is_empty() {
+            if !clean.is_empty() && counted.insert(clean.clone()) {
                 *tag_counts.entry(clean).or_insert(0) += 1;
             }
         }
@@ -669,5 +704,36 @@ mod tests {
         let flute = sound("Flûte enchantée", 2.0);
         let r = find("flute", vec![flute]);
         assert_eq!(r.total, 1);
+    }
+
+    #[test]
+    fn apostrophes_inside_words_do_not_open_a_phrase() {
+        let library = || vec![sound("Dogs bark", 1.0), sound("Dog's growl", 1.0), sound("Dont stop", 1.0), sound("Baby\u{2019}s cry", 1.0)];
+        let r = find("dog's bark", library());
+        assert!(r.interpretation.phrases.is_empty(), "{:?}", r.interpretation);
+        assert_eq!(r.items.iter().map(|s| s.title.as_str()).collect::<Vec<_>>(), ["Dogs bark"]);
+        assert_eq!(find("don't stop", library()).total, 1);
+        // Either spelling of the query finds either spelling of the title.
+        assert_eq!(find("dogs", library()).total, 2);
+        assert_eq!(find("dog's", library()).total, 2);
+        assert_eq!(find("baby", library()).total, 1);
+        assert_eq!(find("baby's cry", library()).total, 1);
+        assert_eq!(find("growl -dog's", library()).total, 0);
+        // A leading single quote still opens a phrase.
+        let quoted = find("'dogs bark'", library());
+        assert_eq!(quoted.interpretation.phrases, ["dogs bark"]);
+        assert_eq!(quoted.total, 1);
+    }
+
+    #[test]
+    fn tag_facets_count_each_sound_once() {
+        let mut both = sound("Storm", 1.0);
+        both.user_tags = vec!["Rain".into(), "rain".into()];
+        both.profile.as_mut().unwrap().tags = vec!["rain".into()];
+        let mut other = sound("Drizzle", 1.0);
+        other.user_tags = vec!["rain".into()];
+        let r = search(vec![both, other], &SearchQuery::default(), &["s".into()]).unwrap();
+        assert_eq!(r.total, 2);
+        assert_eq!(r.facets.tags, [FacetItem { value: "rain".into(), count: 2 }]);
     }
 }
