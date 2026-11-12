@@ -544,7 +544,7 @@ export function Waveform({
     } else if (e.key === 'ArrowRight') {
       e.preventDefault();
       const move = Math.max(0, Math.min(step, safeDuration - activeSelection.end));
-      updateSelection({ start: activeSelection.start + move, end: activeSelection.end + move });
+      updateSelection({ start: activeSelection.start + move, end: Math.min(safeDuration, activeSelection.end + move) });
     } else if (e.key === 'i' || e.key === 'I') {
       e.preventDefault();
       if (isDurationLocked) {

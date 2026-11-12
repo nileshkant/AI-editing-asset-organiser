@@ -153,3 +153,32 @@ test('search and filters work by keyboard and stay accessible at 720×560', asyn
   await page.getByRole('button', { name: 'Clear all' }).click();
   await expect(page.getByText('240 images')).toBeVisible();
 });
+
+test('"Not favorites" is a real filter, and leaving a filter field unchanged does not reload the gallery', async ({ page }, info) => {
+  await installDesktopFixture(page, true); await page.goto('/');
+  await openImages(page);
+  await expect(page.getByText('240 images')).toBeVisible();
+  // Favorite the first image, so "Not favorites" has something to exclude.
+  await page.getByRole('grid', { name: 'Images' }).getByRole('gridcell').first().click();
+  await page.getByRole('button', { name: 'Favorite', exact: true }).click();
+  await expect(page.getByText('Marked favorite.')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Filters' }).click();
+  const panel = page.getByRole('group', { name: 'Image filters' });
+  await panel.getByLabel('Favorites').selectOption('false');
+  await expect(page.getByText('239 images match')).toBeVisible();
+  expect((await calls(page)).filter(c => c.command === 'search_images').at(-1)!.args.query).toMatchObject({ favorite: false });
+  await expect(page.getByRole('button', { name: 'Clear all' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Filters (1)' })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('not-favorites.png') });
+  // Tab through the text filters without typing: no new window or search request, grid stays.
+  const requests = async () => (await calls(page)).filter(c => c.command === 'search_images' || c.command === 'image_gallery_page').length;
+  const before = await requests();
+  await panel.getByLabel('Required tags').focus();
+  for (let i = 0; i < 6; ++i) await page.keyboard.press('Tab');
+  await page.waitForTimeout(500);
+  expect(await requests()).toBe(before);
+  await expect(page.getByRole('grid', { name: 'Images' })).toBeVisible();
+  await page.getByRole('button', { name: 'Clear all' }).click();
+  await expect(page.getByText('240 images')).toBeVisible();
+});
