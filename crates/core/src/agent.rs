@@ -175,13 +175,23 @@ pub struct AgentJob {
     pub result: Option<Value>,
     pub error: Option<Failure>,
 }
+/// Remembered idempotency keys per client. The oldest is forgotten first, so a
+/// long session never runs out; a retry is only expected soon after the call.
+const MAX_REPLAYS_PER_OWNER: usize = 256;
+/// Export jobs kept for `jobs.get`/`jobs.list`. Finished jobs are forgotten
+/// oldest first; running jobs are never dropped.
+const MAX_JOBS: usize = 200;
 struct OwnedJob {
+    /// Creation order, for forgetting the oldest finished job first.
+    order: u64,
     owner: String,
     destination: String,
     cancel: Arc<AtomicBool>,
     snapshot: AgentJob,
 }
 struct Replay {
+    /// Creation order, for forgetting the oldest key first.
+    order: u64,
     hash: String,
     result: Value,
 }
@@ -191,6 +201,28 @@ struct Operations {
     jobs: HashMap<String, OwnedJob>,
     replays: HashMap<(String, String, String), Replay>,
     workers: Vec<JoinHandle<()>>,
+    next_order: u64,
+}
+impl Operations {
+    fn order(&mut self) -> u64 {
+        self.next_order += 1;
+        self.next_order
+    }
+    /// Make room for one more job by forgetting the oldest finished ones.
+    fn forget_finished_jobs(&mut self) {
+        while self.jobs.len() >= MAX_JOBS {
+            let oldest = self
+                .jobs
+                .iter()
+                .filter(|(_, j)| j.snapshot.state != "running")
+                .min_by_key(|(_, j)| j.order)
+                .map(|(id, _)| id.clone());
+            match oldest {
+                Some(id) => self.jobs.remove(&id),
+                None => break,
+            };
+        }
+    }
 }
 pub struct AgentLibrary {
     pub catalog: Arc<Mutex<Catalog>>,
@@ -606,7 +638,8 @@ impl AgentLibrary {
         {
             return Err(failure("PERMISSION_DENIED"));
         }
-        if operations.jobs.len() >= 200
+        operations.forget_finished_jobs();
+        if operations.jobs.len() >= MAX_JOBS
             || operations
                 .jobs
                 .values()
@@ -684,9 +717,11 @@ impl AgentLibrary {
             })
             .map_err(|_| failure("INTERNAL_ERROR"))?;
         operations.destinations.remove(&destination);
+        let order = operations.order();
         operations.jobs.insert(
             id,
             OwnedJob {
+                order,
                 owner: owner.into(),
                 destination,
                 cancel,
@@ -832,9 +867,6 @@ fn replayed(
         }
         return Ok(Some(replay.result.clone()));
     }
-    if operations.replays.len() >= 1000 {
-        return Err(failure("RATE_LIMITED"));
-    }
     Ok(None)
 }
 fn remember(
@@ -845,13 +877,65 @@ fn remember(
     value: &Value,
     result: Value,
 ) {
+    // Bounded per client: one busy client cannot push out another's keys.
+    while operations.replays.keys().filter(|(o, _, _)| o == owner).count() >= MAX_REPLAYS_PER_OWNER {
+        let oldest = operations
+            .replays
+            .iter()
+            .filter(|((o, _, _), _)| o == owner)
+            .min_by_key(|(_, r)| r.order)
+            .map(|(k, _)| k.clone());
+        match oldest {
+            Some(key) => operations.replays.remove(&key),
+            None => break,
+        };
+    }
+    let order = operations.order();
     operations.replays.insert(
         (owner.into(), method.into(), key.into()),
         Replay {
+            order,
             hash: blake3::hash(value.to_string().as_bytes())
                 .to_hex()
                 .to_string(),
             result,
         },
     );
+}
+
+#[cfg(test)]
+mod limits {
+    use super::*;
+    fn job(order: u64, state: &str) -> OwnedJob {
+        OwnedJob {
+            order,
+            owner: "owner".into(),
+            destination: String::new(),
+            cancel: Arc::new(AtomicBool::new(false)),
+            snapshot: AgentJob { id: order.to_string(), state: state.into(), clip_id: String::new(), result: None, error: None },
+        }
+    }
+    #[test]
+    fn a_full_job_list_forgets_the_oldest_finished_job_and_keeps_running_ones() {
+        let mut operations = Operations::default();
+        operations.jobs.insert("1".into(), job(1, "running"));
+        for order in 2..=MAX_JOBS as u64 {
+            operations.jobs.insert(order.to_string(), job(order, if order % 2 == 0 { "complete" } else { "failed" }));
+        }
+        assert_eq!(operations.jobs.len(), MAX_JOBS);
+        operations.forget_finished_jobs();
+        assert_eq!(operations.jobs.len(), MAX_JOBS - 1);
+        assert!(operations.jobs.contains_key("1"), "the running job stays");
+        assert!(!operations.jobs.contains_key("2"), "the oldest finished job is forgotten");
+        assert!(operations.jobs.contains_key("3"));
+    }
+    #[test]
+    fn running_jobs_alone_never_make_room() {
+        let mut operations = Operations::default();
+        for order in 1..=MAX_JOBS as u64 {
+            operations.jobs.insert(order.to_string(), job(order, "running"));
+        }
+        operations.forget_finished_jobs();
+        assert_eq!(operations.jobs.len(), MAX_JOBS);
+    }
 }
