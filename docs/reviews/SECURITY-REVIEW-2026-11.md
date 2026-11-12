@@ -73,7 +73,31 @@ the GitHub workflows, and both dependency locks (`cargo audit` 0.22.2,
 
 ## Tests actually run
 
-Recorded in the follow-up commit once the full suite finishes.
+Linux x86_64 container, Rust 1.97.0, system FFmpeg as the fixture tools.
+
+- `cargo audit` (0.22.2): before, 4 vulnerabilities (RUSTSEC-2026-0457, -0459,
+  -0461, -0462) and 2 unsound warnings; after, 0 vulnerabilities and only the
+  nine unmaintained warnings in finding 12.
+- `npm audit`: before, 1 high (undici); after, 0.
+- `cargo test --workspace --locked --no-fail-fast -- --include-ignored`:
+  434 tests ran, 429 passed. The 5 that did not pass are environmental and
+  unrelated to this change: 4 need `SOUNDSHELF_FFMPEG`/`SOUNDSHELF_FFPROBE`
+  and pass when those are set (17 of 17 in `import` and `file_scopes`); 2
+  (`real_backup_write_failure_cancels_upgrade_before_schema_mutation`, skipped,
+  and `read_only_snapshot_failure_is_retryable_and_member_access_denial_never_prunes`)
+  rely on read-only folders, which do not restrict the root user this
+  container runs as. CI runs them as a normal user.
+- `cargo test -p soundshelf --features image-development --locked image_`: 4 passed.
+- `ipv6_forms_that_carry_an_ipv4_address_follow_that_address` fails on the
+  reviewed base (`[64:ff9b::a9fe:a9fe]` was classified as a remote address)
+  and passes with the fix. It also asserts that public NAT64, 6to4 and global
+  IPv6 addresses are still accepted without the local opt-in.
+- `private_directory_tests::data_folder_is_owner_only_and_an_open_one_is_narrowed`
+  and `service::tests::data_directory_is_private_to_the_user`: a 0755 folder
+  becomes 0700 with its contents intact; a new folder is 0700.
+- `service::tests::content_security_policy_keeps_the_renderer_closed` passes.
+- `npm test`: 30 files, 332 tests passed. `npm run build` succeeded.
+- `node scripts/verify-glib-patch.mjs`: 121 upstream GLib files verified.
 
 ## Known limitations
 
