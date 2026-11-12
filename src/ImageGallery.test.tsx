@@ -194,6 +194,12 @@ describe('ImageGallery states', () => {
     expect(screen.getAllByText('Loading images…').length).toBeGreaterThan(0);
     rerender(<ImageGallery gallery={controller({ error: 'INTERNAL' })} sources={[source]} jobs={[]} onOpenImports={open} />);
     expect(screen.getByRole('alert')).toHaveTextContent('Images could not be listed');
+    // A failed first window is not shown as endless loading, and can be retried.
+    const refresh = vi.fn();
+    rerender(<ImageGallery gallery={controller({ total: null, error: 'INTERNAL', refresh })} sources={[source]} jobs={[]} onOpenImports={open} />);
+    expect(screen.queryByText('Loading images…')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Images could not be loaded' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' })); expect(refresh).toHaveBeenCalled();
   });
   it('enables comparison only for 2–4 selected images', () => {
     const sel = (n: number) => new Map(Array.from({ length: n }, (_, i) => [summary(i).header.id, summary(i)]));

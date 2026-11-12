@@ -24,17 +24,22 @@ export function AnnotationEditor({ details: d, name, onChanged }: Props) {
   // overwrite text typed after mount with a stale value.
   const [seen, setSeen] = useState(d.comment);
   if (seen !== d.comment) { setSeen(d.comment); if (notes === seen) setNotes(d.comment); }
+  // The revision this editor wrote last. Details reload a moment after each edit;
+  // until then the next edit must start from our own write, not the older one on screen.
+  const [written, setWritten] = useState<{ id: string; revision: number } | null>(null);
+  const revision = written?.id === id && written.revision > d.annotation_revision ? written.revision : d.annotation_revision;
   const apply = async (patch: AnnotationPatch, label: string) => {
     setBusy(true); setError(''); setStatus('');
     try {
-      const r = await editImageAnnotations(id, d.annotation_revision, patch);
+      const r = await editImageAnnotations(id, revision, patch);
+      if (typeof r.annotations?.revision === 'number') setWritten({ id, revision: r.annotations.revision });
       setStatus(r.action_id ? `${label}.` : 'No change.');
       setUndo(r.action_id ? { id: r.action_id, label } : null);
       onChanged();
       return true;
     } catch (e) {
       setError(annotationError(e));
-      if (errorCode(e) === 'CONFLICT') onChanged();
+      if (errorCode(e) === 'CONFLICT') { setWritten(null); onChanged(); }
       return false;
     } finally { setBusy(false); }
   };

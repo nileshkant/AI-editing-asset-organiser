@@ -14,6 +14,9 @@ const EMPTY: SearchResults = {
   },
 };
 
+/** Polled lists arrive as new arrays each time; keep the previous one when the content is the same. */
+const unchanged = <T,>(previous: T, next: T): T => JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
+
 type Page = "library" | "favorites" | "imports" | "settings";
 
 export function useAudioSearch(page: Page) {
@@ -86,7 +89,7 @@ export function useAudioSearch(page: Page) {
       try {
         const list = await call<Progress[]>("jobs");
         if (!alive) return;
-        setJobs(list || []);
+        setJobs(prev => unchanged(prev, list || []));
         // Status signature: only job_id + status pairs (not completed/current/errors counts).
         const statusSig = JSON.stringify(
           (list || []).map((j) => ({ id: j.job_id, status: j.status }))
@@ -96,7 +99,7 @@ export function useAudioSearch(page: Page) {
           refresh();
         }
         const sources = await call<Source[]>("sources");
-        if (alive) setRoots(sources || []);
+        if (alive) setRoots(prev => unchanged(prev, sources || []));
       } catch (e) {
         if (alive) setError(String(e));
       }

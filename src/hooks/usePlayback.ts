@@ -2,6 +2,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
 import { call, PlaybackStatus, Sound } from '../api';
 
+const sameStatus = (a: PlaybackStatus | null, b: PlaybackStatus | null) => {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const x = a as unknown as Record<string, unknown>, y = b as unknown as Record<string, unknown>;
+  const keys = new Set([...Object.keys(x), ...Object.keys(y)]);
+  for (const k of keys) if (x[k] !== y[k]) return false;
+  return true;
+};
+
 export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
   const [playback, setPlayback] = useState<PlaybackStatus | null>(null);
   const [playingSound, setPlayingSound] = useState<Sound | null>(null);
@@ -21,6 +30,7 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
 
   // Tracks the active play request token to guard against re-entry.
   const playToken = useRef(0);
+  const lastAudible = useRef(1);
   const seekTarget = useRef<number | null>(null);
   const seekTask = useRef<Promise<unknown> | null>(null);
 
@@ -156,15 +166,19 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
     guard(async () => {
       setVolumeState(v);
       setMuted(v === 0);
+      if (v > 0) lastAudible.current = v;
       await call("playback_set_volume", { volume: v });
     }), []);
 
   const toggleMute = useCallback(() =>
     guard(async () => {
       const next = !muted;
+      // Unmuting from a slider left at 0 returns to the last audible level.
+      const restored = volume > 0 ? volume : lastAudible.current;
       setMuted(next);
+      if (!next) setVolumeState(restored);
       setAnnouncement(next ? "Muted" : "Unmuted");
-      await call("playback_set_volume", { volume: next ? 0 : volume });
+      await call("playback_set_volume", { volume: next ? 0 : restored });
     }), [muted, volume]);
 
   // Poll the real backend status at 120ms to keep position/peak accurate.
@@ -180,8 +194,9 @@ export function usePlayback(selected: Sound | null, resultsItems: Sound[]) {
         const revision = commandRevision.current;
         const s = await call<PlaybackStatus>("playback_status");
         if (alive && !pendingRef.current && revision === commandRevision.current) {
-          setPlayback(s);
-
+          // An idle player reports the same status every 120 ms; keep the old
+          // object then, so nothing re-renders until something changes.
+          setPlayback(prev => sameStatus(prev, s) ? prev : s);
         }
       } catch (_) {}
       finally { polling = false; }

@@ -238,6 +238,50 @@ describe('Waveform', () => {
     expect(parseFloat((endInput as HTMLInputElement).value)).toBeGreaterThan(1.99);
   });
 
+  it('stops a nudged selection at the file edges instead of shrinking it', () => {
+    render(<Waveform peaks={SAMPLE_PEAKS} duration={2.0} />);
+    fireEvent.click(screen.getByText('Select All'));
+    const workstation = screen.getByRole('region', { name: 'Audio waveform workstation' });
+    const value = (label: string) => parseFloat((screen.getByLabelText(label) as HTMLInputElement).value);
+    // Typing keeps a draft in the field until it is left, so leave it to read the applied value.
+    const type = (label: string, text: string) => { const input = screen.getByLabelText(label); fireEvent.change(input, { target: { value: text } }); fireEvent.blur(input); };
+    type('Selection start in seconds', '1.500');
+    // 1.5–2.0 touches the file end: nudging right must not move the start.
+    fireEvent.keyDown(workstation, { key: 'ArrowRight' });
+    fireEvent.keyDown(workstation, { key: 'ArrowRight', shiftKey: true });
+    expect(value('Selection start in seconds')).toBe(1.5);
+    expect(value('Selection end in seconds')).toBe(2);
+    // Away from the edges the whole selection moves and keeps its length.
+    fireEvent.keyDown(workstation, { key: 'ArrowLeft', shiftKey: true });
+    expect(value('Selection start in seconds')).toBeCloseTo(1.4, 3);
+    expect(value('Selection duration in seconds')).toBeCloseTo(0.5, 3);
+    // 0.0–0.5 touches the file start: nudging left must not move the end.
+    type('Selection start in seconds', '0');
+    type('Selection duration in seconds', '0.5');
+    fireEvent.keyDown(workstation, { key: 'ArrowLeft' });
+    fireEvent.keyDown(workstation, { key: 'ArrowLeft', shiftKey: true });
+    expect(value('Selection start in seconds')).toBe(0);
+    expect(value('Selection end in seconds')).toBe(0.5);
+  });
+
+  it('saves one clip when the form is submitted twice before the first save returns', async () => {
+    mockIsTauri = true;
+    let finish!: (clip: unknown) => void;
+    mockInvoke.mockImplementation((cmd: string) => cmd === 'create_clip' ? new Promise(resolve => { finish = resolve; }) : Promise.resolve(null));
+    const onClipSaved = vi.fn();
+    render(<Waveform soundId="sound-test-1" soundHash="hash-abc-123" peaks={SAMPLE_PEAKS} duration={2.0} sampleRate={48000} onClipSaved={onClipSaved} />);
+    fireEvent.click(screen.getByText('Select All'));
+    fireEvent.click(screen.getByRole('button', { name: /Save Clip/i }));
+    fireEvent.change(screen.getByLabelText('Clip variant name'), { target: { value: 'Twice' } });
+    fireEvent.click(screen.getByLabelText('Confirm save clip'));
+    fireEvent.click(screen.getByLabelText('Confirm save clip'));
+    fireEvent.submit(screen.getByLabelText('Clip variant name').closest('form')!);
+    expect(mockInvoke.mock.calls.filter(c => c[0] === 'create_clip')).toHaveLength(1);
+    finish({ id: 'clip-1', name: 'Twice' });
+    await vi.waitFor(() => expect(onClipSaved).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/click on the waveform to create/)).toBeNull();
+  });
+
   // ─── Playhead / Playback Position ───
   it('renders start at playhead buttons with selection', () => {
     render(

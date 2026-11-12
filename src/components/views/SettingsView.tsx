@@ -46,6 +46,9 @@ export const SettingsView = memo(function SettingsView({
     return () => { dialog?.close?.(); opener.current?.focus(); };
   }, [pending]);
   const [pages, setPages] = useState<Record<string, number>>({});
+  // Loaded when first opened, then kept mounted so a typed key or draft survives a tab change.
+  const [aiShown, setAiShown] = useState(false);
+  if (category === 4 && !aiShown) setAiShown(true);
   const [busy, setBusy] = useState(false);
   const act = async () => {
     if (!pending || busy) return;
@@ -144,7 +147,7 @@ export const SettingsView = memo(function SettingsView({
       <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} active={category === 1} /></div></section>
       <section {...panelProps(2)}><div className="settings-card"><RecoverySettings onError={onError} /></div><ImagePreviewSettings onError={onError} /></section>
       <section {...panelProps(3)}><div className="settings-card"><McpSettings roots={roots} onError={onError} /></div></section>
-      <section {...panelProps(4)}><div className="settings-card">{category === 4 && <AiProviderSettings onError={onError} />}</div></section>
+      <section {...panelProps(4)}><div className="settings-card">{aiShown && <AiProviderSettings onError={onError} />}</div></section>
       <section {...panelProps(5)}>
       <div className="settings-card">
       <h2>Application</h2>

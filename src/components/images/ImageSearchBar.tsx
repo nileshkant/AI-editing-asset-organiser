@@ -13,6 +13,14 @@ const count = (list: FacetCount[] | undefined, value: string) => list?.find(f =>
 const withCount = (label: string, n: number | undefined) => n === undefined ? label : `${label} (${n.toLocaleString()})`;
 const splitTags = (text: string) => text.split(',').map(t => t.trim()).filter(Boolean);
 const positive = (v: string) => { const n = Number(v); return v.trim() && Number.isInteger(n) && n > 0 ? n : null; };
+/** Absent, null, empty text and an empty list all mean "no constraint"; `false` is kept (it is a choice). */
+const blank = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length) ? null : v;
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Replace a searched word with a suggestion as a whole word, never inside a longer one. */
+export function replaceTerm(text: string, term: string, candidate: string): string {
+  const whole = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(term)}(?![\\p{L}\\p{N}])`, 'iu');
+  return whole.test(text) ? text.replace(whole, () => candidate) : text.replace(term, () => candidate);
+}
 const toggle = <T,>(list: T[] | undefined, value: T) => list?.includes(value) ? list.filter(v => v !== value) : [...(list ?? []), value];
 
 /** One-line description of what a search is matching, from the core's interpretation. */
@@ -41,7 +49,9 @@ export function ImageSearchBar({ gallery: g }: Props) {
   const [saved, setSaved] = useState<SavedImageSearch[]>([]);
   const [saving, setSaving] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
-  const set = (patch: Partial<ImageFilters>) => g.setFilters(f => ({ ...f, ...patch }));
+  // Leaving a field without changing it must not restart the search (same object keeps the loaded windows).
+  const set = (patch: Partial<ImageFilters>) => g.setFilters(f =>
+    Object.entries(patch).every(([k, v]) => JSON.stringify(blank(f[k as keyof ImageFilters])) === JSON.stringify(blank(v))) ? f : { ...f, ...patch });
   useEffect(() => { setText(g.filters.text ?? ''); }, [g.filters.text]);
   useEffect(() => {
     if (text === (g.filters.text ?? '')) return;
@@ -77,7 +87,7 @@ export function ImageSearchBar({ gallery: g }: Props) {
       <input type="search" aria-label="Search images" aria-describedby={`${id}-help`} placeholder="Search names, tags, captions and notes"
         title='Whole words. "quotes" for a phrase, -word to exclude, word* for a prefix.'
         value={text} maxLength={512} onChange={e => setText(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') g.setFilters(x => ({ ...x, text })); if (e.key === 'Escape' && text) { setText(''); g.setFilters(x => ({ ...x, text: '' })); } }} />
+        onKeyDown={e => { if (e.key === 'Enter') set({ text }); if (e.key === 'Escape' && text) { setText(''); g.setFilters(x => ({ ...x, text: '' })); } }} />
       <button aria-expanded={open} aria-controls={`${id}-panel`} onClick={() => setOpen(o => !o)}>Filters{n ? ` (${n})` : ''}</button>
       <button disabled={!n} onClick={() => { setText(''); g.resetFilters(); setNotice('Search and filters cleared.'); }}>Clear all</button>
       <select aria-label="Saved searches" value="" onChange={e => { const s = saved.find(x => x.id === e.target.value); if (s) apply(s); }}>
@@ -146,7 +156,7 @@ export function NoMatches({ gallery: g, onText }: { gallery: ImageGalleryControl
   return <div className="image-empty" role="status">
     <h2>No images match</h2>
     {missing.length > 0 && <p>No image contains {missing.map(c => `“${c.text}”`).join(', ')} in the searched fields.</p>}
-    {i?.suggestions.map(s => <p key={s.term}>Did you mean {s.candidates.map((c, n) => <span key={c}>{n ? ', ' : ''}<button className="link" onClick={() => onText((g.filters.text ?? '').replace(s.term, c))}>{c}</button></span>)}?</p>)}
+    {i?.suggestions.map(s => <p key={s.term}>Did you mean {s.candidates.map((c, n) => <span key={c}>{n ? ', ' : ''}<button className="link" onClick={() => onText(replaceTerm(g.filters.text ?? '', s.term, c))}>{c}</button></span>)}?</p>)}
     {!!i?.text_only_matches && <p>{i.text_only_matches.toLocaleString()} {i.text_only_matches === 1 ? 'image matches' : 'images match'} your words but not the other filters.</p>}
     {!!i?.ignored.length && <p>Ignored {i.ignored.map(t => `“${t}”`).join(', ')} (no letters or numbers).</p>}
     <p>Try fewer words, a prefix such as <code>beach*</code>, or remove a filter.</p>

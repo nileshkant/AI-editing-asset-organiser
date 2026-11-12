@@ -1,7 +1,8 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useImageGallery, type ImageGalleryController } from './hooks/useImageGallery';
-import { ImageSearchBar, NoMatches, describeSearch } from './components/images/ImageSearchBar';
+import { ImageSearchBar, NoMatches, describeSearch, replaceTerm } from './components/images/ImageSearchBar';
+import { activeFilters } from './hooks/useImageGallery';
 import type { ImageSearchPage, ImageSummary, SearchInterpretation } from './types';
 const invoke = vi.fn();
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: (...args: unknown[]) => invoke(...args) }));
@@ -110,5 +111,60 @@ describe('ImageSearchBar', () => {
     expect(onText).toHaveBeenCalledWith('sunset -night');
     fireEvent.click(screen.getByRole('button', { name: 'Clear search and filters' }));
     expect(resetFilters).toHaveBeenCalled();
+  });
+  it('leaves the search alone when a filter field is left unchanged, and applies a real change', async () => {
+    const setFilters = vi.fn();
+    render(<ImageSearchBar gallery={controller({ setFilters, filters: { tags: ['beach'], min_width: 800 } })} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Filters (2)' }));
+    const current = { tags: ['beach'], min_width: 800 };
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Required tags' }));
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Excluded tags' }));
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Minimum width in pixels' }));
+    fireEvent.blur(screen.getByRole('textbox', { name: 'Minimum height in pixels' }));
+    fireEvent.keyDown(screen.getByRole('searchbox', { name: 'Search images' }), { key: 'Enter' });
+    expect(setFilters).toHaveBeenCalledTimes(5);
+    // The same object means React keeps the state, so the gallery does not reload.
+    for (const [update] of setFilters.mock.calls) expect(update(current)).toBe(current);
+    const tags = screen.getByRole('textbox', { name: 'Required tags' });
+    fireEvent.change(tags, { target: { value: 'beach, dusk' } }); fireEvent.blur(tags);
+    expect(setFilters.mock.calls.at(-1)![0](current)).toEqual({ tags: ['beach', 'dusk'], min_width: 800 });
+    // "Not favorites" is a change from "any", even though its value is false.
+    fireEvent.change(screen.getByRole('combobox', { name: 'Favorites' }), { target: { value: 'false' } });
+    expect(setFilters.mock.calls.at(-1)![0](current)).toEqual({ ...current, favorite: false });
+  });
+  it('replaces a suggested word as a whole word only', () => {
+    expect(replaceTerm('concat cat', 'cat', 'cut')).toBe('concat cut');
+    expect(replaceTerm('Sunsett -night', 'sunsett', 'sunset')).toBe('sunset -night');
+    expect(replaceTerm('a.b a+b', 'a+b', '$1')).toBe('a.b $1');
+    expect(replaceTerm('日本語 日本', '日本', '二本')).toBe('日本語 二本');
+  });
+});
+
+describe('yes/no filters', () => {
+  it('counts "Not favorites" and "Unrated" as filters and sends them to search', async () => {
+    expect(activeFilters({ favorite: false })).toBe(1);
+    expect(activeFilters({ rated: false })).toBe(1);
+    expect(activeFilters({ ready_only: false, favorite: null, tags: [], text: '' })).toBe(0);
+    invoke.mockImplementation((cmd: string, args: any) => Promise.resolve(
+      cmd === 'image_gallery_page' ? { items: [summary(0), summary(1)], offset: 0, total: 2 } : cmd === 'search_images' ? result(args.offset, args.limit, 1) : null));
+    const { result: h } = renderHook(() => useImageGallery('r', 0));
+    await waitFor(() => expect(h.current.total).toBe(2));
+    act(() => h.current.setFilters({ favorite: false }));
+    await waitFor(() => expect(h.current.total).toBe(1));
+    expect(invoke).toHaveBeenLastCalledWith('search_images', { query: { favorite: false, source_ids: [], sort: 'relevance' }, offset: 0, limit: 100, facets: false });
+    act(() => h.current.setFilters({ rated: false }));
+    await waitFor(() => expect(invoke).toHaveBeenLastCalledWith('search_images', { query: { rated: false, source_ids: [], sort: 'relevance' }, offset: 0, limit: 100, facets: false }));
+  });
+  it('recovers from a failed first window when asked to try again', async () => {
+    let fail = true;
+    invoke.mockImplementation((cmd: string) => cmd !== 'image_gallery_page' ? Promise.resolve(null)
+      : fail ? Promise.reject('INTERNAL') : Promise.resolve({ items: [summary(0)], offset: 0, total: 1 }));
+    const { result: h } = renderHook(() => useImageGallery('r', 0));
+    await waitFor(() => expect(h.current.error).toBe('INTERNAL'));
+    expect(h.current.total).toBe(null);
+    fail = false;
+    act(() => h.current.refresh());
+    await waitFor(() => expect(h.current.total).toBe(1));
+    expect(h.current.error).toBe('');
   });
 });
