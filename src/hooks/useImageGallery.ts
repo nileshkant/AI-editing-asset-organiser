@@ -11,8 +11,10 @@ export type ImageFilters = Omit<ImageQuery, 'version' | 'source_ids' | 'sort'>;
 const STORAGE = 'creativeshelf.imageFilters.v1';
 /** Typed words and tag names are private: only structural choices are remembered. */
 const PRIVATE: (keyof ImageFilters)[] = ['text', 'tags', 'exclude_tags'];
-const empty = (v: unknown) => v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && !v.length);
-export const activeFilters = (f: ImageFilters) => Object.entries(f).filter(([k, v]) => k !== 'tag_state' && k !== 'fields' && !empty(v)).length;
+/** Yes/no/any constraints: `false` is a real choice ("Not favorites", "Unrated"), only null is "any". */
+const TRISTATE = ['favorite', 'rated', 'alpha_channel'];
+const empty = (k: string, v: unknown) => v === undefined || v === null || v === '' || (v === false && !TRISTATE.includes(k)) || (Array.isArray(v) && !v.length);
+export const activeFilters = (f: ImageFilters) => Object.entries(f).filter(([k, v]) => k !== 'tag_state' && k !== 'fields' && !empty(k, v)).length;
 function remembered(): { filters: ImageFilters; sort: ImageSort } {
   try {
     const raw = JSON.parse(localStorage.getItem(STORAGE) ?? 'null');

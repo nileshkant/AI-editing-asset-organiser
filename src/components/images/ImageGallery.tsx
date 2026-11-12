@@ -72,11 +72,12 @@ export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props
     <p className="keyboard-help" id="image-grid-help">Arrow keys move · Space selects · Enter opens details · Escape closes · Ctrl or ⌘ click adds to selection</p>
     {running.length > 0 && <p className="image-banner" role="status">Importing images: {running.reduce((n, j) => n + j.completed, 0)} of {running.reduce((n, j) => n + j.total, 0)} files checked. The gallery updates as images become ready.</p>}
     {failed > 0 && <p className="image-banner warning" role="status">{failed} {failed === 1 ? 'file' : 'files'} could not be imported. <button onClick={onOpenImports}>Review in Imports</button></p>}
-    {g.error && <p className="error" role="alert">Images could not be listed · {g.error}</p>}
-    <div className="results-bar"><span aria-live="polite">{g.total === null ? 'Loading images…' : `${total.toLocaleString()} ${total === 1 ? 'image' : 'images'}${filtered ? ' match' : ''}`}</span>
+    {g.error && <p className="error" role="alert">Images could not be listed · {g.error} <button onClick={g.refresh}>Try again</button></p>}
+    <div className="results-bar"><span aria-live="polite">{g.total === null ? (g.error ? 'Images unavailable' : 'Loading images…') : `${total.toLocaleString()} ${total === 1 ? 'image' : 'images'}${filtered ? ' match' : ''}`}</span>
       <span>{describeSearch(g.interpretation) || 'Local previews · originals unchanged'}</span></div>
     <div className={`library-body image-body${active ? ' with-inspector' : ''}`}>
-      {g.total === null ? <div className="catalog-loading" role="status">Loading images…</div>
+      {g.total === null && g.error ? <div className="image-empty"><h2>Images could not be loaded</h2><p>Nothing was changed. Try again, or check the source in Imports.</p></div>
+        : g.total === null ? <div className="catalog-loading" role="status">Loading images…</div>
         : !sources.length ? <div className="image-empty"><h2>No sources yet</h2><p>Import a folder or files that contain JPEG, PNG or WebP images.</p><button onClick={onOpenImports}>Go to Imports</button></div>
         : total === 0 && filtered ? <NoMatches gallery={g} onText={text => g.setFilters(f => ({ ...f, text }))} />
         : total === 0 ? <div className="image-empty"><h2>{running.length ? 'Import in progress' : 'No images here'}</h2><p>{running.length ? 'Images appear as soon as their technical analysis finishes.' : 'No supported images (JPEG, PNG or WebP) in this view. Choose another source or import images.'}</p>{!running.length && <button onClick={onOpenImports}>Go to Imports</button>}</div>
