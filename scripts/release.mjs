@@ -75,6 +75,8 @@ try {
       stage.entries = await inventory(stageDirectory); stage.bytes = stage.entries.reduce((n, e) => n + e.bytes, 0);
       await mkdir('release-reports', { recursive: true });
       const bundle = { resources: stage.resources, targets: process.platform === 'darwin' ? ['app', 'dmg'] : process.platform === 'win32' ? ['nsis', 'msi'] : ['appimage', 'deb'] };
+      // tauri.conf.json leaves bundle.icon empty; without this the packaged app has no icon.
+      bundle.icon = process.platform === 'win32' ? ['icons/icon.ico'] : ['icons/icon.png'];
       if (process.platform === 'win32') bundle.windows = { certificateThumbprint: settings.publisher, digestAlgorithm: 'sha256', timestampUrl: settings.timestamp, tsp: true, allowDowngrades: false, webviewInstallMode: { type: 'offlineInstaller' } };
       const config = { bundle };
       if (local) {
