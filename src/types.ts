@@ -399,3 +399,26 @@ export type AiFeatureStatus = AiFeatureState & {
   feature: 'image_descriptions' | 'semantic_search' | 'offline_tagging';
   quality: { state: 'pending_evaluation' };
 };
+
+// SS-051 optional local model packs
+export type PackCapability = 'image_description' | 'image_embedding';
+export type PackPhase = 'not_installed' | 'downloading' | 'verifying' | 'verified' | 'active' | 'failed' | 'incompatible';
+export type PackIncompatibility = {
+  code: 'unsupported_os' | 'unsupported_arch' | 'missing_cpu_feature' | 'low_memory' | 'no_accelerator' | 'runtime_unavailable' | 'retired_from_manifest';
+  detail: string;
+};
+export type PackView = {
+  id: string; version: string; display_name: string; capability: PackCapability;
+  phase: PackPhase; detail: string | null; incompatible: PackIncompatibility | null; memory_unchecked: boolean;
+  license_spdx: string; notice: string; notice_url: string | null;
+  download_bytes: number; installed_bytes: number | null; resumable_bytes: number; min_ram_bytes: number; runtime: string;
+  progress: [number, number] | null; in_use: number; update_available: string | null; retired: boolean;
+};
+export type ModelPacksOverview = {
+  packs: PackView[];
+  storage: { installed_bytes: number; partial_bytes: number; free_bytes: number | null };
+  active: [PackCapability, { id: string; version: string }][];
+  generation: number;
+  pending_reindex: { capability: PackCapability; from_space: string | null; to_space: string; generation: number }[];
+  runtime_available: boolean;
+};
