@@ -183,8 +183,15 @@ mod tests {
             "creativeshelf-image-worker"
         };
         let exe = std::env::current_exe().unwrap();
-        let binary = exe.parent().unwrap().parent().unwrap().join(name);
-        assert!(binary.is_file(), "build the workspace image helper first");
+        // Cargo has kept test executables in target/<profile>/deps and, in newer
+        // layouts, deeper under target/<profile>/build; the helper stays in target/<profile>.
+        let binary = exe
+            .ancestors()
+            .skip(1)
+            .take(5)
+            .map(|dir| dir.join(name))
+            .find(|candidate| candidate.is_file())
+            .expect("build the workspace image helper first");
         std::fs::copy(binary, images.join(name)).unwrap();
         let state = AppState::new(dir.join("app-data"), dir.join("resources")).unwrap();
         let service = state.image_previews.service.clone().expect("trusted worker enabled");

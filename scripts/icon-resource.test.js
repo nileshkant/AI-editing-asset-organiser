@@ -13,4 +13,10 @@ describe('desktop icon resources', () => {
     expect(icon.readUInt16LE(2)).toBe(1);
     expect(icon.readUInt16LE(4)).toBeGreaterThan(1);
   });
+
+  // tauri.conf.json keeps bundle.icon empty, so each packaging script must set it.
+  it.each(['scripts/release.mjs', 'scripts/unsigned-release.mjs'])('%s gives the packaged app an icon', script => {
+    const source = readFileSync(resolve(script), 'utf8').replace(/\s+/g, '');
+    expect(source).toContain("bundle.icon=process.platform==='win32'?['icons/icon.ico']:['icons/icon.png']");
+  });
 });
