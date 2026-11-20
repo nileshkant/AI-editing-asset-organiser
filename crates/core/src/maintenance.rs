@@ -186,6 +186,7 @@ impl Catalog {
         self.db.execute("UPDATE jobs SET state='cancelled',lease_owner=NULL,lease_until=NULL,status='Cancelled by database restore' WHERE state IN ('queued','running')",[])?;
         self.db.execute("UPDATE image_import_items SET state='pending' WHERE state='running' AND job_id IN (SELECT id FROM image_import_jobs WHERE state IN ('queued','running'))",[])?;
         self.db.execute("UPDATE image_import_jobs SET state='cancelled',lease_owner=NULL,lease_until=NULL,error_code='CANCELLED',sequence=sequence+1 WHERE state IN ('queued','running')",[])?;
+        self.reset_enrichment_after_restore()?;
         // Retain saved revisions: newer source snapshots cause a visible conflict
         // instead of overwriting post-backup source annotations in the background.
         self.db.execute("UPDATE source_catalog_state SET dirty=dirty+1,last_error='Restored backup: source metadata needs review; newer snapshots are protected by revision checks'",[])?;

@@ -447,22 +447,25 @@ struct StoredSettings {
     version: u32,
     profiles: Vec<ProviderProfile>,
 }
+/// Reads the stored profiles from any connection or open transaction.
+pub(crate) fn read_profiles(db: &rusqlite::Connection) -> crate::Result<Vec<ProviderProfile>> {
+    let raw: Option<String> = db
+        .query_row("SELECT value FROM app_settings WHERE key=?1", [SETTINGS_KEY], |r| r.get(0))
+        .optional()?;
+    let Some(raw) = raw else { return Ok(vec![]) };
+    let stored: StoredSettings = serde_json::from_str(&raw)?;
+    if stored.version != 1 {
+        return Err(crate::invalid("Provider settings were written by a newer CreativeShelf"));
+    }
+    if stored.profiles.len() > MAX_PROFILES {
+        return Err(crate::invalid("Provider settings are malformed"));
+    }
+    Ok(stored.profiles)
+}
 impl Catalog {
     /// Provider profiles (machine-local; not in portable or folder catalogs).
     pub fn ai_provider_profiles(&self) -> crate::Result<Vec<ProviderProfile>> {
-        let raw: Option<String> = self
-            .db
-            .query_row("SELECT value FROM app_settings WHERE key=?1", [SETTINGS_KEY], |r| r.get(0))
-            .optional()?;
-        let Some(raw) = raw else { return Ok(vec![]) };
-        let stored: StoredSettings = serde_json::from_str(&raw)?;
-        if stored.version != 1 {
-            return Err(crate::invalid("Provider settings were written by a newer CreativeShelf"));
-        }
-        if stored.profiles.len() > MAX_PROFILES {
-            return Err(crate::invalid("Provider settings are malformed"));
-        }
-        Ok(stored.profiles)
+        read_profiles(&self.db)
     }
     fn put_ai_provider_profiles(&self, profiles: &[ProviderProfile]) -> crate::Result<()> {
         let value = serde_json::to_string(&StoredSettings { version: 1, profiles: profiles.to_vec() })?;

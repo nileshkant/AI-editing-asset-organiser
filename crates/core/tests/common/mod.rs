@@ -15,8 +15,16 @@ pub fn remove_image_schema_for_legacy_fixture(db: &rusqlite::Connection) {
         "Only empty annotation storage can be removed from legacy fixtures");
     assert_eq!(db.query_row("SELECT count(*) FROM image_duplicate_groups", [], |r| r.get::<_,i64>(0)).unwrap(), 0,
         "Only empty duplicate decisions can be removed from legacy fixtures");
+    assert_eq!(db.query_row("SELECT (SELECT count(*) FROM image_enrichment_consent)+(SELECT count(*) FROM image_enrichment_jobs)+(SELECT count(*) FROM image_enrichment_results)", [], |r| r.get::<_,i64>(0)).unwrap(), 0,
+        "Only empty enrichment storage can be removed from legacy fixtures");
     db.execute_batch(
         "
+      DROP TABLE image_enrichment_outputs;
+      DROP TABLE image_enrichment_results;
+      DROP TABLE image_enrichment_usage;
+      DROP TABLE image_enrichment_items;
+      DROP TABLE image_enrichment_jobs;
+      DROP TABLE image_enrichment_consent;
       DROP TRIGGER image_search_asset_insert;
       DROP TRIGGER image_search_asset_update;
       DROP TRIGGER image_search_asset_delete;

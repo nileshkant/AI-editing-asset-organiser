@@ -28,6 +28,8 @@ pub struct ImageImports {
     stop: Arc<AtomicBool>,
     worker: Mutex<Option<thread::JoinHandle<()>>>,
     sink: Arc<Mutex<Option<Sink>>>,
+    /// Runs after an import reaches a final state (SS-052 queues opted-in sources).
+    on_complete: Arc<Mutex<Option<Sink>>>,
     pub native_tasks: AtomicUsize,
 }
 impl ImageImports {
@@ -51,10 +53,12 @@ impl ImageImports {
             cfg!(feature = "image-development") && worker.is_absolute() && worker.is_file();
         let stop = Arc::new(AtomicBool::new(false));
         let sink = Arc::new(Mutex::new(None::<Sink>));
+        let on_complete = Arc::new(Mutex::new(None::<Sink>));
         let trusted = enabled.then(|| worker.clone());
         let handle = if enabled {
             let stop = stop.clone();
             let sink = sink.clone();
+            let on_complete = on_complete.clone();
             Some(thread::spawn(move || {
                 let owner = uuid::Uuid::new_v4().to_string();
                 let engine = ImageImportEngine {
@@ -70,10 +74,15 @@ impl ImageImports {
                     match engine.tick(&owner, &stop) {
                         Ok(Some(job)) => {
                             if job.terminal() || last.elapsed() >= Duration::from_millis(100) {
+                                let done = job.terminal();
+                                let hook = if done { on_complete.lock().ok().and_then(|h| h.clone()) } else { None };
                                 if let Ok(s) = sink.lock() {
                                     if let Some(send) = s.as_ref() {
-                                        send(job);
+                                        send(job.clone());
                                     }
+                                }
+                                if let Some(hook) = hook {
+                                    hook(job);
                                 }
                                 last = Instant::now();
                             }
@@ -95,6 +104,7 @@ impl ImageImports {
             stop,
             worker: Mutex::new(handle),
             sink,
+            on_complete,
             native_tasks: AtomicUsize::new(0),
         }
     }
@@ -103,6 +113,11 @@ impl ImageImports {
             Ok(())
         } else {
             Err(E::WorkerUnavailable)
+        }
+    }
+    pub fn set_on_complete(&self, hook: Sink) {
+        if let Ok(mut h) = self.on_complete.lock() {
+            *h = Some(hook);
         }
     }
     pub fn set_events(&self, app: tauri::AppHandle) {

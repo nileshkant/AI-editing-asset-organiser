@@ -47,6 +47,8 @@ pub struct AppState {
     pub providers: Arc<soundshelf_core::ai_provider::Providers>,
     /// SS-051 optional model packs. Failing to open them never stops the app.
     pub model_packs: Result<Arc<soundshelf_core::model_pack_store::ModelPacks>, String>,
+    /// SS-052 consented image analysis queue and its single background worker.
+    pub image_enrichment: Arc<crate::image_enrichment::Enrichment>,
     pub tools: Option<MediaTools>,
     pub player: Arc<Player>,
     pub progress: Arc<Mutex<Vec<Progress>>>,
@@ -246,6 +248,12 @@ impl AppState {
         let image_imports=Arc::new(crate::image_import::ImageImports::new(catalog.clone(),&resources,tools.clone()));
         let image_previews=Arc::new(crate::image_preview::ImagePreviews::new(&data_directory,&catalog,image_imports.helper.clone()));
         if let Some(service)=&image_previews.service { agent_library.set_image_previews(service.clone()); }
+        let providers=Arc::new(soundshelf_core::ai_provider::Providers::new(catalog.clone(), Arc::new(crate::providers::OsKeychain)));
+        let image_enrichment=Arc::new(crate::image_enrichment::Enrichment::new(catalog.clone(),image_previews.service.clone(),providers.clone(),image_imports.clone()));
+        {
+            let queue=catalog.clone();
+            image_imports.set_on_complete(Arc::new(move|job|crate::image_enrichment::Enrichment::after_import(&queue,&job.id)));
+        }
         let events=image_imports.clone();
         let image_watchers=Arc::new(crate::image_watch::ImageWatchers::new(catalog.clone(),image_imports.enabled,Some(Arc::new(move|job|events.emit(job)))));
         let state = Self {
@@ -255,7 +263,8 @@ impl AppState {
             image_previews,
             agent: Arc::new(soundshelf_agent::Agent::persistent(data_directory.join("runtime/mcp.json"), data_directory.join("mcp-access.sqlite"), Some(agent_library.clone()))),
             agent_library,
-            providers: Arc::new(soundshelf_core::ai_provider::Providers::new(catalog.clone(), Arc::new(crate::providers::OsKeychain))),
+            providers,
+            image_enrichment,
             model_packs: open_model_packs(&data_directory),
             data_directory,
             catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -370,6 +379,7 @@ impl AppState {
     }
 
     pub fn shutdown(&self) {
+        self.image_enrichment.shutdown();
         self.image_watchers.shutdown();
         self.image_imports.shutdown();
         self.image_previews.shutdown();

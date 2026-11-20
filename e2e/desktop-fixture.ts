@@ -106,6 +106,7 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
     };
     const describe = (p: any) => [p.add_tags?.length && `Add ${p.add_tags.map((t: string) => `“${t}”`).join(', ')}`, p.remove_tags?.length && `remove ${p.remove_tags.map((t: string) => `“${t}”`).join(', ')}`,
       p.favorite !== undefined && (p.favorite ? 'mark favorite' : 'unmark favorite'), 'rating' in p && (p.rating ? `rate ${p.rating}/5` : 'clear rating'), p.comment !== undefined && 'edit notes'].filter(Boolean).join(', ');
+    let enrichConsent: any = null;
     Object.assign(window, {
       isTauri: true,
       __fixtureCalls: calls,
@@ -240,7 +241,7 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
             case 'resource_settings': return { preferences: { output_device: null, imports_paused: false }, output_devices: ['Built-in output'], import_workers: 1 };
             case 'mcp_status': return { endpoint: null, clients: [], startup_error: null };
             case 'ai_providers': return [{ id: 'local-vision', kind: 'openai_compatible', label: 'Local vision server', base_url: 'http://127.0.0.1:11434/v1', model: 'llava:13b', allow_local: true, key_storage: 'none', key_origin: null, revision: 2, locality: 'loopback', has_key: false,
-              capabilities: { image_input: 'supported', structured_output: 'unsupported', embeddings: 'untested', tested_revision: 2, tested_at: 1792476930, model_version: 'llava:13b' } }];
+              capabilities: { image_input: 'supported', structured_output: (window as any).__readyProvider ? 'supported' : 'unsupported', embeddings: 'untested', tested_revision: 2, tested_at: 1792476930, model_version: 'llava:13b' } }];
             case 'ai_features': return [
               { feature: 'image_descriptions', state: 'unsupported', quality: { state: 'pending_evaluation' } },
               { feature: 'semantic_search', state: 'unsupported', quality: { state: 'pending_evaluation' } },
@@ -251,6 +252,15 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
                 license_spdx: 'Apache-2.0', notice: 'Model weights are licensed under Apache-2.0.', notice_url: null, download_bytes: 734003200, installed_bytes: null, resumable_bytes: 0,
                 min_ram_bytes: 4294967296, runtime: 'onnxruntime', progress: null, in_use: 0, update_available: null, retired: false }],
               storage: { installed_bytes: 0, partial_bytes: 0, free_bytes: 53687091200 }, active: [], generation: 0, pending_reindex: [], runtime_available: false };
+            case 'image_enrichment_disclosure': return { sends: 'A re-encoded copy of each image you analyze, with its longest side at most 512 pixels, plus fixed instructions asking for a caption and tags.', never_sends: ['file names or folder paths', 'your tags, notes, ratings or prompts', 'EXIF, location, camera or other embedded metadata', 'the original file'], purpose: 'Describe images so they can be searched and tagged' };
+            case 'image_enrichment_consents': return enrichConsent ? [enrichConsent] : [];
+            case 'image_enrichment_grant': enrichConsent = { source_id: args.request.source_id, provider_id: args.request.provider_id, provider_revision: args.request.provider_revision, model: 'llava:13b', analyze_new: args.request.analyze_new, revision: 1, granted_at: 1_760_000_000 }; return enrichConsent;
+            case 'image_enrichment_revoke': enrichConsent = null; return;
+            case 'image_enrichment_estimate': return { to_send: 3, reusable: 0, already_done: 0, already_queued: 0, not_ready: 0, estimated_units: 9072, units_per_request: 3024, unit: 'tokens', cost: 'Cost depends on your provider and model prices, which this app does not know.', suggested_max_requests: 3, suggested_max_units: 9072 };
+            case 'image_enrichment_start': return { id: 'enrich-1', source_id: args.request.source_id, kind: 'backfill', provider_id: args.request.provider_id, model: 'llava:13b', state: 'queued', error_code: null, max_requests: args.request.max_requests, max_units: args.request.max_units, counts: { pending: 3, running: 0, done: 0, reused: 0, failed: 0, unknown_outcome: 0, stale: 0, revoked: 0 }, usage: { requests: 0, used_units: 0, reserved_units: 0, unknown_units: 0, estimated_entries: 0 }, created_at: 1_760_000_000 };
+            case 'image_enrichment_jobs': return [];
+            case 'image_enrichment_items': return [];
+            case 'image_enrichment_cancel': case 'image_enrichment_resume': case 'image_enrichment_retry': return;
             case 'relink_source': return source;
             case 'choose_folder': case 'choose_file': return null;
             case 'image_duplicate_groups': { const g = stackView(), listed = images && (args.includeHidden || !g.hidden) && args.offset === 0 ? [g] : [];

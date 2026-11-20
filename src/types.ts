@@ -422,3 +422,20 @@ export type ModelPacksOverview = {
   pending_reindex: { capability: PackCapability; from_space: string | null; to_space: string; generation: number }[];
   runtime_available: boolean;
 };
+
+// SS-052 consented image analysis
+export type EnrichKind = 'new_imports' | 'selected' | 'backfill';
+export type EnrichDisclosure = { sends: string; never_sends: string[]; purpose: string };
+export type EnrichConsent = { source_id: string; provider_id: string; provider_revision: number; model: string; analyze_new: boolean; revision: number; granted_at: number };
+export type EnrichEstimate = {
+  to_send: number; reusable: number; already_done: number; already_queued: number; not_ready: number;
+  estimated_units: number; units_per_request: number; unit: string; cost: string; suggested_max_requests: number; suggested_max_units: number;
+};
+export type EnrichCounts = { pending: number; running: number; done: number; reused: number; failed: number; unknown_outcome: number; stale: number; revoked: number };
+export type EnrichUsage = { requests: number; used_units: number; reserved_units: number; unknown_units: number; estimated_entries: number };
+export type EnrichJob = {
+  id: string; source_id: string; kind: EnrichKind; provider_id: string; model: string;
+  state: 'queued' | 'running' | 'paused' | 'complete' | 'failed' | 'cancelled'; error_code: string | null;
+  max_requests: number; max_units: number; counts: EnrichCounts; usage: EnrichUsage; created_at: number;
+};
+export type EnrichItem = { asset_id: string; state: string; error_code: string | null; attempts: number; operation_id: string };
