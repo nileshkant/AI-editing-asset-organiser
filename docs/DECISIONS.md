@@ -349,3 +349,23 @@ the file means installing again.
 Active-pack changes bump a generation and, for embedding packs with a different
 pinned space, record a pending reindex. Vectors from different spaces are never
 mixed; SS-059 stores vectors per space.
+
+## SS-052 image analysis: consent per source, reserve before send (20 November 2026)
+
+Consent names a source, one provider at one exact revision, one model, and a fixed
+purpose and payload. Any change to the provider or model makes it stale rather
+than silently carrying it over, and a backup restore clears it, so permission never
+travels with a database. Revoking blocks new dispatch and publication; the UI says
+plainly that data already sent cannot be recalled.
+
+Budget is reserved in the same transaction that checks every fence, so concurrent
+workers cannot overspend and a revocation cannot slip between check and send. We
+chose three outcome classes (billed, unknown, not billed) over a retry-everything
+policy: an ambiguous failure is counted as possibly billed and is retried only if
+the user accepts a second charge, because the app cannot observe provider billing.
+
+Results are stored once per content, model, preprocessing and schema version and
+attached per asset. Reuse requires the receiving asset's own source to have
+consented to the same model, so sharing across a permission boundary is impossible
+by construction. The preprocessing id is stored with each result so a later recipe
+change (SS-053) can tell old results from new ones.

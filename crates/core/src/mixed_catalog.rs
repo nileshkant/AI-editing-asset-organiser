@@ -468,6 +468,12 @@ mod persistence_inventory {
         ("image_generation_sidecars", "P", &["asset_id", "relative_path", "present", "sidecar_hash", "revision", "extraction"]),
         ("image_generation_sidecars", "B: machine-local sidecar stat (SS-055)", &["observed_at", "size", "modified"]),
         ("image_generation_provenance", "P", &["asset_id", "revision", "record"]),
+        ("image_enrichment_consent", "B: machine-local consent naming a provider on this computer (SS-052); a restore deletes it so consent is never re-granted silently", &["source_id", "provider_id", "provider_revision", "model", "purpose", "payload", "analyze_new", "revision", "granted_at"]),
+        ("image_enrichment_jobs", "B: local job history and ceilings (SS-052)", &["id", "source_id", "source_generation", "kind", "provider_id", "provider_revision", "model", "model_key", "preprocess", "schema_id", "state", "error_code", "max_requests", "max_units", "queue_order", "created_at", "updated_at"]),
+        ("image_enrichment_items", "B: local job history, leases and operation identity (SS-052)", &["job_id", "asset_id", "content_hash", "state", "operation_id", "attempts", "not_before", "lease_owner", "lease_until", "error_code", "updated_at"]),
+        ("image_enrichment_usage", "B: local billing evidence for requests made from this computer (SS-052)", &["operation_id", "attempt", "job_id", "asset_id", "status", "reserved_units", "used_units", "used_is_estimate", "created_at", "updated_at"]),
+        ("image_enrichment_results", "B: paid result cache, machine-local until SS-053 persists accepted evidence on the asset; not portable, so an imported catalog must request results again", &["content_hash", "model_key", "preprocess", "schema_id", "insight", "model_version", "coverage", "created_at"]),
+        ("image_enrichment_outputs", "B: which asset a cached result was published to (SS-052); SS-053 owns the portable form", &["asset_id", "content_hash", "model_key", "preprocess", "schema_id", "job_id", "source_generation", "published_at"]),
         ("image_generation_provenance", "B: local edit time", &["updated_at"]),
     ];
 
@@ -588,6 +594,55 @@ mod persistence_inventory {
         db.execute_batch(include_str!("mixed_catalog_schema.sql")).unwrap();
         db.pragma_update(None, "user_version", 15).unwrap();
         db
+    }
+
+    /// A genuine v18 catalog: every schema script that existed before SS-052.
+    fn v18_database(path: &std::path::Path) -> Connection {
+        let db = v15_database(path);
+        for schema in [
+            include_str!("image_duplicate_schema.sql"),
+            include_str!("generation_schema.sql"),
+            include_str!("image_search_schema.sql"),
+        ] {
+            db.execute_batch(schema).unwrap();
+        }
+        db.pragma_update(None, "user_version", 18).unwrap();
+        db
+    }
+
+    #[test]
+    fn genuine_v18_upgrade_adds_enrichment_storage_and_matches_a_fresh_schema() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("v18.sqlite");
+        let mut old = Catalog { db: v18_database(&path) };
+        let source = old.add_source(d.path()).unwrap();
+        let image = old.register_image(&source, "kept.png", Some(&"b".repeat(64))).unwrap();
+        drop(old);
+        let c = Catalog::open(&path).unwrap();
+        assert_eq!(c.db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), crate::catalog::SCHEMA_VERSION);
+        assert_eq!(c.image(&image.header.id, None).unwrap(), image, "v18 records are unchanged");
+        assert!(c.enrichment_consents().unwrap().is_empty() && c.enrichment_jobs().unwrap().is_empty(), "nothing is consented or queued by an upgrade");
+        let fresh = Catalog::open(std::path::Path::new(":memory:")).unwrap();
+        assert_eq!(master(&c.db), master(&fresh.db), "restore compares schemas exactly");
+        let backup = std::fs::read_dir(d.path()).unwrap().map(|e| e.unwrap().path())
+            .find(|p| p.to_string_lossy().contains(&format!("pre-v{}-", crate::catalog::SCHEMA_VERSION))).unwrap();
+        let db = Connection::open(backup).unwrap();
+        assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 18);
+    }
+
+    #[test]
+    fn v19_failure_rolls_back_and_keeps_the_v18_catalog_usable() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("v18.sqlite");
+        let db = v18_database(&path);
+        // An object the v19 script creates already exists, so it fails mid-migration.
+        db.execute_batch("CREATE TABLE image_enrichment_usage(x);").unwrap();
+        drop(db);
+        assert!(Catalog::open(&path).is_err());
+        let db = Connection::open(&path).unwrap();
+        assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 18);
+        let created: i64 = db.query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('image_enrichment_consent','image_enrichment_jobs','image_enrichment_items')", [], |r| r.get(0)).unwrap();
+        assert_eq!(created, 0, "nothing from v19 survives the rollback");
     }
 
     #[test]

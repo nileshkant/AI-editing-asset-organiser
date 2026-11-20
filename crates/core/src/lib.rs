@@ -47,6 +47,7 @@ pub mod mixed_catalog;
 pub mod ai_provider;
 pub mod ai_provider_wire;
 pub mod image_ai;
+pub mod image_enrichment;
 pub mod image_eval;
 /// SS-051 optional local model packs.
 pub mod model_pack;
