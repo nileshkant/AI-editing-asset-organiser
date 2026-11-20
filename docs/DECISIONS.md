@@ -328,3 +328,24 @@ Saved image searches are library data: they travel in portable catalog v2 but
 never in per-source snapshots, which describe one folder. The renderer remembers
 only structural filters and sort order, never typed words or tag names, so no
 query history is written to disk.
+
+## SS-051 model packs: allowlist in code, files not archives (18 November 2026)
+
+No local model has passed the SS-050 evaluation, so the trusted manifest is
+compiled into the app and ships empty; the settings page says nothing can be
+downloaded rather than listing something unqualified. Adding a pack is a reviewed
+code change that must attach its held-out result.
+
+A pack is a flat list of files with exact sizes and BLAKE3 digests, not an
+archive. That removes archive path and link traversal as a class instead of
+filtering for it, and nothing downloaded is ever executed. Authenticity is the
+compiled-in allowlist plus HTTPS to listed hosts; there is no separate signature
+because there is no off-device manifest to forge.
+
+Pack state is a file in the data folder, not catalog data. Packs are device-local
+binaries, so a restored or imported catalog must not claim a pack exists. Losing
+the file means installing again.
+
+Active-pack changes bump a generation and, for embedding packs with a different
+pinned space, record a pending reindex. Vectors from different spaces are never
+mixed; SS-059 stores vectors per space.

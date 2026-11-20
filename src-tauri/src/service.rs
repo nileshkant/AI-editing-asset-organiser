@@ -45,6 +45,8 @@ pub struct AppState {
     pub catalog: Arc<Mutex<Catalog>>,
     /// SS-049 provider settings; constructing it contacts no provider or keychain.
     pub providers: Arc<soundshelf_core::ai_provider::Providers>,
+    /// SS-051 optional model packs. Failing to open them never stops the app.
+    pub model_packs: Result<Arc<soundshelf_core::model_pack_store::ModelPacks>, String>,
     pub tools: Option<MediaTools>,
     pub player: Arc<Player>,
     pub progress: Arc<Mutex<Vec<Progress>>>,
@@ -56,6 +58,14 @@ pub struct AppState {
     scheduled: Arc<Mutex<HashSet<String>>>,
     worker: Mutex<Option<thread::JoinHandle<()>>>,
 }
+fn open_model_packs(data_directory: &std::path::Path) -> Result<Arc<soundshelf_core::model_pack_store::ModelPacks>, String> {
+    use soundshelf_core::model_pack::{Manifest, OsSystem, Policy, BUNDLED_MANIFEST};
+    let manifest = Manifest::parse(BUNDLED_MANIFEST, Policy::STRICT).map_err(|e| e.to_string())?;
+    soundshelf_core::model_pack_store::ModelPacks::open(data_directory.join("model-packs"), manifest, Policy::STRICT, Arc::new(OsSystem))
+        .map(Arc::new)
+        .map_err(|e| e.to_string())
+}
+
 impl AppState {
     pub fn new(
         data_directory: PathBuf,
@@ -246,6 +256,7 @@ impl AppState {
             agent: Arc::new(soundshelf_agent::Agent::persistent(data_directory.join("runtime/mcp.json"), data_directory.join("mcp-access.sqlite"), Some(agent_library.clone()))),
             agent_library,
             providers: Arc::new(soundshelf_core::ai_provider::Providers::new(catalog.clone(), Arc::new(crate::providers::OsKeychain))),
+            model_packs: open_model_packs(&data_directory),
             data_directory,
             catalog_imports: Arc::new(Mutex::new(std::collections::HashMap::new())),
             catalog_roots: Arc::new(Mutex::new(std::collections::HashMap::new())),

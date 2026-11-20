@@ -8,6 +8,7 @@ import { RecoverySettings } from './RecoverySettings';
 import { CatalogData } from './CatalogData';
 import { ImagePreviewSettings } from './ImagePreviewSettings';
 import { AiProviderSettings } from './AiProviderSettings';
+import { ModelPackSettings } from './ModelPackSettings';
 import type { AppInfo, Source } from '../../types';
 
 interface SettingsViewProps {
@@ -147,7 +148,7 @@ export const SettingsView = memo(function SettingsView({
       <section {...panelProps(1)}><div className="settings-card"><CatalogData onError={onError} active={category === 1} /></div></section>
       <section {...panelProps(2)}><div className="settings-card"><RecoverySettings onError={onError} /></div><ImagePreviewSettings onError={onError} /></section>
       <section {...panelProps(3)}><div className="settings-card"><McpSettings roots={roots} onError={onError} /></div></section>
-      <section {...panelProps(4)}><div className="settings-card">{aiShown && <AiProviderSettings onError={onError} />}</div></section>
+      <section {...panelProps(4)}><div className="settings-card">{aiShown && <AiProviderSettings onError={onError} />}{aiShown && <ModelPackSettings onError={onError} />}</div></section>
       <section {...panelProps(5)}>
       <div className="settings-card">
       <h2>Application</h2>

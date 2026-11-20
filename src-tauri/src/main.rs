@@ -13,6 +13,7 @@ mod agent;
 mod catalog_transfer;
 mod maintenance;
 mod providers;
+mod model_packs;
 use service::AppState;
 use soundshelf_core::{
     catalog::{Clip, ClipRecipe, SavedSearch, Source, Sound},
@@ -382,6 +383,7 @@ fn main() {
             app_info,
             providers::ai_providers,providers::ai_provider_create,providers::ai_provider_update,providers::ai_provider_delete,providers::ai_provider_set_key,providers::ai_provider_clear_key,providers::ai_provider_test,
             providers::ai_features,
+            model_packs::model_packs,model_packs::model_pack_install,model_packs::model_pack_cancel_install,model_packs::model_pack_discard_partial,model_packs::model_pack_activate,model_packs::model_pack_deactivate,model_packs::model_pack_uninstall,
             agent::mcp_status, agent::mcp_start, agent::mcp_stop, agent::mcp_pair, agent::mcp_revoke, agent::mcp_rotate, agent::mcp_approve_destination, agent::mcp_bridge_location,
             maintenance::resource_settings,maintenance::save_resource_settings,maintenance::database_backup,maintenance::database_restore_preview,maintenance::database_restore_cancel,maintenance::database_restore,maintenance::purge_waveform_cache,maintenance::support_report,
             catalog_transfer::catalog_export,

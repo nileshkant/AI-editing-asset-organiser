@@ -143,6 +143,21 @@ fn agent(allow_local: bool, timeout: Duration) -> ureq::Agent {
     ureq::Agent::with_parts(config, DefaultConnector::new(), GuardResolver { allow_local })
 }
 
+/// SS-051 downloads: the same address policy and no redirects or proxy, but no
+/// whole-call deadline; each request sets its own through the request config.
+pub(crate) fn download_agent(allow_local: bool) -> ureq::Agent {
+    let tls = ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::PlatformVerifier).build();
+    let config = ureq::config::Config::builder()
+        .http_status_as_error(false)
+        .max_redirects(0)
+        .proxy(None)
+        .timeout_connect(Some(CONNECT_TIMEOUT))
+        .user_agent(format!("CreativeShelf/{}", env!("CARGO_PKG_VERSION")))
+        .tls_config(tls)
+        .build();
+    ureq::Agent::with_parts(config, DefaultConnector::new(), GuardResolver { allow_local })
+}
+
 /// Removes the key and anything key-shaped, control characters and length.
 pub fn sanitize(message: &str, key: Option<&Secret>) -> String {
     let mut text = message.to_owned();

@@ -245,6 +245,12 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
               { feature: 'image_descriptions', state: 'unsupported', quality: { state: 'pending_evaluation' } },
               { feature: 'semantic_search', state: 'unsupported', quality: { state: 'pending_evaluation' } },
               { feature: 'offline_tagging', state: 'not_offered', quality: { state: 'pending_evaluation' } }];
+            case 'model_packs': return {
+              packs: [{ id: 'describe-local', version: '1.0', display_name: 'Local image describer with a deliberately long display name', capability: 'image_description', phase: 'incompatible', detail: null,
+                incompatible: { code: 'runtime_unavailable', detail: 'This build of CreativeShelf does not include the onnxruntime runtime it needs' }, memory_unchecked: false,
+                license_spdx: 'Apache-2.0', notice: 'Model weights are licensed under Apache-2.0.', notice_url: null, download_bytes: 734003200, installed_bytes: null, resumable_bytes: 0,
+                min_ram_bytes: 4294967296, runtime: 'onnxruntime', progress: null, in_use: 0, update_available: null, retired: false }],
+              storage: { installed_bytes: 0, partial_bytes: 0, free_bytes: 53687091200 }, active: [], generation: 0, pending_reindex: [], runtime_available: false };
             case 'relink_source': return source;
             case 'choose_folder': case 'choose_file': return null;
             case 'image_duplicate_groups': { const g = stackView(), listed = images && (args.includeHidden || !g.hidden) && args.offset === 0 ? [g] : [];
