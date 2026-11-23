@@ -1,0 +1,2776 @@
+{
+  "schema": "creativeshelf-image-eval-report/v1",
+  "corpus": "creativeshelf-generated/v1",
+  "manifest_blake3": "84883d67d8842bdf2e7da573e95e71f28cc27ed4264aa2464d218e0084f0ed49",
+  "thresholds_blake3": "3a0a8ddab10b49f8f91d75f9d77a8a94815c71b15c5f57a5a6dfea1cb313752e",
+  "describer": "openai_compatible/qwen3-vl:8b-instruct",
+  "describer_model_version": "qwen3-vl:8b-instruct",
+  "preprocessing": "srgb-oriented-preview512-png/v1",
+  "output_schema": "creativeshelf.image-insight/v4",
+  "embedding_space": "openai_compatible/qwen3-embedding:0.6b@qwen3-embedding:0.6b#1024/l2/insight-text/qwen-visual-asset-query-v1",
+  "similarity_cutoff": 0.33,
+  "requests": 41,
+  "request_allowance": 41,
+  "complete": true,
+  "usage": {
+    "input_tokens": 53762,
+    "output_tokens": 7283
+  },
+  "mean_input_tokens": 1344,
+  "dev": {
+    "items": 14,
+    "failures": 0,
+    "uncertain": 0,
+    "tags": {
+      "judged": 35,
+      "correct": 27,
+      "unjudged": 77,
+      "gold_facts": 35,
+      "gold_found": 26
+    },
+    "tag_precision": 0.7714285714285715,
+    "tag_recall": 0.7428571428571429,
+    "caption_fact_coverage": 0.8636363636363636,
+    "caption_error_rate": 0.07142857142857142,
+    "p50_latency_ms": 9556,
+    "p95_latency_ms": 16253,
+    "filename_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.3,
+      "mrr": 0.4,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    },
+    "insight_lexical_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.65,
+      "mrr": 0.6333333333333333,
+      "out_of_domain_with_results": 2,
+      "out_of_domain_queries": 2
+    },
+    "embedding_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.95,
+      "mrr": 0.8,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    }
+  },
+  "heldout": {
+    "items": 26,
+    "failures": 0,
+    "uncertain": 0,
+    "tags": {
+      "judged": 71,
+      "correct": 46,
+      "unjudged": 134,
+      "gold_facts": 65,
+      "gold_found": 45
+    },
+    "tag_precision": 0.647887323943662,
+    "tag_recall": 0.6923076923076923,
+    "caption_fact_coverage": 0.8157894736842105,
+    "caption_error_rate": 0.038461538461538464,
+    "p50_latency_ms": 14411,
+    "p95_latency_ms": 15783,
+    "filename_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.2156862745098039,
+      "mrr": 0.29411764705882354,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    },
+    "insight_lexical_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.7941176470588235,
+      "mrr": 0.6127450980392157,
+      "out_of_domain_with_results": 2,
+      "out_of_domain_queries": 2
+    },
+    "embedding_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.9019607843137255,
+      "mrr": 1.0,
+      "out_of_domain_with_results": 1,
+      "out_of_domain_queries": 2
+    }
+  },
+  "items": [
+    {
+      "id": "flat-red-circle",
+      "split": "dev",
+      "latency_ms": 8405,
+      "insight": {
+        "caption": "A red circle centered on a white field.",
+        "tags": [
+          "circle",
+          "red",
+          "white",
+          "centered",
+          "minimalist",
+          "formal",
+          "symmetrical",
+          "graphic"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "formal"
+          },
+          {
+            "category": "composition",
+            "label": "symmetrical"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-blue-square",
+      "split": "heldout",
+      "latency_ms": 14506,
+      "insight": {
+        "caption": "A solid blue square centered on a white background.",
+        "tags": [
+          "square",
+          "blue",
+          "white",
+          "centered",
+          "minimalist",
+          "calm",
+          "graphic",
+          "symmetrical"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "square"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "calm"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          },
+          {
+            "category": "composition",
+            "label": "symmetrical"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-green-triangle",
+      "split": "heldout",
+      "latency_ms": 14124,
+      "insight": {
+        "caption": "A green triangle centered on a white background.",
+        "tags": [
+          "triangle",
+          "green",
+          "white",
+          "centered",
+          "minimalist",
+          "geometric",
+          "flat",
+          "isolated"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "geometric"
+          },
+          {
+            "category": "style",
+            "label": "flat"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-yellow-star",
+      "split": "dev",
+      "latency_ms": 8978,
+      "insight": {
+        "caption": "A yellow five-pointed star centered on a dark blue field.",
+        "tags": [
+          "star",
+          "yellow",
+          "dark blue",
+          "centered",
+          "flat",
+          "graphic",
+          "minimalist",
+          "flag"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "dark blue"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "flat"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "scene",
+            "label": "flag"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": [
+          "blue"
+        ]
+      }
+    },
+    {
+      "id": "wc-red-wash",
+      "split": "heldout",
+      "latency_ms": 14411,
+      "insight": {
+        "caption": "Abstract cluster of overlapping red circles on off-white background.",
+        "tags": [
+          "circles",
+          "red",
+          "off-white",
+          "cluster",
+          "overlapping",
+          "abstract",
+          "soft",
+          "blurred"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circles"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "off-white"
+          },
+          {
+            "category": "composition",
+            "label": "cluster"
+          },
+          {
+            "category": "composition",
+            "label": "overlapping"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "mood",
+            "label": "soft"
+          },
+          {
+            "category": "style",
+            "label": "blurred"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-blue-wash",
+      "split": "heldout",
+      "latency_ms": 14324,
+      "insight": {
+        "caption": "Blurred cluster of overlapping blue circles on a cream background.",
+        "tags": [
+          "circle",
+          "blue",
+          "cluster",
+          "abstract",
+          "overlapping",
+          "cream",
+          "blur",
+          "dense"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "composition",
+            "label": "cluster"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "composition",
+            "label": "overlapping"
+          },
+          {
+            "category": "palette",
+            "label": "cream"
+          },
+          {
+            "category": "style",
+            "label": "blur"
+          },
+          {
+            "category": "composition",
+            "label": "dense"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-green-yellow",
+      "split": "dev",
+      "latency_ms": 9958,
+      "insight": {
+        "caption": "Two blurred clusters of overlapping circles, green on left, yellow on right, on off-white background.",
+        "tags": [
+          "circle",
+          "cluster",
+          "green",
+          "yellow",
+          "adjacent",
+          "blurred",
+          "overlapping",
+          "off-white"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "cluster"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "composition",
+            "label": "adjacent"
+          },
+          {
+            "category": "composition",
+            "label": "blurred"
+          },
+          {
+            "category": "composition",
+            "label": "overlapping"
+          },
+          {
+            "category": "palette",
+            "label": "off-white"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-purple-circle",
+      "split": "heldout",
+      "latency_ms": 15189,
+      "insight": {
+        "caption": "A blurry purple circular shape on a light background.",
+        "tags": [
+          "shape",
+          "purple",
+          "light background",
+          "central",
+          "abstract",
+          "soft",
+          "isolated",
+          "blurry"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "shape"
+          },
+          {
+            "category": "palette",
+            "label": "purple"
+          },
+          {
+            "category": "palette",
+            "label": "light background"
+          },
+          {
+            "category": "composition",
+            "label": "central"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "mood",
+            "label": "soft"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "style",
+            "label": "blurry"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 3,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-grid",
+      "split": "heldout",
+      "latency_ms": 14715,
+      "insight": {
+        "caption": "Six colored squares arranged in a grid, two containing white geometric shapes.",
+        "tags": [
+          "square",
+          "circle",
+          "triangle",
+          "red",
+          "blue",
+          "yellow",
+          "green",
+          "orange"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "square"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 8,
+        "correct": 3,
+        "unjudged": 0,
+        "gold_facts": 4,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-overlap",
+      "split": "dev",
+      "latency_ms": 15508,
+      "insight": {
+        "caption": "Abstract composition of overlapping orange and blue rectangles on a textured cream background.",
+        "tags": [
+          "rectangles",
+          "orange",
+          "blue",
+          "cream",
+          "geometric",
+          "abstract",
+          "overlapping",
+          "asymmetrical"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "rectangles"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "cream"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "composition",
+            "label": "overlapping"
+          },
+          {
+            "category": "composition",
+            "label": "asymmetrical"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-shapes",
+      "split": "heldout",
+      "latency_ms": 15675,
+      "insight": {
+        "caption": "A composition of four geometric shapes on a textured beige background.",
+        "tags": [
+          "rectangle",
+          "circle",
+          "triangle",
+          "star",
+          "red",
+          "blue",
+          "green",
+          "yellow"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "rectangle"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 8,
+        "correct": 3,
+        "unjudged": 0,
+        "gold_facts": 4,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-stripes",
+      "split": "heldout",
+      "latency_ms": 15783,
+      "insight": {
+        "caption": "Abstract flag with purple circle centered in white field, framed by vertical stripes of red, blue, yellow, and green.",
+        "tags": [
+          "purple circle",
+          "vertical stripes",
+          "purple",
+          "red",
+          "blue",
+          "yellow",
+          "green",
+          "centralized"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "purple circle"
+          },
+          {
+            "category": "subject",
+            "label": "vertical stripes"
+          },
+          {
+            "category": "palette",
+            "label": "purple"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "composition",
+            "label": "centralized"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 5,
+        "correct": 0,
+        "unjudged": 3,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-red-sphere",
+      "split": "dev",
+      "latency_ms": 16253,
+      "insight": {
+        "caption": "A red sphere with a smooth gradient shading against a light gray background.",
+        "tags": [
+          "sphere",
+          "red",
+          "light gray",
+          "centered",
+          "3d render",
+          "isolated",
+          "minimalist",
+          "neutral"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sphere"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "light gray"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "3d render"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "neutral"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 4,
+        "correct": 3,
+        "unjudged": 4,
+        "gold_facts": 3,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-blue-sphere-floor",
+      "split": "heldout",
+      "latency_ms": 17711,
+      "insight": {
+        "caption": "A blue sphere with a gradient shading and a soft shadow on a gray gradient background.",
+        "tags": [
+          "sphere",
+          "blue",
+          "gray",
+          "centered",
+          "3d render",
+          "gradient lighting",
+          "single object",
+          "shadow"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sphere"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "3d render"
+          },
+          {
+            "category": "lighting",
+            "label": "gradient lighting"
+          },
+          {
+            "category": "composition",
+            "label": "single object"
+          },
+          {
+            "category": "composition",
+            "label": "shadow"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 4,
+        "correct": 3,
+        "unjudged": 4,
+        "gold_facts": 3,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-green-cube",
+      "split": "heldout",
+      "latency_ms": 12922,
+      "insight": {
+        "caption": "A green cube with gradient shading on a light gray background.",
+        "tags": [
+          "cube",
+          "green",
+          "light gray",
+          "isometric",
+          "flat design",
+          "centered",
+          "gradient",
+          "minimalist"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "cube"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "light gray"
+          },
+          {
+            "category": "composition",
+            "label": "isometric"
+          },
+          {
+            "category": "style",
+            "label": "flat design"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "palette",
+            "label": "gradient"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-orange-sphere",
+      "split": "dev",
+      "latency_ms": 9644,
+      "insight": {
+        "caption": "A gradient orange sphere on a dark gray background.",
+        "tags": [
+          "sphere",
+          "orange",
+          "dark gray",
+          "centered",
+          "minimalist",
+          "soft lighting",
+          "isolated",
+          "monochrome background"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sphere"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "dark gray"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "lighting",
+            "label": "soft lighting"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "composition",
+            "label": "monochrome background"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-login",
+      "split": "heldout",
+      "latency_ms": 14790,
+      "insight": {
+        "caption": "Pixel-style login screen with 'SIGN IN' text and blue 'LOGIN' button.",
+        "tags": [
+          "login form",
+          "pixel art",
+          "blue",
+          "black",
+          "white",
+          "centered text",
+          "vertical layout",
+          "sidebar"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "login form"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered text"
+          },
+          {
+            "category": "composition",
+            "label": "vertical layout"
+          },
+          {
+            "category": "composition",
+            "label": "sidebar"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 0,
+        "unjudged": 7,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-dark-menu",
+      "split": "heldout",
+      "latency_ms": 13975,
+      "insight": {
+        "caption": "Dark-themed pixelated menu interface with sidebar and horizontal list items.",
+        "tags": [
+          "menu",
+          "pixel art",
+          "dark gray",
+          "white",
+          "sidebar layout",
+          "horizontal list",
+          "window frame",
+          "red"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "menu"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "palette",
+            "label": "dark gray"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "sidebar layout"
+          },
+          {
+            "category": "composition",
+            "label": "horizontal list"
+          },
+          {
+            "category": "subject",
+            "label": "window frame"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 0,
+        "unjudged": 7,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-dialog",
+      "split": "dev",
+      "latency_ms": 8451,
+      "insight": {
+        "caption": "A pixelated 'SAVE' dialog box with a blue 'OK' button.",
+        "tags": [
+          "dialog box",
+          "save",
+          "pixel art",
+          "blue",
+          "white",
+          "black",
+          "centered dialog",
+          "button"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "dialog box"
+          },
+          {
+            "category": "action",
+            "label": "save"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered dialog"
+          },
+          {
+            "category": "subject",
+            "label": "button"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 0,
+        "unjudged": 7,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-spreadsheet",
+      "split": "heldout",
+      "latency_ms": 13865,
+      "insight": {
+        "caption": "Spreadsheet interface with a single highlighted cell.",
+        "tags": [
+          "grid",
+          "highlighted cell",
+          "light blue",
+          "white",
+          "gray",
+          "left sidebar",
+          "window controls",
+          "minimalist"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "grid"
+          },
+          {
+            "category": "subject",
+            "label": "highlighted cell"
+          },
+          {
+            "category": "palette",
+            "label": "light blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "composition",
+            "label": "left sidebar"
+          },
+          {
+            "category": "composition",
+            "label": "window controls"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 0,
+        "unjudged": 7,
+        "gold_facts": 1,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-sale",
+      "split": "heldout",
+      "latency_ms": 14901,
+      "insight": {
+        "caption": "Pixelated red text 'SALE' on white background.",
+        "tags": [
+          "text",
+          "pixel art",
+          "red",
+          "white",
+          "centered",
+          "retro",
+          "promotional",
+          "digital"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "retro"
+          },
+          {
+            "category": "mood",
+            "label": "promotional"
+          },
+          {
+            "category": "style",
+            "label": "digital"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-hello",
+      "split": "dev",
+      "latency_ms": 9556,
+      "insight": {
+        "caption": "Pixelated text 'HELLO' in black on a yellow background.",
+        "tags": [
+          "text",
+          "letter",
+          "yellow",
+          "black",
+          "pixel art",
+          "centered",
+          "digital",
+          "retro"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "subject",
+            "label": "letter"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "digital"
+          },
+          {
+            "category": "style",
+            "label": "retro"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-open",
+      "split": "heldout",
+      "latency_ms": 13777,
+      "insight": {
+        "caption": "Pixelated white text 'OPEN' on a solid green background.",
+        "tags": [
+          "text",
+          "pixel art",
+          "green",
+          "white",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 3,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-stop",
+      "split": "heldout",
+      "latency_ms": 15071,
+      "insight": {
+        "caption": "Red octagon with white pixelated text 'STOP' on light blue background.",
+        "tags": [
+          "stop sign",
+          "red",
+          "white",
+          "light blue",
+          "pixel art",
+          "central focus",
+          "digital",
+          "minimalist"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "stop sign"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "light blue"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "composition",
+            "label": "central focus"
+          },
+          {
+            "category": "style",
+            "label": "digital"
+          },
+          {
+            "category": "composition",
+            "label": "minimalist"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": [
+          "blue"
+        ]
+      }
+    },
+    {
+      "id": "alpha-red-circle",
+      "split": "dev",
+      "latency_ms": 9523,
+      "insight": {
+        "caption": "A solid red circle on a black background.",
+        "tags": [
+          "circle",
+          "red",
+          "black",
+          "centered",
+          "minimalist",
+          "abstract",
+          "isolated",
+          "graphic"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "abstract"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-blue-star",
+      "split": "heldout",
+      "latency_ms": 13499,
+      "insight": {
+        "caption": "A solid blue five-pointed star on a transparent background.",
+        "tags": [
+          "star",
+          "blue",
+          "centered",
+          "graphic",
+          "monochrome",
+          "isolated",
+          "flat",
+          "solid"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          },
+          {
+            "category": "palette",
+            "label": "monochrome"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "style",
+            "label": "flat"
+          },
+          {
+            "category": "palette",
+            "label": "solid"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-green-triangle",
+      "split": "heldout",
+      "latency_ms": 14631,
+      "insight": {
+        "caption": "A solid green triangle on a black background.",
+        "tags": [
+          "triangle",
+          "green",
+          "black",
+          "centered",
+          "minimalist",
+          "isolated",
+          "geometric",
+          "symmetrical"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "composition",
+            "label": "symmetrical"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-soft-purple",
+      "split": "dev",
+      "latency_ms": 9535,
+      "insight": {
+        "caption": "A solid purple circle on a black background.",
+        "tags": [
+          "circle",
+          "purple",
+          "black",
+          "centered",
+          "minimalist",
+          "abstract",
+          "graphic",
+          "isolated"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "palette",
+            "label": "purple"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "abstract"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-circle-square",
+      "split": "heldout",
+      "latency_ms": 14296,
+      "insight": {
+        "caption": "A red circle and a blue rectangle side by side on a white background.",
+        "tags": [
+          "red circle",
+          "blue rectangle",
+          "red",
+          "blue",
+          "white",
+          "side by side",
+          "adjacent shapes",
+          "minimalist"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "red circle"
+          },
+          {
+            "category": "subject",
+            "label": "blue rectangle"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "side by side"
+          },
+          {
+            "category": "composition",
+            "label": "adjacent shapes"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 4,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-three-stars",
+      "split": "heldout",
+      "latency_ms": 13771,
+      "insight": {
+        "caption": "Three yellow stars in a row on white background",
+        "tags": [
+          "star",
+          "yellow",
+          "horizontal row",
+          "flat design",
+          "white",
+          "three",
+          "icon",
+          "pixelated"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "composition",
+            "label": "horizontal row"
+          },
+          {
+            "category": "style",
+            "label": "flat design"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "three"
+          },
+          {
+            "category": "style",
+            "label": "icon"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-three-shapes",
+      "split": "dev",
+      "latency_ms": 8916,
+      "insight": {
+        "caption": "Three colored geometric shapes: green triangle, red circle, blue square.",
+        "tags": [
+          "green triangle",
+          "red circle",
+          "blue square",
+          "green",
+          "red",
+          "blue",
+          "horizontal arrangement",
+          "abstract geometric"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "green triangle"
+          },
+          {
+            "category": "subject",
+            "label": "red circle"
+          },
+          {
+            "category": "subject",
+            "label": "blue square"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "composition",
+            "label": "horizontal arrangement"
+          },
+          {
+            "category": "style",
+            "label": "abstract geometric"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 5,
+        "gold_facts": 6,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 3,
+        "covered": 3,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-dots",
+      "split": "heldout",
+      "latency_ms": 14344,
+      "insight": {
+        "caption": "Blue circles arranged in a grid pattern on a white background.",
+        "tags": [
+          "blue",
+          "white",
+          "grid",
+          "repeating pattern",
+          "aligned",
+          "uniform spacing",
+          "rows and columns",
+          "geometric"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "grid"
+          },
+          {
+            "category": "composition",
+            "label": "repeating pattern"
+          },
+          {
+            "category": "composition",
+            "label": "aligned"
+          },
+          {
+            "category": "composition",
+            "label": "uniform spacing"
+          },
+          {
+            "category": "composition",
+            "label": "rows and columns"
+          },
+          {
+            "category": "composition",
+            "label": "geometric"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 7,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-panorama-sun",
+      "split": "heldout",
+      "latency_ms": 15429,
+      "insight": {
+        "caption": "A stylized sunset with a yellow sun on the horizon against a gradient sky of orange, pink, and purple, above a dark horizontal band.",
+        "tags": [
+          "sun",
+          "yellow",
+          "orange",
+          "purple",
+          "horizontal gradient",
+          "partial circle",
+          "horizontal band",
+          "minimalist"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sun"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "purple"
+          },
+          {
+            "category": "composition",
+            "label": "horizontal gradient"
+          },
+          {
+            "category": "composition",
+            "label": "partial circle"
+          },
+          {
+            "category": "composition",
+            "label": "horizontal band"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 4,
+        "correct": 3,
+        "unjudged": 4,
+        "gold_facts": 4,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-tall-stripes",
+      "split": "dev",
+      "latency_ms": 9285,
+      "insight": {
+        "caption": "Vertical green and white stripes pattern.",
+        "tags": [
+          "green",
+          "white",
+          "vertical stripes",
+          "alternating bands",
+          "graphic pattern",
+          "repeating pattern",
+          "equal width stripes",
+          "full frame"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "vertical stripes"
+          },
+          {
+            "category": "composition",
+            "label": "alternating bands"
+          },
+          {
+            "category": "style",
+            "label": "graphic pattern"
+          },
+          {
+            "category": "composition",
+            "label": "repeating pattern"
+          },
+          {
+            "category": "composition",
+            "label": "equal width stripes"
+          },
+          {
+            "category": "composition",
+            "label": "full frame"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 7,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-half-circle",
+      "split": "heldout",
+      "latency_ms": 13758,
+      "insight": {
+        "caption": "A red circle on a white background.",
+        "tags": [
+          "circle",
+          "red",
+          "white",
+          "partial",
+          "minimalist",
+          "asymmetrical",
+          "graphic",
+          "modern"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "partial"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "composition",
+            "label": "asymmetrical"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          },
+          {
+            "category": "style",
+            "label": "modern"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-tiny-star",
+      "split": "heldout",
+      "latency_ms": 14867,
+      "insight": {
+        "caption": "A single yellow star on a dark blue field.",
+        "tags": [
+          "star",
+          "yellow",
+          "dark blue",
+          "centered",
+          "minimalist",
+          "serene",
+          "asymmetrical",
+          "graphic"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "dark blue"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "serene"
+          },
+          {
+            "category": "composition",
+            "label": "asymmetrical"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-rounded-square",
+      "split": "dev",
+      "latency_ms": 11000,
+      "insight": {
+        "caption": "A red rounded square centered on a white background.",
+        "tags": [
+          "rounded square",
+          "red",
+          "white",
+          "centered",
+          "minimalist",
+          "clean",
+          "isolated",
+          "graphic"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "rounded square"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "clean"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 1,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-magenta",
+      "split": "heldout",
+      "latency_ms": 14104,
+      "insight": {
+        "caption": "A solid magenta rectangle centered on a white background.",
+        "tags": [
+          "rectangle",
+          "magenta",
+          "white",
+          "centered",
+          "minimalist",
+          "clean",
+          "flat",
+          "symmetrical"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "rectangle"
+          },
+          {
+            "category": "palette",
+            "label": "magenta"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "clean"
+          },
+          {
+            "category": "style",
+            "label": "flat"
+          },
+          {
+            "category": "composition",
+            "label": "symmetrical"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 1,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-noise",
+      "split": "heldout",
+      "latency_ms": 13838,
+      "insight": {
+        "caption": "Gray television static texture",
+        "tags": [
+          "gray",
+          "uniform texture",
+          "abstract",
+          "static",
+          "filler pattern",
+          "noise",
+          "no gradient",
+          "digital glitch"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "composition",
+            "label": "uniform texture"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "scene",
+            "label": "static"
+          },
+          {
+            "category": "composition",
+            "label": "filler pattern"
+          },
+          {
+            "category": "style",
+            "label": "noise"
+          },
+          {
+            "category": "composition",
+            "label": "no gradient"
+          },
+          {
+            "category": "style",
+            "label": "digital glitch"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-faint",
+      "split": "dev",
+      "latency_ms": 14778,
+      "insight": {
+        "caption": "A light gray circle centered on a plain white background.",
+        "tags": [
+          "circle",
+          "light gray",
+          "white",
+          "centered",
+          "minimalist",
+          "neutral",
+          "isolated",
+          "abstract"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "palette",
+            "label": "light gray"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "style",
+            "label": "minimalist"
+          },
+          {
+            "category": "mood",
+            "label": "neutral"
+          },
+          {
+            "category": "composition",
+            "label": "isolated"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 0,
+        "unjudged": 6,
+        "gold_facts": 0,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    }
+  ],
+  "verdict": {
+    "passed": false,
+    "failures": [
+      "tag precision Some(0.647887323943662) < 0.8",
+      "1 out-of-domain queries returned results"
+    ]
+  }
+}
