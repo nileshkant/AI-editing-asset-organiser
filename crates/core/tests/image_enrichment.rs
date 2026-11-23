@@ -168,6 +168,27 @@ fn drain(r: &Runner) -> usize {
     worked
 }
 
+#[test]
+fn obsolete_description_jobs_never_dispatch_with_the_new_prompt() {
+    let _s = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let f = Fixture::new();
+    let root = f.folder("schema-change");
+    put(&root, "image.png", 1);
+    let source = f.import(&root);
+    f.consent(&source, false).unwrap();
+    let old = f.start(&source, 1, 100_000).unwrap();
+    f.exec("UPDATE image_enrichment_jobs SET schema_id='creativeshelf.image-insight/v2'");
+    let fake = Fake::ok();
+    let run = runner(&f, &fake);
+    drain(&run);
+    assert_eq!(fake.count(), 0);
+    assert_eq!(f.job(&old.id).error_code.as_deref(), Some("ANALYSIS_SCHEMA_CHANGED"));
+    let current = f.start(&source, 1, 100_000).unwrap();
+    drain(&run);
+    assert_eq!(fake.count(), 1);
+    assert_eq!(f.job(&current.id).counts.done, 1);
+}
+
 // ------------------------------------------------------------------ consent
 
 /// T1/R1/R2: nothing is sent before consent, for an unconsented source, or by

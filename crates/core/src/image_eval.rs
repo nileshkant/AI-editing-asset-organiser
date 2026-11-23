@@ -829,6 +829,32 @@ pub struct Embedder<'a> {
     pub adapter: &'a dyn ProviderAdapter,
     pub kind: ProviderKind,
     pub model: String,
+    pub input: RetrievalInput,
+}
+
+#[derive(Clone, Copy, Default)]
+pub enum RetrievalInput {
+    #[default]
+    Plain,
+    QwenVisualAsset,
+}
+
+impl RetrievalInput {
+    fn query(self, text: &str) -> String {
+        match self {
+            Self::Plain => text.to_owned(),
+            Self::QwenVisualAsset => format!(
+                "Instruct: Given a search query, retrieve relevant visual assets in an image library\nQuery: {text}"
+            ),
+        }
+    }
+
+    fn id(self) -> &'static str {
+        match self {
+            Self::Plain => crate::image_ai::EMBEDDING_INPUT_ID,
+            Self::QwenVisualAsset => "insight-text/qwen-visual-asset-query-v1",
+        }
+    }
 }
 
 fn percentile(sorted: &[u64], p: usize) -> u64 {
@@ -1072,7 +1098,7 @@ fn run_with_recipe(input: &RunInput, describer: Option<&Describer>, embedder: Op
 type EmbedResult = Option<(EmbeddingIndex, EmbeddingSpace, Vec<(String, Vec<f32>)>)>;
 
 fn embed_all(e: &Embedder, docs: &[(String, String)], queries: &[Query], allowance: &mut Allowance, usage: &mut Usage) -> Result<EmbedResult, &'static str> {
-    let texts: Vec<String> = docs.iter().map(|(_, t)| t.clone()).chain(queries.iter().map(|q| q.text.clone())).collect();
+    let texts: Vec<String> = docs.iter().map(|(_, t)| t.clone()).chain(queries.iter().map(|q| e.input.query(&q.text))).collect();
     let mut vectors = vec![];
     let mut version = None;
     for chunk in texts.chunks(MAX_EMBED_INPUTS) {
@@ -1088,7 +1114,8 @@ fn embed_all(e: &Embedder, docs: &[(String, String)], queries: &[Query], allowan
         vectors.extend(r.vectors);
     }
     let dimension = vectors.first().map_or(0, Vec::len);
-    let space = EmbeddingSpace::new(e.kind, &e.model, version.as_deref(), dimension);
+    let mut space = EmbeddingSpace::new(e.kind, &e.model, version.as_deref(), dimension);
+    space.input = e.input.id();
     let mut index = EmbeddingIndex::new(space.clone());
     for ((id, _), v) in docs.iter().zip(&vectors) {
         index.add(id, &space, v).map_err(|_| "MALFORMED_RESPONSE")?;

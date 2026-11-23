@@ -167,7 +167,7 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
                   id: 'fixture-evidence', content_hash: item.header.content_hash, origin: 'model', coverage: 'preview',
                   caption: 'A red square beside a translucent blue rectangle.', tags: ['red'], model: {
                     provider: 'openai_compatible', model: 'fixture-vision', revision: 'fixture-vision-1',
-                    preprocessing: 'srgb-oriented-preview512-png/v1', output_schema: 'creativeshelf.image-insight/v2',
+                    preprocessing: 'srgb-oriented-preview512-png/v1', output_schema: 'creativeshelf.image-insight/v3',
                   }, confidence: null, confidence_kind: 'unavailable', review_state: 'suggested', stale: false, created_at_ms: 0,
                   visual: { uncertain: false, provider_revision: 1, tags: [{ category: 'palette', label: 'red' }] },
                 }] : [] }; }

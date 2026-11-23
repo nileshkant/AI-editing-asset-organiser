@@ -394,17 +394,28 @@ fn production_evaluation_uses_the_preview_recipe_and_structured_adapter() {
     let mut manifest = generate_corpus(dir.path()).unwrap();
     let index = manifest.items.iter().position(|i| i.id == "crop-panorama-sun").unwrap();
     manifest.items = vec![manifest.items.remove(index)];
-    let adapter = scripted(|request| {
+    let mut adapter = scripted(|request| {
         let decoded = image::load_from_memory(&request.images[0].bytes).unwrap();
         assert_eq!((decoded.width(), decoded.height()), (512, 85));
         assert_eq!(request.json_schema.as_ref().unwrap()["properties"]["tags"]["items"]["type"], "object");
+        assert!(request.text.contains("any reliable visible feature"));
         json_response(json!({"caption":"An image.","tags":[{"category":"scene","label":"illustration"}],"uncertain":false}))
     });
-    let report = image_eval::run_production(&input(dir.path(), &manifest, &thresholds(), 1),
-        Some(&Describer { adapter: &adapter, kind: ProviderKind::OpenaiCompatible, model: "fixture".into() }), None).unwrap();
-    assert_eq!(report.requests, 1);
+    adapter.embed = Box::new(|texts| {
+        assert_eq!(texts[0], "An image. Tags: illustration.");
+        assert!(texts[1..].iter().all(|query| query.starts_with(
+            "Instruct: Given a search query, retrieve relevant visual assets in an image library\nQuery: "
+        )));
+        Ok(wire::Embeddings { vectors: vec![vec![1.0]; texts.len()], model_version: None, usage: Usage::default() })
+    });
+    let describer = Describer { adapter: &adapter, kind: ProviderKind::OpenaiCompatible, model: "fixture".into() };
+    let embedder = Embedder { adapter: &adapter, kind: ProviderKind::OpenaiCompatible, model: "qwen-fixture".into(), input: RetrievalInput::QwenVisualAsset };
+    let report = image_eval::run_production(&input(dir.path(), &manifest, &thresholds(), 2),
+        Some(&describer), Some(&embedder)).unwrap();
+    assert_eq!(report.requests, 2);
     assert_eq!(report.output_schema, VISUAL_SCHEMA_ID);
     assert_eq!(report.preprocessing, soundshelf_core::image_enrichment::PREPROCESS_ID);
+    assert!(report.embedding_space.unwrap().ends_with("/insight-text/qwen-visual-asset-query-v1"));
     assert_eq!(report.items[0].insight.as_ref().unwrap().visual_tags[0].label, "illustration");
 }
 
@@ -459,7 +470,7 @@ fn runner_scores_judges_and_respects_the_request_allowance() {
     let a = oracle(&m);
     let e = oracle(&m);
     let d = Describer { adapter: &a, kind: ProviderKind::Openai, model: "oracle".into() };
-    let em = Embedder { adapter: &e, kind: ProviderKind::Openai, model: "bow".into() };
+    let em = Embedder { adapter: &e, kind: ProviderKind::Openai, model: "bow".into(), input: RetrievalInput::Plain };
     let r = image_eval::run(&input(dir.path(), &m, &t, 100), Some(&d), Some(&em)).unwrap();
     assert!(r.complete);
     assert_eq!(a.calls.load(Ordering::SeqCst), m.items.len(), "one request per image");

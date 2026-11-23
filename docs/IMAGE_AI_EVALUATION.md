@@ -164,6 +164,10 @@ OPENAI_API_KEY=... target/debug/creativeshelf-image-eval run /tmp/cs-corpus \
 - The report records the manifest and thresholds digests, the served model
   version, the embedding space, the cut-off, usage, latency and a per-image
   outcome.
+- The default embedding recipe sends plain text. For Qwen3 Embedding,
+  `--embed-recipe qwen-visual-asset` applies an asset-search instruction to
+  query texts and leaves document texts unchanged. The embedding space records
+  the recipe independently of model and dimensions.
 - Check the provider's current documentation, license and pricing when you run
   it, and record the exact model in the review. This document does not assume
   them.

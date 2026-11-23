@@ -371,7 +371,7 @@ impl Catalog {
         let mut query = self.db.prepare(
             "SELECT a.id,a.content_hash,a.technical_state,a.availability,
               EXISTS(SELECT 1 FROM image_enrichment_outputs o WHERE o.asset_id=a.id AND o.content_hash=a.content_hash AND o.model_key=?2 AND o.preprocess=?3 AND o.schema_id=?4),
-              EXISTS(SELECT 1 FROM image_enrichment_items i JOIN image_enrichment_jobs j ON j.id=i.job_id WHERE i.asset_id=a.id AND i.state IN ('pending','running','dispatching','unknown_outcome') AND j.state IN ('queued','running','paused')),
+              EXISTS(SELECT 1 FROM image_enrichment_items i JOIN image_enrichment_jobs j ON j.id=i.job_id WHERE i.asset_id=a.id AND j.schema_id=?4 AND i.state IN ('pending','running','dispatching','unknown_outcome') AND j.state IN ('queued','running','paused')),
               EXISTS(SELECT 1 FROM image_enrichment_results x WHERE x.content_hash=a.content_hash AND x.model_key=?2 AND x.preprocess=?3 AND x.schema_id=?4)
              FROM image_assets a JOIN asset_registry r ON r.id=a.id WHERE r.source_id=?1 AND r.kind='image' ORDER BY a.id",
         )?;
@@ -788,12 +788,13 @@ struct JobRow {
     model_key: String,
     max_requests: i64,
     max_units: i64,
+    schema_id: String,
 }
 fn job_row(db: &Connection, id: &str) -> Result<JobRow> {
     db.query_row(
-        "SELECT id,state,source_id,source_generation,provider_id,provider_revision,model,model_key,max_requests,max_units FROM image_enrichment_jobs WHERE id=?1",
+        "SELECT id,state,source_id,source_generation,provider_id,provider_revision,model,model_key,max_requests,max_units,schema_id FROM image_enrichment_jobs WHERE id=?1",
         [id],
-        |r| Ok(JobRow { id: r.get(0)?, state: r.get(1)?, source_id: r.get(2)?, generation: r.get(3)?, provider_id: r.get(4)?, revision: r.get(5)?, model: r.get(6)?, model_key: r.get(7)?, max_requests: r.get(8)?, max_units: r.get(9)? }),
+        |r| Ok(JobRow { id: r.get(0)?, state: r.get(1)?, source_id: r.get(2)?, generation: r.get(3)?, provider_id: r.get(4)?, revision: r.get(5)?, model: r.get(6)?, model_key: r.get(7)?, max_requests: r.get(8)?, max_units: r.get(9)?, schema_id: r.get(10)? }),
     )
     .optional()?
     .ok_or(EnrichError::NotFound)
@@ -813,6 +814,9 @@ enum Fence {
 fn fence(db: &Connection, job: &JobRow) -> Result<Fence> {
     if !matches!(job.state.as_str(), "queued" | "running") {
         return Ok(Fence::Revoked("CANCELLED"));
+    }
+    if job.schema_id != INSIGHT_SCHEMA_ID {
+        return Ok(Fence::Revoked("ANALYSIS_SCHEMA_CHANGED"));
     }
     let Some(consent) = read_consent(db, &job.source_id)? else { return Ok(Fence::Revoked("CONSENT_REVOKED")) };
     if consent.provider_id != job.provider_id || consent.provider_revision as i64 != job.revision || consent.model != job.model {
