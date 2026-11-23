@@ -65,8 +65,9 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 11. [SS-050: Image AI evaluation corpus and qualified adapters](SS-050.md) — in-review (real-model results pending a key); [PR #53](https://github.com/nileshkant/AI-editing-asset-organiser/pull/53), see [review](../docs/reviews/SS-050.md); predecessor: SS-049 (merged).
 11a. [SS-080: Image MCP tagging slice (pulled forward)](SS-080.md) — in-review; [PR #56](https://github.com/nileshkant/AI-editing-asset-organiser/pull/56), see [review](../docs/reviews/SS-080.md); predecessor: SS-050. Pulled forward by Col on 20 October 2026 so AI clients can tag images without a key; SS-067/SS-068 extend it.
 12. [SS-051: Optional local model pack lifecycle](SS-051.md) — in-review; see [review](../docs/reviews/SS-051.md); predecessor: SS-080 (merged). The trusted list is empty until a model passes the SS-050 evaluation.
-13. [SS-052: Consented image enrichment queue and usage budgets](SS-052.md) — in-review; see [review](../docs/reviews/SS-052.md); predecessor: SS-051 (merged).
-14. [SS-053: Structured image descriptions and AI tag persistence](SS-053.md) — not-started; predecessor: SS-052.
+13. [SS-052: Consented image enrichment queue and usage budgets](SS-052.md) — merged in [PR #63](https://github.com/nileshkant/AI-editing-asset-organiser/pull/63); macOS CI evidence pending SS-081.
+13a. [SS-081: Restore macOS verification](SS-081.md) — CI-only prerequisite added on 23 November 2026 to verify merged SS-052 on a supported macOS runner before SS-053 starts.
+14. [SS-053: Structured image descriptions and AI tag persistence](SS-053.md) — not-started; predecessors: SS-052 and SS-081.
 15. [SS-054: AI tag review corrections and selective reanalysis](SS-054.md) — not-started; predecessor: SS-053.
 16. [SS-055: Generation metadata and prompt provenance](SS-055.md) — not-started; predecessor: SS-054.
 17. [SS-056: Image source attribution and recorded usage conditions](SS-056.md) — not-started; predecessor: SS-055.
