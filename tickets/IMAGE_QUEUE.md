@@ -67,7 +67,7 @@ advertise a complete image feature before its end-to-end owner passes acceptance
 12. [SS-051: Optional local model pack lifecycle](SS-051.md) — in-review; see [review](../docs/reviews/SS-051.md); predecessor: SS-080 (merged). The trusted list is empty until a model passes the SS-050 evaluation.
 13. [SS-052: Consented image enrichment queue and usage budgets](SS-052.md) — merged in [PR #63](https://github.com/nileshkant/AI-editing-asset-organiser/pull/63); macOS checks verified in SS-081.
 13a. [SS-081: Restore macOS verification](SS-081.md) — complete and merged in [PR #64](https://github.com/nileshkant/AI-editing-asset-organiser/pull/64).
-14. [SS-053: Structured image descriptions and AI tag persistence](SS-053.md) — partial, real-model evaluation open; predecessors: SS-052 and SS-081.
+14. [SS-053: Structured image descriptions and AI tag persistence](SS-053.md) — partial, with deterministic search and measured local-model limits recorded; predecessors: SS-052 and SS-081.
 15. [SS-054: AI tag review corrections and selective reanalysis](SS-054.md) — not-started; predecessor: SS-053.
 16. [SS-055: Generation metadata and prompt provenance](SS-055.md) — not-started; predecessor: SS-054.
 17. [SS-056: Image source attribution and recorded usage conditions](SS-056.md) — not-started; predecessor: SS-055.

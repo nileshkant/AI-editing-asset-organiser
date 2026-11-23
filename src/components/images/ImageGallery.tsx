@@ -17,7 +17,7 @@ import type { PreviewBackground } from './ImageViewer';
 const SIZES = [{ label: 'Small', px: 96 }, { label: 'Medium', px: 144 }, { label: 'Large', px: 208 }];
 const SORTS: [ImageSort, string][] = [['relevance', 'Best match'], ['name_asc', 'Name A–Z'], ['name_desc', 'Name Z–A'], ['rating_desc', 'Highest rated'],
   ['added_desc', 'Newest import'], ['added_asc', 'Oldest import'], ['pixels_desc', 'Largest']];
-const TIERS = ['exact tag', 'tags', 'caption', 'file name', 'notes', 'several fields'];
+const TIERS = ['exact tag', 'tags', 'caption', 'file name', 'notes', 'all search terms', 'exact suggested tag', 'suggested phrase'];
 type Props = { gallery: ImageGalleryController; sources: Source[]; jobs: ImageImportJob[]; onOpenImports: () => void };
 
 export function ImageGallery({ gallery: g, sources, jobs, onOpenImports }: Props) {
