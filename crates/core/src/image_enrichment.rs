@@ -17,7 +17,7 @@
 use crate::{
     ai_provider::{CapabilityState, ProviderError, ProviderKind, ProviderProfile},
     catalog::Catalog,
-    image_ai::{Described, DescribeError, PreparedImage, INSIGHT_OUTPUT_TOKENS, INSIGHT_SCHEMA_ID},
+    image_ai::{Described, DescribeError, Insight, PreparedImage, INSIGHT_OUTPUT_TOKENS, VISUAL_SCHEMA_ID as INSIGHT_SCHEMA_ID},
     jobs::now_secs,
 };
 use rusqlite::{params, Connection, OptionalExtension, Transaction, TransactionBehavior};
@@ -248,9 +248,10 @@ fn ready(profile: &ProviderProfile) -> bool {
 fn kind_text(kind: ProviderKind) -> String {
     serde_json::to_value(kind).ok().and_then(|v| v.as_str().map(str::to_owned)).unwrap_or_default()
 }
-/// Identity of the model for result reuse: provider kind and requested model.
+/// Reuse only across the same provider configuration and model.
 pub fn model_key(profile: &ProviderProfile) -> String {
-    format!("{}:{}", kind_text(profile.kind), profile.model)
+    let scope = format!("{}\0{}\0{}\0{}", kind_text(profile.kind), profile.id, profile.revision, profile.model);
+    blake3::hash(scope.as_bytes()).to_hex().to_string()
 }
 
 fn current_profile(db: &Connection, id: &str) -> Result<Option<ProviderProfile>> {
@@ -369,7 +370,7 @@ impl Catalog {
         };
         let mut query = self.db.prepare(
             "SELECT a.id,a.content_hash,a.technical_state,a.availability,
-              EXISTS(SELECT 1 FROM image_enrichment_outputs o WHERE o.asset_id=a.id AND o.model_key=?2 AND o.preprocess=?3 AND o.schema_id=?4),
+              EXISTS(SELECT 1 FROM image_enrichment_outputs o WHERE o.asset_id=a.id AND o.content_hash=a.content_hash AND o.model_key=?2 AND o.preprocess=?3 AND o.schema_id=?4),
               EXISTS(SELECT 1 FROM image_enrichment_items i JOIN image_enrichment_jobs j ON j.id=i.job_id WHERE i.asset_id=a.id AND i.state IN ('pending','running','dispatching','unknown_outcome') AND j.state IN ('queued','running','paused')),
               EXISTS(SELECT 1 FROM image_enrichment_results x WHERE x.content_hash=a.content_hash AND x.model_key=?2 AND x.preprocess=?3 AND x.schema_id=?4)
              FROM image_assets a JOIN asset_registry r ON r.id=a.id WHERE r.source_id=?1 AND r.kind='image' ORDER BY a.id",
@@ -669,8 +670,9 @@ impl Catalog {
     /// `accept_possible_charge`: the earlier request may already have been billed.
     pub fn retry_enrichment_item(&mut self, job_id: &str, asset_id: &str, accept_possible_charge: bool) -> Result<()> {
         let tx = self.db.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let (state, attempts): (String, i64) = tx
-            .query_row("SELECT state,attempts FROM image_enrichment_items WHERE job_id=?1 AND asset_id=?2", params![job_id, asset_id], |r| Ok((r.get(0)?, r.get(1)?)))
+        let (state, attempts, content_hash): (String, i64, String) = tx
+            .query_row("SELECT state,attempts,content_hash FROM image_enrichment_items WHERE job_id=?1 AND asset_id=?2",
+                params![job_id, asset_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
             .optional()?
             .ok_or(EnrichError::NotFound)?;
         match state.as_str() {
@@ -682,7 +684,15 @@ impl Catalog {
         if attempts >= 20 {
             return Err(EnrichError::Conflict);
         }
-        let job: String = tx.query_row("SELECT state FROM image_enrichment_jobs WHERE id=?1", [job_id], |r| r.get(0))?;
+        if !content_current(&tx, asset_id, &content_hash)? {
+            return Err(EnrichError::Conflict);
+        }
+        let (job, schema): (String, String) = tx.query_row(
+            "SELECT state,schema_id FROM image_enrichment_jobs WHERE id=?1", [job_id], |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if schema != INSIGHT_SCHEMA_ID {
+            return Err(EnrichError::Conflict);
+        }
         let now = now_secs();
         tx.execute(
             "UPDATE image_enrichment_items SET state='pending',error_code=NULL,not_before=0,updated_at=?3 WHERE job_id=?1 AND asset_id=?2",
@@ -874,13 +884,49 @@ fn finalize_if_done(tx: &Transaction, job_id: &str) -> Result<()> {
 }
 
 /// Attaches an existing result to an asset. The caller holds the fence.
-fn attach(tx: &Transaction, claim: &Claim, job: &JobRow) -> Result<()> {
+fn attach(tx: &Transaction, claim: &Claim, job: &JobRow) -> Result<bool> {
+    use crate::image_contracts::{Coverage, EnrichmentState, VisualSuggestions, MAX_EVIDENCE};
+    let mut asset = crate::image_catalog::load(tx, &claim.asset_id).map_err(|_| EnrichError::Internal)?;
+    if asset.evidence.len() >= MAX_EVIDENCE {
+        return Ok(false);
+    }
+    let (raw, model_version, coverage, created_at): (String, Option<String>, String, i64) = tx.query_row(
+        "SELECT insight,model_version,coverage,created_at FROM image_enrichment_results
+         WHERE content_hash=?1 AND model_key=?2 AND preprocess=?3 AND schema_id=?4",
+        params![claim.content_hash, job.model_key, PREPROCESS_ID, INSIGHT_SCHEMA_ID],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )?;
+    let insight: Insight = serde_json::from_str(&raw).map_err(|_| EnrichError::Internal)?;
+    let profile = exact_ready_profile(tx, &job.provider_id, claim.provider_revision)?;
+    let mut model = crate::image_ai::model_ref(profile.kind, &job.model, model_version.as_deref());
+    model.preprocessing = PREPROCESS_ID.into();
+    model.output_schema = INSIGHT_SCHEMA_ID.into();
+    let coverage = if coverage == "full_image" { Coverage::FullImage } else { Coverage::Preview };
+    let mut evidence = crate::image_ai::evidence(
+        &insight, &claim.content_hash, coverage, model, (created_at.max(0) as u64).saturating_mul(1000),
+    );
+    evidence.visual = Some(VisualSuggestions {
+        tags: insight.visual_tags,
+        uncertain: insight.uncertain,
+        provider_revision: claim.provider_revision,
+    });
+    asset.evidence.push(evidence);
+    asset.header.enrichment_state = EnrichmentState::Complete;
+    if serde_json::to_vec(&asset).map_err(|_| EnrichError::Internal)?.len() > crate::image_contracts::MAX_BUNDLE_BYTES {
+        return Ok(false);
+    }
+    crate::image_catalog::validate(&asset).map_err(|_| EnrichError::Internal)?;
+    let evidence = serde_json::to_string(&asset.evidence).map_err(|_| EnrichError::Internal)?;
+    tx.execute(
+        "UPDATE image_assets SET evidence=?2,enrichment_state='complete' WHERE id=?1",
+        params![claim.asset_id, evidence],
+    )?;
     tx.execute(
         "INSERT INTO image_enrichment_outputs(asset_id,content_hash,model_key,preprocess,schema_id,job_id,source_generation,published_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)
          ON CONFLICT(asset_id,model_key,preprocess,schema_id) DO UPDATE SET content_hash=excluded.content_hash,job_id=excluded.job_id,source_generation=excluded.source_generation,published_at=excluded.published_at",
         params![claim.asset_id, claim.content_hash, job.model_key, PREPROCESS_ID, INSIGHT_SCHEMA_ID, claim.job_id, job.generation, now_secs()],
     )?;
-    Ok(())
+    Ok(true)
 }
 
 impl Catalog {
@@ -956,12 +1002,19 @@ impl Catalog {
             params![claim.content_hash, job.model_key, PREPROCESS_ID, INSIGHT_SCHEMA_ID],
             |r| r.get(0),
         )?;
-        if !hit || !content_current(&tx, &claim.asset_id, &claim.content_hash)? {
+        let leased: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM image_enrichment_items WHERE job_id=?1 AND asset_id=?2 AND state='running' AND lease_owner=?3)",
+            params![claim.job_id, claim.asset_id, claim.owner], |r| r.get(0),
+        )?;
+        if !hit || !leased || !content_current(&tx, &claim.asset_id, &claim.content_hash)? {
             tx.commit()?;
             return Ok(false);
         }
-        attach(&tx, claim, &job)?;
-        Self::release_claim(&tx, claim, "reused", "")?;
+        if attach(&tx, claim, &job)? {
+            Self::release_claim(&tx, claim, "reused", "")?;
+        } else {
+            Self::release_claim(&tx, claim, "failed", "EVIDENCE_LIMIT")?;
+        }
         finalize_if_done(&tx, &claim.job_id)?;
         tx.commit()?;
         Ok(true)
@@ -1018,6 +1071,16 @@ impl Catalog {
             tx.commit()?;
             return Err(EnrichError::Cancelled);
         }
+        let evidence_count: i64 = tx.query_row(
+            "SELECT json_array_length(evidence) FROM image_assets WHERE id=?1",
+            [&claim.asset_id], |row| row.get(0),
+        )?;
+        if evidence_count >= crate::image_contracts::MAX_EVIDENCE as i64 {
+            Self::release_claim(&tx, claim, "failed", "EVIDENCE_LIMIT")?;
+            finalize_if_done(&tx, &claim.job_id)?;
+            tx.commit()?;
+            return Err(EnrichError::Cancelled);
+        }
         let (requests, units): (i64, i64) = tx.query_row(
             "SELECT count(*) FILTER (WHERE status!='released'),
                     COALESCE(SUM(CASE status WHEN 'reserved' THEN reserved_units WHEN 'unknown' THEN reserved_units WHEN 'settled' THEN used_units ELSE 0 END),0)
@@ -1055,7 +1118,7 @@ impl Catalog {
     /// Records the end of a request and publishes the answer only if the fence
     /// still holds. A late answer for a cancelled, revoked or changed image is
     /// discarded, though its units were spent and stay counted.
-    pub fn settle_enrichment(&mut self, claim: &Claim, result: std::result::Result<(Described, crate::image_contracts::Coverage), DescribeError>) -> Result<Settled> {
+    pub fn settle_enrichment(&mut self, claim: &Claim, result: std::result::Result<(Described, crate::image_contracts::Coverage), DescribeError>, original_verified: bool) -> Result<Settled> {
         let attempt = claim.attempts + 1;
         let tx = self.db.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let job = job_row(&tx, &claim.job_id)?;
@@ -1083,16 +1146,20 @@ impl Catalog {
                 // Read inside this write transaction: a revocation that committed
                 // while the request was in flight is seen here.
                 let verdict_now = if item_live { verdict } else { Fence::Revoked("CANCELLED") };
-                if verdict_now == Fence::Open && content_current(&tx, &claim.asset_id, &claim.content_hash)? {
+                if verdict_now == Fence::Open && original_verified && content_current(&tx, &claim.asset_id, &claim.content_hash)? {
                     let insight = serde_json::to_string(&described.insight).map_err(|_| EnrichError::Internal)?;
                     tx.execute(
                         "INSERT INTO image_enrichment_results(content_hash,model_key,preprocess,schema_id,insight,model_version,coverage,created_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)
                          ON CONFLICT(content_hash,model_key,preprocess,schema_id) DO NOTHING",
                         params![claim.content_hash, job.model_key, PREPROCESS_ID, INSIGHT_SCHEMA_ID, insight, described.model_version, if coverage == crate::image_contracts::Coverage::FullImage { "full_image" } else { "preview" }, now],
                     )?;
-                    attach(&tx, claim, &job)?;
-                    Self::release_claim(&tx, claim, "done", "")?;
-                    Settled::Published
+                    if attach(&tx, claim, &job)? {
+                        Self::release_claim(&tx, claim, "done", "")?;
+                        Settled::Published
+                    } else {
+                        Self::release_claim(&tx, claim, "failed", "EVIDENCE_LIMIT")?;
+                        Settled::Failed
+                    }
                 } else {
                     let (state, code) = match &verdict_now {
                         Fence::Stale => ("stale", "SOURCE_CHANGED"),
@@ -1217,6 +1284,9 @@ pub enum PixelError {
 /// content version, decoded outside the long-lived database lock.
 pub trait PixelSource: Send + Sync {
     fn prepare(&self, asset_id: &str, content_hash: &str) -> std::result::Result<PreparedImage, PixelError>;
+    fn verify(&self, _asset_id: &str, _content_hash: &str) -> std::result::Result<(), PixelError> {
+        Ok(())
+    }
 }
 /// The production pixel source: the Large (512 px) preview of the exact content
 /// version, produced by the isolated image worker and re-encoded without any
@@ -1225,6 +1295,13 @@ pub struct PreviewPixels {
     pub previews: Arc<crate::image_preview::PreviewService>,
 }
 impl PixelSource for PreviewPixels {
+    fn verify(&self, asset_id: &str, content_hash: &str) -> std::result::Result<(), PixelError> {
+        use crate::image_preview::PreviewError as E;
+        self.previews.verify_original(asset_id, content_hash).map_err(|error| match error {
+            E::StaleVersion | E::SourceChanged | E::NotFound => PixelError::Stale,
+            _ => PixelError::Unavailable,
+        })
+    }
     fn prepare(&self, asset_id: &str, content_hash: &str) -> std::result::Result<PreparedImage, PixelError> {
         use crate::image_preview::{PreviewError as E, PreviewRequest, PreviewTier};
         let request = PreviewRequest {
@@ -1239,12 +1316,16 @@ impl PixelSource for PreviewPixels {
             E::OriginalUnavailable | E::Busy | E::TimedOut | E::Cancelled | E::WorkerUnavailable => PixelError::Unavailable,
             _ => PixelError::Failed,
         })?;
-        let decoded = image::load_from_memory(&preview.bytes).map_err(|_| PixelError::Failed)?.to_rgba8();
-        let mut prepared = crate::image_ai::prepare_pixels(&decoded).map_err(|_| PixelError::Failed)?;
-        prepared.source_width = preview.meta.source_width;
-        prepared.source_height = preview.meta.source_height;
-        Ok(prepared)
+        prepare_preview(&preview.bytes, preview.meta.source_width, preview.meta.source_height)
     }
+}
+
+pub(crate) fn prepare_preview(bytes: &[u8], source_width: u32, source_height: u32) -> std::result::Result<PreparedImage, PixelError> {
+    let decoded = image::load_from_memory(bytes).map_err(|_| PixelError::Failed)?.to_rgba8();
+    let mut prepared = crate::image_ai::prepare_pixels(&decoded).map_err(|_| PixelError::Failed)?;
+    prepared.source_width = source_width;
+    prepared.source_height = source_height;
+    Ok(prepared)
 }
 /// Performs the one provider request. Never retries.
 pub trait Dispatcher: Send + Sync {
@@ -1258,7 +1339,7 @@ pub struct ProviderDispatcher {
 impl Dispatcher for ProviderDispatcher {
     fn describe(&self, provider_id: &str, revision: u64, image: &PreparedImage) -> std::result::Result<Described, DescribeError> {
         let adapter = self.providers.adapter(provider_id, revision)?;
-        crate::image_ai::describe(adapter.as_ref(), image)
+        crate::image_ai::describe_visual(adapter.as_ref(), image)
     }
 }
 
@@ -1301,6 +1382,14 @@ impl Runner {
             }
         }
         let Some(claim) = claim else { return Ok(Step::Worked) };
+        if let Err(error) = self.pixels.verify(&claim.asset_id, &claim.content_hash) {
+            let (state, code) = match error {
+                PixelError::Stale => ("stale", "CONTENT_CHANGED"),
+                _ => ("failed", "ORIGINAL_UNAVAILABLE"),
+            };
+            self.lock()?.fail_enrichment_item(&claim, state, code)?;
+            return Ok(Step::Worked);
+        }
         match self.lock()?.reuse_enrichment(&claim) {
             Ok(true) => return Ok(Step::Worked),
             Ok(false) => {}
@@ -1327,7 +1416,8 @@ impl Runner {
         let coverage = prepared.coverage();
         let answer = self.dispatcher.describe(&claim.provider_id, claim.provider_revision, &prepared);
         drop(prepared);
-        self.lock()?.settle_enrichment(&claim, answer.map(|d| (d, coverage)))?;
+        let verified = answer.is_err() || self.pixels.verify(&claim.asset_id, &claim.content_hash).is_ok();
+        self.lock()?.settle_enrichment(&claim, answer.map(|d| (d, coverage)), verified)?;
         Ok(Step::Worked)
     }
 }

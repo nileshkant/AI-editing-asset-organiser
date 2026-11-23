@@ -94,7 +94,7 @@ pub struct Clip {
 }
 
 pub struct Catalog { pub(crate) db: Connection }
-pub const SCHEMA_VERSION: u32 = 19;
+pub const SCHEMA_VERSION: u32 = 20;
 
 pub(crate) fn upgrade_backup(db: &Connection, destination: &Path) -> Result<()> {
     let mut options = OpenOptions::new();
@@ -249,6 +249,7 @@ ALTER TABLE jobs ADD COLUMN paths TEXT;")?;
                 crate::image_search::flush(&tx).map_err(|e| invalid(&e.to_string()))?;
             }
             if version < 19 { tx.execute_batch(include_str!("enrichment_schema.sql"))?; }
+            if version == 19 { tx.execute_batch(include_str!("visual_insight_migration.sql"))?; }
             let violations: i64 = tx.query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |r| r.get(0))?;
             if violations != 0 { return Err(invalid("Catalog has invalid references; upgrade rolled back")); }
             tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;

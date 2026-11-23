@@ -8,14 +8,15 @@
 use crate::ai_provider::{CapabilityState, KeyStorage, ProviderError, ProviderKind, ProviderView};
 use crate::ai_provider_wire::{GenerateRequest, ImagePart, ProviderAdapter, Usage, MAX_IMAGE_BYTES};
 use crate::image_annotations::{display_tag, tag_key};
-use crate::image_contracts::{ConfidenceKind, Coverage, Evidence, ModelRef, Origin, ReviewState};
-use serde::Serialize;
+use crate::image_contracts::{ConfidenceKind, Coverage, Evidence, ModelRef, Origin, ReviewState, VisualTag};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::HashSet;
 use std::io::Cursor;
 
 /// Identifier of the requested answer shape, recorded in `ModelRef.output_schema`.
 pub const INSIGHT_SCHEMA_ID: &str = "creativeshelf.image-insight/v1";
+pub const VISUAL_SCHEMA_ID: &str = "creativeshelf.image-insight/v2";
 /// Identifier of the pixel preparation below, recorded in `ModelRef.preprocessing`.
 pub const PREPROCESSING_ID: &str = "srgb-oriented-fit1024-png/v1";
 /// Longest edge sent to a provider. Larger images are downscaled; smaller ones
@@ -51,13 +52,15 @@ pub fn insight_schema() -> Value {
     })
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Insight {
     pub caption: Option<String>,
     /// Display spellings, unique by tag identity, in the model's order.
     pub tags: Vec<String>,
     pub text_in_image: Option<String>,
     pub uncertain: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub visual_tags: Vec<VisualTag>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -120,7 +123,68 @@ pub fn parse_insight(value: &Value) -> Result<Insight, InsightError> {
             tags.push(display);
         }
     }
-    Ok(Insight { caption, tags, text_in_image, uncertain })
+    Ok(Insight { caption, tags, text_in_image, uncertain, visual_tags: vec![] })
+}
+
+fn visual_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "caption": {"type": "string"},
+            "tags": {"type": "array", "items": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "enum": ["subject", "scene", "action", "style", "mood", "lighting", "palette", "composition"]},
+                    "label": {"type": "string"}
+                },
+                "required": ["category", "label"],
+                "additionalProperties": false
+            }},
+            "uncertain": {"type": "boolean"}
+        },
+        "required": ["caption", "tags", "uncertain"],
+        "additionalProperties": false
+    })
+}
+
+pub fn parse_visual_insight(value: &Value) -> Result<Insight, InsightError> {
+    let object = value.as_object().ok_or(InsightError::Malformed("object"))?;
+    if object.len() != 3 {
+        return Err(InsightError::Malformed("fields"));
+    }
+    let caption = plain_text(object.get("caption").ok_or(InsightError::Malformed("caption"))?, "caption", MAX_CAPTION_CHARS)?;
+    let uncertain = object.get("uncertain").and_then(Value::as_bool).ok_or(InsightError::Malformed("uncertain"))?;
+    let mut insight = Insight { caption, tags: vec![], text_in_image: None, uncertain, visual_tags: vec![] };
+    let tags = object.get("tags").and_then(Value::as_array).ok_or(InsightError::Malformed("tags"))?;
+    if tags.len() > MAX_INSIGHT_TAGS {
+        return Err(InsightError::TooManyTags);
+    }
+    let mut seen_categories = HashSet::new();
+    let mut seen_labels = HashSet::new();
+    for value in tags {
+        let tag: VisualTag = serde_json::from_value(value.clone()).map_err(|_| InsightError::Malformed("tag"))?;
+        let label = display_tag(&tag.label).map_err(|_| InsightError::Malformed("label"))?;
+        if let Some(label) = label {
+            let key = tag_key(&label);
+            if seen_labels.insert(key.clone()) {
+                insight.tags.push(label.clone());
+            }
+            if seen_categories.insert((tag.category, key)) {
+                insight.visual_tags.push(VisualTag { category: tag.category, label });
+            }
+        }
+    }
+    if insight.uncertain {
+        insight.tags.clear();
+        insight.visual_tags.clear();
+    }
+    if insight.caption.is_none() && insight.tags.is_empty() && !insight.uncertain {
+        return Err(InsightError::Malformed("empty answer"));
+    }
+    if serde_json::to_vec(&insight).map_err(|_| InsightError::Malformed("output"))?.len() > 16_384 {
+        return Err(InsightError::TooLong("output"));
+    }
+    Ok(insight)
 }
 
 /// Pixels ready to send: oriented sRGB, alpha kept, no metadata, at most
@@ -209,15 +273,31 @@ impl DescribeError {
 /// One bounded request for one prepared image. Never retries: the caller owns
 /// retry, budget and billing decisions (SS-052).
 pub fn describe(adapter: &dyn ProviderAdapter, image: &PreparedImage) -> Result<Described, DescribeError> {
+    request_description(adapter, image, INSIGHT_PROMPT, insight_schema(), parse_insight)
+}
+
+pub fn describe_visual(adapter: &dyn ProviderAdapter, image: &PreparedImage) -> Result<Described, DescribeError> {
+    request_description(adapter, image,
+        "Return a plain caption, categorized tags and an uncertain flag. Describe only visible evidence. +         Use short labels for recognizable subjects or objects, scene, action, style, mood, lighting, +         palette and composition. Omit unknown categories and set uncertain for an ambiguous image. +         Never infer a real person's identity, generator, legal rights or hidden parts. +         Do not transcribe text or guess precise measurements.",
+        visual_schema(), parse_visual_insight)
+}
+
+fn request_description(
+    adapter: &dyn ProviderAdapter, image: &PreparedImage, prompt: &str, schema: Value,
+    parse: fn(&Value) -> Result<Insight, InsightError>,
+) -> Result<Described, DescribeError> {
     let response = adapter.generate(&GenerateRequest {
         instructions: INSIGHT_INSTRUCTIONS.into(),
-        text: INSIGHT_PROMPT.into(),
+        text: prompt.into(),
         images: vec![ImagePart { media_type: image.part.media_type, bytes: image.part.bytes.clone() }],
-        json_schema: Some(insight_schema()),
+        json_schema: Some(schema),
         max_output_tokens: INSIGHT_OUTPUT_TOKENS,
     })?;
     let value = response.json.ok_or(DescribeError::Output(InsightError::Malformed("object")))?;
-    Ok(Described { insight: parse_insight(&value)?, model_version: response.model_version, usage: response.usage })
+    let model_version = response.model_version.filter(|version| {
+        !version.is_empty() && version.len() <= 200 && !version.chars().any(char::is_control)
+    });
+    Ok(Described { insight: parse(&value)?, model_version, usage: response.usage })
 }
 
 pub fn model_ref(kind: ProviderKind, model: &str, model_version: Option<&str>) -> ModelRef {
@@ -248,6 +328,7 @@ pub fn evidence(insight: &Insight, content_hash: &str, coverage: Coverage, model
         review_state: ReviewState::Suggested,
         stale: false,
         created_at_ms,
+        visual: None,
     }
 }
 

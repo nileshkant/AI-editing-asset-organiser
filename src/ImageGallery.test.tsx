@@ -141,7 +141,7 @@ describe('inspector and viewer', () => {
     expect(await screen.findByText('Shoot · offline')).toBeInTheDocument();
     expect(screen.getAllByText('Original offline · cached previews only, export disabled').length).toBeGreaterThan(0);
     expect(screen.getByText(/stored 600 × 800, EXIF orientation 6/)).toBeInTheDocument();
-    expect(screen.getByText('Not enabled')).toBeInTheDocument();
+    expect(screen.getByText('No analysis yet')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
     fireEvent.keyDown(screen.getByRole('complementary'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
@@ -151,6 +151,31 @@ describe('inspector and viewer', () => {
     render(<ImageInspector summary={failed} background="checkerboard" setBackground={vi.fn()} onClose={vi.fn()} onStale={vi.fn()} annotationsVersion={0} onAnnotated={vi.fn()} />);
     expect(await screen.findByText('Technical analysis failed; no preview is available.')).toBeInTheDocument();
     expect(screen.queryByRole('region', { name: /preview/ })).not.toBeInTheDocument();
+  });
+  it('renders suggestions as text and requires consent to retry an uncertain charge', async () => {
+    const item = summary(7);
+    const caption = '<img src="x"> A red square';
+    invoke.mockImplementation((cmd: string) => Promise.resolve(cmd === 'image_details' ? {
+      header: item.header, profile: profile(), source_name: 'Shoot', source_available: true,
+      tags: [], caption: null, comment: '', favorite: false, rating: null, annotation_revision: 1,
+      analysis: { job_id: 'job-7', state: 'unknown_outcome', error_code: 'OUTCOME_UNKNOWN', retryable: true },
+      evidence: [{ id: 'evidence-7', content_hash: item.header.content_hash, origin: 'model', stale: false, caption,
+        coverage: 'preview', created_at_ms: 0, confidence_kind: 'unavailable',
+        model: { provider: 'openai_compatible', model: 'vision', revision: 'vision-1', preprocessing: 'preview-v1', output_schema: 'visual-v2' },
+        visual: { uncertain: false, provider_revision: 2, tags: [{ category: 'palette', label: 'red' }] } }],
+    } : null));
+    const { container } = render(<ImageInspector summary={item} background="checkerboard" setBackground={vi.fn()}
+      onClose={vi.fn()} onStale={vi.fn()} annotationsVersion={0} onAnnotated={vi.fn()} />);
+    expect(await screen.findByText(caption)).toBeVisible();
+    expect(container.querySelector('img[src="x"]')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Copy suggested caption' }));
+    expect(screen.getByRole('textbox', { name: 'Caption' })).toHaveValue(caption);
+    const retry = screen.getByRole('button', { name: 'Retry AI analysis' });
+    expect(retry).toBeDisabled();
+    fireEvent.click(screen.getByRole('checkbox', { name: /possible second charge/ }));
+    fireEvent.click(retry);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('image_enrichment_retry',
+      { jobId: 'job-7', assetId: item.header.id, acceptPossibleCharge: true }));
   });
   it('zooms between fit and bounded 1:1 tiles', async () => {
     invoke.mockImplementation(() => new Promise(() => {}));

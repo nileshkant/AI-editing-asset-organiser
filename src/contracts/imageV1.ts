@@ -29,6 +29,8 @@ export type ImageAnnotations = {
 export type ModelRef = {
   provider: string; model: string; revision: string; preprocessing: string; output_schema: string;
 };
+const visualCategories = ['subject', 'scene', 'action', 'style', 'mood', 'lighting', 'palette', 'composition'] as const;
+export type VisualCategory = typeof visualCategories[number];
 export type ImageEvidence = {
   id: string; content_hash: string; origin: 'model' | 'filename' | 'imported' | 'user';
   coverage: 'full_image' | 'preview' | 'element'; tags: string[]; caption: string | null;
@@ -36,6 +38,7 @@ export type ImageEvidence = {
   confidence_kind: 'unavailable' | 'reported' | 'calibrated';
   review_state: 'suggested' | 'accepted' | 'edited' | 'rejected';
   stale: boolean; created_at_ms: number;
+  visual?: { tags: { category: VisualCategory; label: string }[]; uncertain: boolean; provider_revision: number };
 };
 export type PixelRect = { left: number; top: number; right: number; bottom: number };
 export type ImageRecipe = {
@@ -162,7 +165,9 @@ function validateAsset(value: unknown): void {
   if (annotations.rating !== null) integer(annotations.rating,1,5);
   const evidenceIds = new Set<string>();
   for (const item of list(a.evidence, IMAGE_LIMITS.evidence)) {
-    const e = shape(item,['id','content_hash','origin','coverage','tags','caption','model','confidence','confidence_kind','review_state','stale','created_at_ms']);
+    const fields = ['id','content_hash','origin','coverage','tags','caption','model','confidence','confidence_kind','review_state','stale','created_at_ms'];
+    if (item && typeof item === 'object' && Object.hasOwn(item, 'visual')) fields.push('visual');
+    const e = shape(item, fields);
     const eid=uuid(e.id); digest(e.content_hash); tags(e.tags); caption(e.caption);
     check(!evidenceIds.has(eid),'IDENTITY_CONFLICT'); evidenceIds.add(eid);
     choice(e.origin,['model','filename','imported','user']); choice(e.coverage,['full_image','preview','element']);
@@ -177,6 +182,24 @@ function validateAsset(value: unknown): void {
     choice(e.confidence_kind,['unavailable','reported','calibrated']);
     check((e.confidence_kind === 'unavailable') === (e.confidence === null));
     if (e.confidence !== null) check(typeof e.confidence === 'number' && Number.isFinite(e.confidence) && e.confidence >= 0 && e.confidence <= 1 && e.origin === 'model');
+    if (fields.includes('visual')) {
+      const v = shape(e.visual, ['tags', 'uncertain', 'provider_revision']);
+      check(e.origin === 'model');
+      integer(v.provider_revision, 1, Number.MAX_SAFE_INTEGER);
+      const labels = list(v.tags, 32);
+      const flat = e.tags as string[];
+      check(!bool(v.uncertain) || (labels.length === 0 && flat.length === 0));
+      const key = (label: string) => label.normalize('NFC').toLowerCase().normalize('NFC');
+      const seen = new Set<string>();
+      for (const label of labels) {
+        const tag = shape(label, ['category', 'label']);
+        const category = choice(tag.category, visualCategories);
+        const display = text(tag.label);
+        const identity = category + ':' + key(display);
+        check(display.trim() === display && !seen.has(identity) && flat.some(t => key(t) === key(display)));
+        seen.add(identity);
+      }
+    }
   }
   const recipeIds = new Set<string>();
   if (h.enrichment_state === 'complete') {

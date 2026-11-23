@@ -94,7 +94,7 @@ fn run() -> Result<(), Error> {
             let out = f.get("out").ok_or("--out is required")?;
             let describer = adapter(&f, "")?.ok_or("--kind is required")?;
             let embedder = adapter(&f, "embed-")?;
-            let report = image_eval::run(
+            let report = image_eval::run_production(
                 &RunInput {
                     dir,
                     manifest: &manifest,

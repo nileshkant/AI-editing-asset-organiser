@@ -161,7 +161,16 @@ export async function installDesktopFixture(page: Page, images = false, galleryT
             }
             case 'image_details': { const i = parseInt(args.id.slice(-12), 10), item = galleryItem(i);
               return { header: item.header, profile: item.header.technical_state === 'ready' ? { raw_width: 3000, raw_height: 4000, orientation: 6, width: 4000, height: 3000, format: 'png', encoded_bytes: 9_437_184, bit_depth: 8, source_color_profile: null, alpha_channel: true, transparency: 'partial', analyzer_version: 'creativeshelf-still-v1-image02510-mox091' } : null,
-                source_name: source.name, source_available: true, caption: null, tags: notesFor(i).tags, comment: notesFor(i).comment, favorite: notesFor(i).favorite, rating: notesFor(i).rating, annotation_revision: notesFor(i).revision }; }
+                source_name: source.name, source_available: true, caption: null, tags: notesFor(i).tags, comment: notesFor(i).comment, favorite: notesFor(i).favorite, rating: notesFor(i).rating, annotation_revision: notesFor(i).revision,
+                analysis: i === 2 ? { job_id: 'fixture-job', state: 'done', error_code: null, retryable: false } : null,
+                evidence: i === 2 ? [{
+                  id: 'fixture-evidence', content_hash: item.header.content_hash, origin: 'model', coverage: 'preview',
+                  caption: 'A red square beside a translucent blue rectangle.', tags: ['red'], model: {
+                    provider: 'openai_compatible', model: 'fixture-vision', revision: 'fixture-vision-1',
+                    preprocessing: 'srgb-oriented-preview512-png/v1', output_schema: 'creativeshelf.image-insight/v2',
+                  }, confidence: null, confidence_kind: 'unavailable', review_state: 'suggested', stale: false, created_at_ms: 0,
+                  visual: { uncertain: false, provider_revision: 1, tags: [{ category: 'palette', label: 'red' }] },
+                }] : [] }; }
             case 'edit_image_annotations': { const i = indexOf(args.id), n = notesFor(i);
               if (!editable(i)) throw 'SOURCE_UNAVAILABLE';
               if (n.revision !== args.expectedRevision) throw 'CONFLICT';

@@ -16,6 +16,8 @@ type Props = {
  */
 export function AnnotationEditor({ details: d, name, onChanged }: Props) {
   const [tagInput, setTagInput] = useState(''), [notes, setNotes] = useState(d.comment);
+  const [caption, setCaption] = useState(d.caption ?? '');
+  const [seenCaption, setSeenCaption] = useState(d.caption ?? '');
   const [status, setStatus] = useState(''), [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const [undo, setUndo] = useState<{ id: string; label: string } | null>(null);
   const id = d.header.id, editable = d.header.availability === 'available' && d.source_available;
@@ -24,6 +26,10 @@ export function AnnotationEditor({ details: d, name, onChanged }: Props) {
   // overwrite text typed after mount with a stale value.
   const [seen, setSeen] = useState(d.comment);
   if (seen !== d.comment) { setSeen(d.comment); if (notes === seen) setNotes(d.comment); }
+  if (seenCaption !== (d.caption ?? '')) {
+    setSeenCaption(d.caption ?? '');
+    if (caption === seenCaption) setCaption(d.caption ?? '');
+  }
   // The revision this editor wrote last. Details reload a moment after each edit;
   // until then the next edit must start from our own write, not the older one on screen.
   const [written, setWritten] = useState<{ id: string; revision: number } | null>(null);
@@ -55,6 +61,8 @@ export function AnnotationEditor({ details: d, name, onChanged }: Props) {
     finally { setBusy(false); }
   };
   const bytes = noteBytes(notes);
+  const suggestion = d.evidence?.slice().reverse().find(e =>
+    e.origin === 'model' && !e.stale && e.review_state !== 'rejected' && e.caption)?.caption;
   return <section className="image-annotations" aria-labelledby="image-annotations-title">
     <h3 id="image-annotations-title">Your annotations</h3>
     {!editable && <p className="image-inspector-notice">Read only while the original is unavailable.</p>}
@@ -83,6 +91,16 @@ export function AnnotationEditor({ details: d, name, onChanged }: Props) {
         <input id={`image-tag-input-${id}`} value={tagInput} placeholder="Add tags, separated by commas" maxLength={2000} disabled={!editable}
           onChange={e => setTagInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void addTags(); } }} />
         <button disabled={busy || !editable || !splitTags(tagInput).length} onClick={() => void addTags()}>Add</button>
+      </div>
+    </div>
+    <div className="image-notes">
+      <label htmlFor={`image-caption-${id}`}>Caption</label>
+      <textarea id={`image-caption-${id}`} value={caption} rows={2} disabled={!editable}
+        onChange={e => setCaption(e.target.value)} />
+      <div className="image-notes-actions">
+        {suggestion && <button disabled={busy || !editable} onClick={() => setCaption(suggestion)}>Copy suggested caption</button>}
+        <button disabled={busy || !editable || caption === (d.caption ?? '') || noteBytes(caption) > MAX_NOTE_BYTES}
+          onClick={() => void apply({ caption: caption || null }, 'Saved caption')}>Save caption</button>
       </div>
     </div>
     <div className="image-notes">

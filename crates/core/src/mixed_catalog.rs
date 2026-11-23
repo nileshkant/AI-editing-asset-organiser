@@ -397,6 +397,12 @@ pub(crate) fn apply_fingerprints(
             FingerprintState::Changed => {
                 image.asset.header.technical_state = TechnicalState::Pending;
                 image.asset.header.availability = crate::image_contracts::Availability::Available;
+                if !image.asset.evidence.is_empty() {
+                    image.asset.header.enrichment_state = crate::image_contracts::EnrichmentState::Stale;
+                    for evidence in &mut image.asset.evidence {
+                        evidence.stale = true;
+                    }
+                }
             }
             FingerprintState::Same => {
                 image.asset.header.availability = crate::image_contracts::Availability::Available
@@ -472,8 +478,8 @@ mod persistence_inventory {
         ("image_enrichment_jobs", "B: local job history and ceilings (SS-052)", &["id", "source_id", "source_generation", "kind", "provider_id", "provider_revision", "model", "model_key", "preprocess", "schema_id", "state", "error_code", "max_requests", "max_units", "queue_order", "created_at", "updated_at"]),
         ("image_enrichment_items", "B: local job history, leases and operation identity (SS-052)", &["job_id", "asset_id", "content_hash", "state", "operation_id", "attempts", "not_before", "lease_owner", "lease_until", "error_code", "updated_at"]),
         ("image_enrichment_usage", "B: local billing evidence for requests made from this computer (SS-052)", &["operation_id", "attempt", "job_id", "asset_id", "status", "reserved_units", "used_units", "used_is_estimate", "created_at", "updated_at"]),
-        ("image_enrichment_results", "B: paid result cache, machine-local until SS-053 persists accepted evidence on the asset; not portable, so an imported catalog must request results again", &["content_hash", "model_key", "preprocess", "schema_id", "insight", "model_version", "coverage", "created_at"]),
-        ("image_enrichment_outputs", "B: which asset a cached result was published to (SS-052); SS-053 owns the portable form", &["asset_id", "content_hash", "model_key", "preprocess", "schema_id", "job_id", "source_generation", "published_at"]),
+        ("image_enrichment_results", "B: paid result cache; portable evidence is stored on the asset", &["content_hash", "model_key", "preprocess", "schema_id", "insight", "model_version", "coverage", "created_at"]),
+        ("image_enrichment_outputs", "B: local job attachment used for queue deduplication", &["asset_id", "content_hash", "model_key", "preprocess", "schema_id", "job_id", "source_generation", "published_at"]),
         ("image_generation_provenance", "B: local edit time", &["updated_at"]),
     ];
 
@@ -643,6 +649,49 @@ mod persistence_inventory {
         assert_eq!(db.pragma_query_value::<u32, _>(None, "user_version", |r| r.get(0)).unwrap(), 18);
         let created: i64 = db.query_row("SELECT count(*) FROM sqlite_master WHERE name IN ('image_enrichment_consent','image_enrichment_jobs','image_enrichment_items')", [], |r| r.get(0)).unwrap();
         assert_eq!(created, 0, "nothing from v19 survives the rollback");
+    }
+
+    #[test]
+    fn v20_upgrade_preserves_image_and_marks_legacy_inflight_billing_unknown() {
+        let d = tempfile::tempdir().unwrap();
+        let path = d.path().join("v19.sqlite");
+        let db = v18_database(&path);
+        db.execute_batch(include_str!("enrichment_schema.sql")).unwrap();
+        db.pragma_update(None, "user_version", 19).unwrap();
+        let mut old = Catalog { db };
+        let source = old.add_source(d.path()).unwrap();
+        let image = old.register_image(&source, "kept.png", Some(&"b".repeat(64))).unwrap();
+        let id = &image.header.id;
+        let hash = image.header.content_hash.as_ref().unwrap();
+        old.db.execute("INSERT INTO image_enrichment_jobs VALUES
+            ('job',?1,0,'selected','provider',1,'model','old-key','old-preprocess','creativeshelf.image-insight/v1','running',NULL,5,10000,1,1,1)", [&source.id]).unwrap();
+        let operation = "00000000-0000-4000-8000-000000000001";
+        old.db.execute("INSERT INTO image_enrichment_items VALUES
+            ('job',?1,?2,'dispatching',?3,1,0,'lease',99,NULL,1)", params![id, hash, operation]).unwrap();
+        old.db.execute("INSERT INTO image_enrichment_usage VALUES
+            (?1,1,'job',?2,'reserved',100,NULL,NULL,1,1)", params![operation, id]).unwrap();
+        old.db.execute_batch("CREATE TRIGGER fail_v20 BEFORE UPDATE ON image_enrichment_jobs
+            BEGIN SELECT RAISE(ABORT,'test migration rollback'); END;").unwrap();
+        drop(old);
+        assert!(Catalog::open(&path).is_err());
+        let previous = Connection::open(&path).unwrap();
+        assert_eq!(previous.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0)).unwrap(), 19);
+        let unchanged: String = previous.query_row("SELECT status FROM image_enrichment_usage", [], |row| row.get(0)).unwrap();
+        assert_eq!(unchanged, "reserved", "the earlier migration statements were rolled back");
+        previous.execute_batch("DROP TRIGGER fail_v20;").unwrap();
+        drop(previous);
+        let upgraded = Catalog::open(&path).unwrap();
+        assert_eq!(upgraded.image(id, None).unwrap(), image);
+        let job = upgraded.enrichment_job("job").unwrap();
+        assert_eq!(job.state, "cancelled");
+        assert_eq!(job.counts.unknown_outcome, 1);
+        assert_eq!(job.usage.unknown_units, 100);
+        let backup = std::fs::read_dir(d.path()).unwrap().map(|entry| entry.unwrap().path())
+            .find(|path| path.to_string_lossy().contains("pre-v20-")).unwrap();
+        let previous = Connection::open(backup).unwrap();
+        assert_eq!(previous.pragma_query_value::<u32, _>(None, "user_version", |row| row.get(0)).unwrap(), 19);
+        let old_status: String = previous.query_row("SELECT status FROM image_enrichment_usage", [], |row| row.get(0)).unwrap();
+        assert_eq!(old_status, "reserved");
     }
 
     #[test]

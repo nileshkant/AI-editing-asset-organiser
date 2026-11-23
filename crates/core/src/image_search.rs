@@ -953,8 +953,13 @@ fn compile(plan: &Plan, allowed: Option<&[String]>, alias: &HashMap<String, Stri
                 tier.push_str(&format!(" WHEN d.doc IN {m} THEN {rank}"));
             }
         }
-        tier.push_str(" ELSE 5 END");
-        c.tier = tier;
+        if tier == "CASE" {
+            // A search restricted to suggestions has no higher-priority tiers.
+            c.tier = "5".into();
+        } else {
+            tier.push_str(" ELSE 5 END");
+            c.tier = tier;
+        }
     }
     if !negative.is_empty() {
         let any = negative.iter().map(|p| p.fts.as_str()).collect::<Vec<_>>().join(" OR ");
@@ -1448,6 +1453,7 @@ mod tests {
                 review_state: review,
                 stale,
                 created_at_ms: 1,
+                visual: None,
             };
             self.c.db.execute("UPDATE image_assets SET evidence=?2 WHERE id=?1", params![id, serde_json::to_string(&vec![e]).unwrap()]).unwrap();
         }

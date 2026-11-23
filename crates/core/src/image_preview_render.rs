@@ -100,7 +100,7 @@ fn encode(tier: PreviewTier, img: &RgbaImage) -> Result<(PreviewMime, bool, Vec<
         .map_err(|_| E::WorkerFailed)?;
     Ok((PreviewMime::Png, transparency, bytes))
 }
-fn render(job: Job, bytes: &[u8]) -> Result<(PreviewBatch, Vec<u8>)> {
+pub(crate) fn render(job: Job, bytes: &[u8]) -> Result<(PreviewBatch, Vec<u8>)> {
     let (analysis, rgba) = crate::image_decode::decode_display(bytes)?;
     let (w, h) = rgba.dimensions();
     let expected = job.outputs(w, h).ok_or(E::InvalidData)?;

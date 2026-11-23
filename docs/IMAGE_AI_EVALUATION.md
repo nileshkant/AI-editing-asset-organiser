@@ -139,6 +139,12 @@ request allowance ran out) never passes.
 
 ## Running the evaluation
 
+The CLI now uses the desktop queue's preprocessing and structured response
+schema. It renders the Large thumbnail with the production preview renderer,
+re-encodes the preview pixels as PNG and calls the same visual description
+adapter as the queue. The report records both recipe identifiers. The earlier
+1024 px results in this document were measured with the original v1 recipe.
+
 ```sh
 cargo build -p soundshelf-core --bin creativeshelf-image-eval
 target/debug/creativeshelf-image-eval corpus /tmp/cs-corpus
@@ -171,6 +177,7 @@ OPENAI_API_KEY=... target/debug/creativeshelf-image-eval run /tmp/cs-corpus \
 - **SS-052** schedules real analysis. It uses `prepare_pixels` on the worker's
   decoded pixels and `describe`, and it owns consent per source, retries and
   budgets.
-- **SS-053** persists `Evidence` from `image_ai::evidence`.
+- **SS-053** publishes versioned visual suggestions as `Evidence` and scores
+  the same categorized response shape through the CLI.
 - **SS-059** stores vectors per `EmbeddingSpace` and must re-embed when the
   space ID changes.

@@ -920,6 +920,24 @@ impl PreviewService {
     pub fn cache(&self) -> &Arc<PreviewCache> {
         &self.cache
     }
+
+    /// Verify exact original bytes even when a preview can be served from cache.
+    pub(crate) fn verify_original(&self, asset_id: &str, digest: &str) -> Result<()> {
+        let selection = {
+            let catalog = self.catalog.lock().map_err(|_| PreviewError::Internal)?;
+            let asset = catalog.image(asset_id, None).map_err(|_| PreviewError::NotFound)?;
+            if asset.header.content_hash.as_deref() != Some(digest) {
+                return Err(PreviewError::StaleVersion);
+            }
+            ImageSelection::capture(&catalog, &asset.header.source_id, &asset.header.relative_path)
+                .map_err(|_| PreviewError::OriginalUnavailable)?
+        };
+        let hash = selection.hash(&AtomicBool::new(false)).map_err(|_| PreviewError::OriginalUnavailable)?;
+        if hash != digest {
+            return Err(PreviewError::StaleVersion);
+        }
+        Ok(())
+    }
     /// Cancel a request when its view disappears. Shared work stops only when
     /// every coalesced requester has cancelled.
     pub fn cancel(&self, request_id: &str) -> bool {

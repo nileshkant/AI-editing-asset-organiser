@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { imageDetails } from '../../api';
+import { call, imageDetails } from '../../api';
 import type { ImageDetails, ImageSummary } from '../../types';
 import type { ImageProfile } from '../../contracts/imageV1';
 import { fileName } from './ImageGrid';
@@ -32,6 +32,66 @@ type Props = {
   /** Bumped by the gallery after bulk edits, renames or undo so details reload. */
   annotationsVersion: number; onAnnotated: () => void;
 };
+const analysisStates: Record<string, string> = {
+  pending: 'Queued', running: 'Running', dispatching: 'Running', paused: 'Paused',
+  failed: 'Failed', unknown_outcome: 'Outcome unknown', stale: 'Source changed', revoked: 'Cancelled',
+  done: 'Complete', reused: 'Complete', complete: 'Complete', cancelled: 'Cancelled',
+  queued: 'Queued', disabled: 'No analysis yet',
+};
+
+function VisualAnalysis({ details, refresh }: { details: ImageDetails; refresh: () => void }) {
+  const analysis = details.analysis;
+  const latest = details.evidence?.slice().reverse().find(e =>
+    e.origin === 'model' && !e.stale && e.review_state !== 'rejected');
+  const [acceptCharge, setAcceptCharge] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const unknown = analysis?.state === 'unknown_outcome';
+  const partial = latest?.visual && (latest.visual.uncertain || !latest.caption || latest.visual.tags.length === 0);
+  const state = analysisStates[analysis?.state ?? details.header.enrichment_state] ?? 'Unknown';
+  const retry = async () => {
+    if (!analysis) return;
+    setBusy(true); setError('');
+    try {
+      await call('image_enrichment_retry', { jobId: analysis.job_id, assetId: details.header.id, acceptPossibleCharge: acceptCharge });
+      refresh();
+    } catch (e) { setError(String(e)); }
+    finally { setBusy(false); setAcceptCharge(false); }
+  };
+  return <section className="image-annotations" aria-label="AI analysis">
+    <h3>AI analysis</h3>
+    <p role="status">{partial && state === 'Complete' ? 'Partial' : state}
+      {analysis?.error_code && <> · {analysis.error_code.replaceAll('_', ' ').toLowerCase()}</>}
+    </p>
+    {latest && <>
+      {latest.caption && <p className="path-text">{latest.caption}</p>}
+      {latest.visual?.uncertain && <p className="muted">The model was unsure what the image shows.</p>}
+      {!!latest.visual?.tags.length && <ul className="image-tags" aria-label="Visual suggestions">
+        {latest.visual.tags.map(tag => <li key={`${tag.category}:${tag.label}`} className="path-text">{tag.category} · {tag.label}</li>)}
+      </ul>}
+      {latest.model && <details>
+        <summary>Analysis provenance</summary>
+        <dl className="image-facts">
+          <dt>Provider</dt><dd className="path-text">{latest.model.provider}</dd>
+          <dt>Model revision</dt><dd className="path-text">{latest.model.model} · {latest.model.revision}</dd>
+          {latest.visual && <><dt>Provider settings revision</dt><dd>{latest.visual.provider_revision}</dd></>}
+          <dt>Input coverage</dt><dd>{latest.coverage === 'full_image' ? 'Full image' : 'Resized preview'}</dd>
+          <dt>Confidence</dt><dd>{latest.confidence_kind === 'unavailable' ? 'Unavailable' : latest.confidence_kind}</dd>
+          <dt>Analyzed</dt><dd>{new Date(latest.created_at_ms).toLocaleString()}</dd>
+          <dt>Image version</dt><dd className="path-text">{latest.content_hash}</dd>
+          <dt>Preprocessor</dt><dd className="path-text">{latest.model.preprocessing}</dd>
+          <dt>Output schema</dt><dd className="path-text">{latest.model.output_schema}</dd>
+        </dl>
+      </details>}
+    </>}
+    {analysis?.retryable && details.header.availability === 'available' && <>
+      {unknown && <label><input type="checkbox" checked={acceptCharge} onChange={e => setAcceptCharge(e.target.checked)} />I accept a possible second charge</label>}
+      <button disabled={busy || (unknown && !acceptCharge)} onClick={() => void retry()}>Retry AI analysis</button>
+    </>}
+    {error && <p role="alert">{error}</p>}
+  </section>;
+}
+
 export function ImageInspector({ summary, background, setBackground, onClose, onStale, annotationsVersion, onAnnotated }: Props) {
   const [details, setDetails] = useState<ImageDetails | null>(null), [error, setError] = useState(''), [attempt, setAttempt] = useState(0);
   const id = summary.header.id;
@@ -41,7 +101,14 @@ export function ImageInspector({ summary, background, setBackground, onClose, on
     imageDetails(id).then(d => { if (live && d?.header?.id === id) setDetails(d); }).catch(e => { if (live) { setDetails(null); setError(String(e)); } });
     return () => { live = false; };
   }, [id, summary.header.content_hash, attempt, annotationsVersion]);
-  const d = details?.header.id === id ? details : null, header = d?.header ?? summary.header, p = d?.profile;
+  const d = details?.header.id === id && details.header.content_hash === summary.header.content_hash ? details : null;
+  const header = d?.header ?? summary.header, p = d?.profile;
+  const analysisState = d?.analysis?.state;
+  useEffect(() => {
+    if (!analysisState || !['pending', 'running', 'dispatching'].includes(analysisState)) return;
+    const timer = window.setInterval(() => setAttempt(n => n + 1), 2000);
+    return () => window.clearInterval(timer);
+  }, [analysisState]);
   const name = fileName(header.relative_path);
   const ready = header.technical_state === 'ready' && !!header.content_hash && !!p;
   const stale = () => { setAttempt(n => n + 1); onStale(); };
@@ -67,9 +134,9 @@ export function ImageInspector({ summary, background, setBackground, onClose, on
       <dt>Source</dt><dd>{d ? `${d.source_name}${d.source_available ? '' : ' · offline'}` : '…'}</dd>
       <dt>Availability</dt><dd>{availability[header.availability]}</dd>
       <dt>Technical analysis</dt><dd>{header.technical_state}</dd>
-      <dt>AI analysis</dt><dd>{header.enrichment_state === 'disabled' ? 'Not enabled' : header.enrichment_state}</dd>
     </dl>
     {d && <AnnotationEditor details={d} name={name} onChanged={() => { setAttempt(n => n + 1); onAnnotated(); }} />}
+    {d && <VisualAnalysis key={`${id}:${header.content_hash}:${d.analysis?.job_id}`} details={d} refresh={() => setAttempt(n => n + 1)} />}
     {d && <GenerationProvenance id={id} version={header.content_hash} />}
   </aside>;
 }

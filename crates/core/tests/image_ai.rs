@@ -26,6 +26,34 @@ fn answer(caption: &str, tags: &[&str]) -> Value {
 }
 
 #[test]
+fn visual_answers_preserve_distinct_categories_and_reject_invalid_data() {
+    let answer = json!({
+        "caption": "<b>Two figures</b>",
+        "tags": [
+            {"category":"subject","label":"Orange"},
+            {"category":"subject","label":"orange"},
+            {"category":"palette","label":"orange"}
+        ],
+        "uncertain": false
+    });
+    let parsed = parse_visual_insight(&answer).unwrap();
+    assert_eq!(parsed.tags, ["Orange"]);
+    assert_eq!(parsed.visual_tags.len(), 2);
+    assert_eq!(parsed.caption.as_deref(), Some("<b>Two figures</b>"));
+    for invalid in [
+        json!({"caption":"","tags":[],"uncertain":false}),
+        json!({"caption":"","tags":[{"category":"rights","label":"licensed"}],"uncertain":false}),
+        json!({"caption":"","tags":[{"category":"subject","label":"cat","score":1e308}],"uncertain":false}),
+        json!({"caption":"x".repeat(MAX_CAPTION_CHARS + 1),"tags":[],"uncertain":false}),
+        json!({"caption":"a","tags":vec![json!({"category":"subject","label":"cat"}); MAX_INSIGHT_TAGS + 1],"uncertain":false}),
+    ] {
+        assert!(parse_visual_insight(&invalid).is_err());
+    }
+    let unknown = parse_visual_insight(&json!({"caption":"","tags":[],"uncertain":true})).unwrap();
+    assert!(unknown.uncertain && unknown.caption.is_none() && unknown.tags.is_empty());
+}
+
+#[test]
 fn model_output_is_validated_bounded_and_never_truncated() {
     let ok = parse_insight(&json!({"caption": " A red\ncircle\ton white. ", "tags": ["Red", "red", "  circle ", "", "flat_design"], "text_in_image": "", "uncertain": false})).unwrap();
     assert_eq!(ok.caption.as_deref(), Some("A red circle on white."));
@@ -358,6 +386,26 @@ fn thresholds() -> Thresholds {
 }
 fn input<'a>(dir: &'a Path, m: &'a Manifest, t: &'a Thresholds, allowance: u32) -> RunInput<'a> {
     RunInput { dir, manifest: m, manifest_blake3: "m".into(), thresholds: t, thresholds_blake3: "t".into(), request_allowance: allowance }
+}
+
+#[test]
+fn production_evaluation_uses_the_preview_recipe_and_structured_adapter() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut manifest = generate_corpus(dir.path()).unwrap();
+    let index = manifest.items.iter().position(|i| i.id == "crop-panorama-sun").unwrap();
+    manifest.items = vec![manifest.items.remove(index)];
+    let adapter = scripted(|request| {
+        let decoded = image::load_from_memory(&request.images[0].bytes).unwrap();
+        assert_eq!((decoded.width(), decoded.height()), (512, 85));
+        assert_eq!(request.json_schema.as_ref().unwrap()["properties"]["tags"]["items"]["type"], "object");
+        json_response(json!({"caption":"An image.","tags":[{"category":"scene","label":"illustration"}],"uncertain":false}))
+    });
+    let report = image_eval::run_production(&input(dir.path(), &manifest, &thresholds(), 1),
+        Some(&Describer { adapter: &adapter, kind: ProviderKind::OpenaiCompatible, model: "fixture".into() }), None).unwrap();
+    assert_eq!(report.requests, 1);
+    assert_eq!(report.output_schema, VISUAL_SCHEMA_ID);
+    assert_eq!(report.preprocessing, soundshelf_core::image_enrichment::PREPROCESS_ID);
+    assert_eq!(report.items[0].insight.as_ref().unwrap().visual_tags[0].label, "illustration");
 }
 
 /// Answers from the gold labels for each image, identified by its prepared

@@ -9,6 +9,7 @@ use crate::{
     invalid, Result,
 };
 use serde::{Deserialize, Serialize};
+use rusqlite::OptionalExtension;
 
 /// The catalog admits at most 100,000 images; offsets beyond it are invalid.
 pub const MAX_GALLERY_OFFSET: u32 = 100_000;
@@ -27,7 +28,7 @@ pub struct GalleryPage {
     /// Matching images when this page was read; may change between pages.
     pub total: u32,
 }
-/// Inspector facts. Bounded fields only; evidence/recipes stay out of the view.
+/// Inspector facts and version-bound visual suggestions.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ImageDetails {
     pub header: AssetHeader,
@@ -42,6 +43,16 @@ pub struct ImageDetails {
     /// 1–5 stars; `None` is unrated (never zero).
     pub rating: Option<u8>,
     pub annotation_revision: u32,
+    pub evidence: Vec<crate::image_contracts::Evidence>,
+    pub analysis: Option<InspectorAnalysis>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct InspectorAnalysis {
+    pub job_id: String,
+    pub state: String,
+    pub error_code: Option<String>,
+    pub retryable: bool,
 }
 
 impl Catalog {
@@ -132,6 +143,16 @@ impl Catalog {
     pub fn image_details(&self, id: &str) -> Result<ImageDetails> {
         let asset = self.image(id, None)?;
         let source = self.source_header(&asset.header.source_id)?;
+        let analysis = self.db.query_row(
+            "SELECT j.id, CASE WHEN i.state='pending' AND j.state='paused' THEN 'paused' ELSE i.state END,
+                    coalesce(i.error_code,j.error_code), i.state IN ('failed','unknown_outcome')
+                    AND j.state!='cancelled' AND i.attempts<20
+             FROM image_enrichment_items i JOIN image_enrichment_jobs j ON j.id=i.job_id
+             WHERE i.asset_id=?1 AND i.content_hash=?2 AND j.schema_id=?3
+             ORDER BY j.queue_order DESC LIMIT 1",
+            rusqlite::params![id, asset.header.content_hash, crate::image_ai::VISUAL_SCHEMA_ID],
+            |row| Ok(InspectorAnalysis { job_id: row.get(0)?, state: row.get(1)?, error_code: row.get(2)?, retryable: row.get(3)? }),
+        ).optional()?;
         Ok(ImageDetails {
             profile: asset.profile,
             source_name: source.name,
@@ -142,6 +163,8 @@ impl Catalog {
             favorite: asset.annotations.favorite,
             rating: asset.annotations.rating,
             annotation_revision: asset.annotations.revision,
+            evidence: asset.evidence,
+            analysis,
             header: asset.header,
         })
     }
