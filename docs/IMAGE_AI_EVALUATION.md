@@ -135,7 +135,7 @@ request allowance ran out) never passes.
 | --- | --- |
 | File names only (no AI, measured) | recall@5 0.216, MRR 0.294, 0 out-of-domain results |
 | Oracle answering from the gold labels (checks the runner and that thresholds are reachable; says nothing about any model) | tags P 1.00 / R 1.00; word search MRR 0.88; bag-of-words embedding MRR 0.82; passes |
-| Real image model | **Pending: needs an API key** |
+| Gemma 3 4B with EmbeddingGemma (production preview recipe) | Completed locally. Five thresholds missed. See the [SS-053 evaluation](reviews/SS-053.md#held-out-model-evaluation). |
 
 ## Running the evaluation
 
