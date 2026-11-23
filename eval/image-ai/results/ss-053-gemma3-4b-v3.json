@@ -1,0 +1,2918 @@
+{
+  "schema": "creativeshelf-image-eval-report/v1",
+  "corpus": "creativeshelf-generated/v1",
+  "manifest_blake3": "84883d67d8842bdf2e7da573e95e71f28cc27ed4264aa2464d218e0084f0ed49",
+  "thresholds_blake3": "3a0a8ddab10b49f8f91d75f9d77a8a94815c71b15c5f57a5a6dfea1cb313752e",
+  "describer": "openai_compatible/gemma3:4b",
+  "describer_model_version": "gemma3:4b",
+  "preprocessing": "srgb-oriented-preview512-png/v1",
+  "output_schema": "creativeshelf.image-insight/v3",
+  "embedding_space": "openai_compatible/qwen3-embedding:0.6b@qwen3-embedding:0.6b#1024/l2/insight-text/qwen-visual-asset-query-v1",
+  "similarity_cutoff": 0.37,
+  "requests": 41,
+  "request_allowance": 41,
+  "complete": true,
+  "usage": {
+    "input_tokens": 22249,
+    "output_tokens": 10069
+  },
+  "mean_input_tokens": 556,
+  "dev": {
+    "items": 14,
+    "failures": 0,
+    "uncertain": 0,
+    "tags": {
+      "judged": 37,
+      "correct": 27,
+      "unjudged": 77,
+      "gold_facts": 35,
+      "gold_found": 27
+    },
+    "tag_precision": 0.7297297297297297,
+    "tag_recall": 0.7714285714285715,
+    "caption_fact_coverage": 0.9090909090909091,
+    "caption_error_rate": 0.07142857142857142,
+    "p50_latency_ms": 7451,
+    "p95_latency_ms": 11754,
+    "filename_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.3,
+      "mrr": 0.4,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    },
+    "insight_lexical_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.5,
+      "mrr": 0.45999999999999996,
+      "out_of_domain_with_results": 2,
+      "out_of_domain_queries": 2
+    },
+    "embedding_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.9,
+      "mrr": 0.9166666666666666,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    }
+  },
+  "heldout": {
+    "items": 26,
+    "failures": 0,
+    "uncertain": 0,
+    "tags": {
+      "judged": 83,
+      "correct": 46,
+      "unjudged": 143,
+      "gold_facts": 65,
+      "gold_found": 44
+    },
+    "tag_precision": 0.5542168674698795,
+    "tag_recall": 0.676923076923077,
+    "caption_fact_coverage": 0.8157894736842105,
+    "caption_error_rate": 0.038461538461538464,
+    "p50_latency_ms": 9253,
+    "p95_latency_ms": 11985,
+    "filename_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.2156862745098039,
+      "mrr": 0.29411764705882354,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    },
+    "insight_lexical_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.7647058823529411,
+      "mrr": 0.5674019607843137,
+      "out_of_domain_with_results": 2,
+      "out_of_domain_queries": 2
+    },
+    "embedding_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.8823529411764706,
+      "mrr": 0.8725490196078431,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    }
+  },
+  "items": [
+    {
+      "id": "flat-red-circle",
+      "split": "dev",
+      "latency_ms": 5958,
+      "insight": {
+        "caption": "A flag composed of three horizontal bands. The top and bottom bands are white, and the middle band is red. A large, solid red circle is centered on the red band. The background is black.",
+        "tags": [
+          "flag",
+          "horizontal",
+          "geometric",
+          "red",
+          "white",
+          "black",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "scene",
+            "label": "horizontal"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-blue-square",
+      "split": "heldout",
+      "latency_ms": 9387,
+      "insight": {
+        "caption": "The image depicts a white rectangular flag with a blue square in the bottom-left corner. The flag is set against a black background.",
+        "tags": [
+          "flag",
+          "background",
+          "undefined",
+          "abstract",
+          "neutral",
+          "blue",
+          "white",
+          "black",
+          "geometric"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "action",
+            "label": "undefined"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "mood",
+            "label": "neutral"
+          },
+          {
+            "category": "lighting",
+            "label": "undefined"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "geometric"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 8,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-green-triangle",
+      "split": "heldout",
+      "latency_ms": 9432,
+      "insight": {
+        "caption": "The image displays a green triangle centered on a white background, with a black border. The triangle is sharply defined and occupies the central portion of the image.",
+        "tags": [
+          "triangle",
+          "green",
+          "white",
+          "black",
+          "background",
+          "geometric",
+          "flat",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "subject",
+            "label": "green"
+          },
+          {
+            "category": "subject",
+            "label": "white"
+          },
+          {
+            "category": "subject",
+            "label": "black"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "lighting",
+            "label": "flat"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-yellow-star",
+      "split": "dev",
+      "latency_ms": 9291,
+      "insight": {
+        "caption": "A navy blue flag displays a single, bright yellow five-pointed star in the center. The star is positioned approximately in the upper half of the flag. The flag is a rectangular shape and appears to be a standard design.",
+        "tags": [
+          "flag",
+          "background",
+          "display",
+          "abstract",
+          "neutral",
+          "artificial",
+          "navy blue",
+          "yellow",
+          "centered",
+          "star"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "action",
+            "label": "display"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "mood",
+            "label": "neutral"
+          },
+          {
+            "category": "lighting",
+            "label": "artificial"
+          },
+          {
+            "category": "palette",
+            "label": "navy blue"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          },
+          {
+            "category": "subject",
+            "label": "star"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 8,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": [
+          "blue"
+        ]
+      }
+    },
+    {
+      "id": "wc-red-wash",
+      "split": "heldout",
+      "latency_ms": 10246,
+      "insight": {
+        "caption": "The image depicts a cluster of overlapping, soft, red circles against a light beige background. A black border surrounds the central area.",
+        "tags": [
+          "Circles",
+          "Background",
+          "Overlapping",
+          "Abstract",
+          "Serene",
+          "Soft",
+          "Red",
+          "Beige",
+          "Central",
+          "Border"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "Circles"
+          },
+          {
+            "category": "scene",
+            "label": "Background"
+          },
+          {
+            "category": "action",
+            "label": "Overlapping"
+          },
+          {
+            "category": "style",
+            "label": "Abstract"
+          },
+          {
+            "category": "mood",
+            "label": "Serene"
+          },
+          {
+            "category": "lighting",
+            "label": "Soft"
+          },
+          {
+            "category": "palette",
+            "label": "Red"
+          },
+          {
+            "category": "palette",
+            "label": "Beige"
+          },
+          {
+            "category": "composition",
+            "label": "Central"
+          },
+          {
+            "category": "subject",
+            "label": "Border"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 8,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-blue-wash",
+      "split": "heldout",
+      "latency_ms": 10097,
+      "insight": {
+        "caption": "The image features a large, clustered group of blue circles, predominantly shades of blue ranging from light to dark. The circles are arranged in a roughly amorphous shape, resembling a cloud or smoke. The background is a solid white color. A black border frames the image.",
+        "tags": [
+          "circles",
+          "cloud",
+          "smoke",
+          "background",
+          "white",
+          "border",
+          "blue",
+          "black",
+          "abstract"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circles"
+          },
+          {
+            "category": "subject",
+            "label": "cloud"
+          },
+          {
+            "category": "subject",
+            "label": "smoke"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "white"
+          },
+          {
+            "category": "scene",
+            "label": "border"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 7,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-green-yellow",
+      "split": "dev",
+      "latency_ms": 8146,
+      "insight": {
+        "caption": "Two abstract shapes are visible in the image. One is primarily green, transitioning to lighter shades, and the other is predominantly yellow, with a similar gradient. They are arranged side-by-side on a light beige background. A black border surrounds the entire image.",
+        "tags": [
+          "abstract shape",
+          "background",
+          "abstract",
+          "green",
+          "yellow",
+          "beige",
+          "side-by-side",
+          "soft",
+          "calm",
+          "border"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "abstract shape"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "beige"
+          },
+          {
+            "category": "composition",
+            "label": "side-by-side"
+          },
+          {
+            "category": "lighting",
+            "label": "soft"
+          },
+          {
+            "category": "mood",
+            "label": "calm"
+          },
+          {
+            "category": "subject",
+            "label": "border"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 8,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-purple-circle",
+      "split": "heldout",
+      "latency_ms": 7204,
+      "insight": {
+        "caption": "A large, blurred purple shape dominates the image, positioned centrally against a plain white background. A black border frames the image.",
+        "tags": [
+          "shape",
+          "purple",
+          "background",
+          "white",
+          "border",
+          "black"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "shape"
+          },
+          {
+            "category": "subject",
+            "label": "purple"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "white"
+          },
+          {
+            "category": "scene",
+            "label": "border"
+          },
+          {
+            "category": "scene",
+            "label": "black"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 5,
+        "gold_facts": 3,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-grid",
+      "split": "heldout",
+      "latency_ms": 9143,
+      "insight": {
+        "caption": "The image displays a 3x3 grid of colored squares and triangles arranged in a rectangular frame. The upper left square is red with a white circle. The upper middle square is blue. The upper right square is yellow. The lower left square is green. The lower middle square is orange with a white triangle. The lower right square is purple. The background is a light beige color.",
+        "tags": [
+          "square",
+          "triangle",
+          "circle",
+          "grid",
+          "frame",
+          "red",
+          "blue",
+          "yellow",
+          "green",
+          "orange",
+          "purple",
+          "white",
+          "beige",
+          "geometric",
+          "grid layout"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "square"
+          },
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "scene",
+            "label": "grid"
+          },
+          {
+            "category": "scene",
+            "label": "frame"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "purple"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "beige"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "composition",
+            "label": "grid layout"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 9,
+        "correct": 3,
+        "unjudged": 6,
+        "gold_facts": 4,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-overlap",
+      "split": "dev",
+      "latency_ms": 7451,
+      "insight": {
+        "caption": "This image depicts a collection of geometric shapes arranged on a textured beige background. Several orange and blue rectangular blocks are visible, with some overlapping. A small, square blue shape is present in the lower right corner. A light beige rectangle occupies the lower left portion of the image. There's a darker, near-black border surrounding the entire composition.",
+        "tags": [
+          "geometric shapes",
+          "background",
+          "rectangle",
+          "orange",
+          "blue",
+          "beige",
+          "dark gray",
+          "abstract",
+          "overlapping"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "geometric shapes"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "subject",
+            "label": "rectangle"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "beige"
+          },
+          {
+            "category": "palette",
+            "label": "dark gray"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "composition",
+            "label": "overlapping"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 6,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-shapes",
+      "split": "heldout",
+      "latency_ms": 10407,
+      "insight": {
+        "caption": "A beige background features a red rectangle, a blue circle, a green triangle, and a yellow star. The shapes are arranged in a slightly staggered fashion, creating a layered composition. A dark black border surrounds the image.",
+        "tags": [
+          "rectangle",
+          "circle",
+          "triangle",
+          "star",
+          "background",
+          "red",
+          "blue",
+          "green",
+          "yellow",
+          "beige",
+          "ambient",
+          "layered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "rectangle"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "beige"
+          },
+          {
+            "category": "lighting",
+            "label": "ambient"
+          },
+          {
+            "category": "composition",
+            "label": "layered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 8,
+        "correct": 3,
+        "unjudged": 4,
+        "gold_facts": 4,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-stripes",
+      "split": "heldout",
+      "latency_ms": 11985,
+      "insight": {
+        "caption": "The image depicts a rectangular flag with a central purple circle. The flag is divided into horizontal stripes of varying colors: red, blue, yellow, green, and orange. White stripes run vertically through the flag, creating a grid-like pattern. The background is a neutral beige color.",
+        "tags": [
+          "flag",
+          "abstract",
+          "none",
+          "geometric",
+          "neutral",
+          "diffuse",
+          "red",
+          "blue",
+          "yellow",
+          "green",
+          "orange",
+          "purple",
+          "beige",
+          "rectangular"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "scene",
+            "label": "abstract"
+          },
+          {
+            "category": "action",
+            "label": "none"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "mood",
+            "label": "neutral"
+          },
+          {
+            "category": "lighting",
+            "label": "diffuse"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "purple"
+          },
+          {
+            "category": "palette",
+            "label": "beige"
+          },
+          {
+            "category": "composition",
+            "label": "rectangular"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 6,
+        "correct": 0,
+        "unjudged": 8,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-red-sphere",
+      "split": "dev",
+      "latency_ms": 8996,
+      "insight": {
+        "caption": "A large, red sphere is centered on a white background. A black horizontal bar forms the top edge of the image. The sphere has a glossy appearance with subtle shading suggesting three-dimensionality. The background is a light gray.",
+        "tags": [
+          "sphere",
+          "red object",
+          "background",
+          "white background",
+          "gray background",
+          "horizontal bar",
+          "black bar",
+          "glossy",
+          "ambient lighting",
+          "red",
+          "white",
+          "gray",
+          "black"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sphere"
+          },
+          {
+            "category": "subject",
+            "label": "red object"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "white background"
+          },
+          {
+            "category": "scene",
+            "label": "gray background"
+          },
+          {
+            "category": "scene",
+            "label": "horizontal bar"
+          },
+          {
+            "category": "scene",
+            "label": "black bar"
+          },
+          {
+            "category": "style",
+            "label": "glossy"
+          },
+          {
+            "category": "lighting",
+            "label": "ambient lighting"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 10,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-blue-sphere-floor",
+      "split": "heldout",
+      "latency_ms": 11020,
+      "insight": {
+        "caption": "A large, blue sphere is centered in the image. It has a gradient of color, darker at the top and lighter at the bottom. A dark gray shadow is cast beneath the sphere on a light gray background. A black border frames the entire image.",
+        "tags": [
+          "sphere",
+          "ball",
+          "background",
+          "gray background",
+          "light gray",
+          "dark gray",
+          "shadow",
+          "ambient lighting",
+          "geometric",
+          "blue",
+          "gray",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sphere"
+          },
+          {
+            "category": "subject",
+            "label": "ball"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "gray background"
+          },
+          {
+            "category": "scene",
+            "label": "light gray"
+          },
+          {
+            "category": "scene",
+            "label": "dark gray"
+          },
+          {
+            "category": "lighting",
+            "label": "shadow"
+          },
+          {
+            "category": "lighting",
+            "label": "ambient lighting"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 4,
+        "correct": 3,
+        "unjudged": 8,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-green-cube",
+      "split": "heldout",
+      "latency_ms": 7743,
+      "insight": {
+        "caption": "A solid, three-dimensional green cube is centered against a light gray background. The cube has flat faces and appears to be a geometric shape.",
+        "tags": [
+          "cube",
+          "background",
+          "gray background",
+          "geometric",
+          "green",
+          "gray",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "cube"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "gray background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 4,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-orange-sphere",
+      "split": "dev",
+      "latency_ms": 5220,
+      "insight": {
+        "caption": "A spherical object, predominantly orange in color, is centered within the image. The sphere has a smooth, reflective surface. The background is a dark gray, providing a simple contrast.",
+        "tags": [
+          "sphere",
+          "background",
+          "orange",
+          "gray",
+          "abstract",
+          "diffuse"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sphere"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "lighting",
+            "label": "diffuse"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 3,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-login",
+      "split": "heldout",
+      "latency_ms": 12956,
+      "insight": {
+        "caption": "The image depicts a dark window frame with a white webpage displayed within it. The webpage contains a green, orange, and green colored lightbulb icon on the left. Below the icons is a horizontal, gray menu bar with seven light gray lines. A white rectangular login form dominates the center, featuring two horizontal, light gray text input fields and a blue ‘LOGIN’ button. The background of the webpage is white, and the window frame is dark gray.",
+        "tags": [
+          "window",
+          "webpage",
+          "login form",
+          "lightbulb icon",
+          "menu bar",
+          "button",
+          "digital interface",
+          "pixelated",
+          "gray",
+          "white",
+          "green",
+          "orange",
+          "blue",
+          "artificial light"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "window"
+          },
+          {
+            "category": "subject",
+            "label": "webpage"
+          },
+          {
+            "category": "subject",
+            "label": "login form"
+          },
+          {
+            "category": "subject",
+            "label": "lightbulb icon"
+          },
+          {
+            "category": "subject",
+            "label": "menu bar"
+          },
+          {
+            "category": "subject",
+            "label": "button"
+          },
+          {
+            "category": "scene",
+            "label": "digital interface"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "lighting",
+            "label": "artificial light"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 5,
+        "correct": 1,
+        "unjudged": 9,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-dark-menu",
+      "split": "heldout",
+      "latency_ms": 9215,
+      "insight": {
+        "caption": "The image depicts a dark gray computer screen displaying a menu. The menu is segmented into rows of gray horizontal lines. Three small green dots are visible on the top left corner of the screen. The background is a solid dark gray. There is a large, white 'MENU' text element at the center of the screen.",
+        "tags": [
+          "computer screen",
+          "digital interface",
+          "pixel art",
+          "gray",
+          "green",
+          "white",
+          "artificial light",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "computer screen"
+          },
+          {
+            "category": "scene",
+            "label": "digital interface"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "lighting",
+            "label": "artificial light"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 0,
+        "unjudged": 6,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-dialog",
+      "split": "dev",
+      "latency_ms": 7009,
+      "insight": {
+        "caption": "A grey window with a white save dialog box is displayed. The dialog box has a blue 'OK' button and the text 'SAVE' in white. A green and orange border frames the window. The window is set against a blurred grey background.",
+        "tags": [
+          "window",
+          "desktop",
+          "digital art",
+          "grey",
+          "white",
+          "blue",
+          "green",
+          "orange",
+          "close-up"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "window"
+          },
+          {
+            "category": "scene",
+            "label": "desktop"
+          },
+          {
+            "category": "style",
+            "label": "digital art"
+          },
+          {
+            "category": "palette",
+            "label": "grey"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "composition",
+            "label": "close-up"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 5,
+        "correct": 1,
+        "unjudged": 4,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-spreadsheet",
+      "split": "heldout",
+      "latency_ms": 10448,
+      "insight": {
+        "caption": "The image shows a white grid background with a rectangular blue shape in the center. Three small circular icons are visible in the upper left corner, colored red, green, and yellow. A series of gray lines form a horizontal menu bar on the left side. The overall setting appears to be a digital interface.",
+        "tags": [
+          "grid",
+          "interface",
+          "rectangle",
+          "blue shape",
+          "icons",
+          "red",
+          "green",
+          "yellow",
+          "menu bar",
+          "gray",
+          "digital"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "grid"
+          },
+          {
+            "category": "scene",
+            "label": "interface"
+          },
+          {
+            "category": "subject",
+            "label": "rectangle"
+          },
+          {
+            "category": "subject",
+            "label": "blue shape"
+          },
+          {
+            "category": "subject",
+            "label": "icons"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "subject",
+            "label": "menu bar"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "style",
+            "label": "digital"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 6,
+        "correct": 1,
+        "unjudged": 5,
+        "gold_facts": 1,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-sale",
+      "split": "heldout",
+      "latency_ms": 8423,
+      "insight": {
+        "caption": "The word 'SALE' is displayed in red against a white background, set on a black background. The letters are pixelated.",
+        "tags": [
+          "text",
+          "background",
+          "pixelated",
+          "red",
+          "white",
+          "black",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-hello",
+      "split": "dev",
+      "latency_ms": 5116,
+      "insight": {
+        "caption": "The image consists of a large, rectangular yellow block with the word 'HELLO' rendered in black, pixelated font. The block is set against a black background. The text is centered within the yellow block.",
+        "tags": [
+          "text",
+          "background",
+          "pixelated",
+          "yellow",
+          "black",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 4,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-open",
+      "split": "heldout",
+      "latency_ms": 7473,
+      "insight": {
+        "caption": "A rectangular green field displays the word 'OPEN' in white, pixelated block letters. The background is black.",
+        "tags": [
+          "text",
+          "field",
+          "pixelated",
+          "green",
+          "white",
+          "black",
+          "rectangular"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "scene",
+            "label": "field"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "rectangular"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-stop",
+      "split": "heldout",
+      "latency_ms": 8087,
+      "insight": {
+        "caption": "A red octagon shape with the word \"STOP\" in white capital letters is centered on a pale blue background. The shape is geometrically precise with sharp edges. The background is a uniform, light blue color.",
+        "tags": [
+          "octagon",
+          "background",
+          "geometric",
+          "red",
+          "white",
+          "blue",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "octagon"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 4,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": [
+          "blue"
+        ]
+      }
+    },
+    {
+      "id": "alpha-red-circle",
+      "split": "dev",
+      "latency_ms": 4321,
+      "insight": {
+        "caption": "A large, solid red circle occupies the entire frame. The background is black.",
+        "tags": [
+          "circle",
+          "black background",
+          "abstract",
+          "red",
+          "full frame"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "scene",
+            "label": "black background"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "composition",
+            "label": "full frame"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 3,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-blue-star",
+      "split": "heldout",
+      "latency_ms": 7055,
+      "insight": {
+        "caption": "A bright blue five-pointed star is centered against a black background. The star has a slightly elongated, triangular shape. There are no secondary subjects or background features visible.",
+        "tags": [
+          "star",
+          "background",
+          "geometric",
+          "blue",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 3,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-green-triangle",
+      "split": "heldout",
+      "latency_ms": 8093,
+      "insight": {
+        "caption": "A large, solid green triangle dominates the image. The triangle's base is a dark green and its apex is a lighter shade of green. Below the triangle is a solid dark green horizontal line. The background is black.",
+        "tags": [
+          "triangle",
+          "background",
+          "geometric",
+          "green",
+          "black"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "triangle"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 3,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-soft-purple",
+      "split": "dev",
+      "latency_ms": 4752,
+      "insight": {
+        "caption": "A full purple circle occupies the image. The circle has a smooth, rounded shape and a solid purple color. The background is black.",
+        "tags": [
+          "circle",
+          "background",
+          "abstract",
+          "purple",
+          "flat"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "palette",
+            "label": "purple"
+          },
+          {
+            "category": "lighting",
+            "label": "flat"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 3,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-circle-square",
+      "split": "heldout",
+      "latency_ms": 9253,
+      "insight": {
+        "caption": "The image shows a white background with a red circle on the left and a blue square on the right. The shapes are arranged side-by-side. The background is entirely white.",
+        "tags": [
+          "circle",
+          "square",
+          "background",
+          "white",
+          "red",
+          "blue",
+          "geometric",
+          "side-by-side"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "square"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "composition",
+            "label": "side-by-side"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 4,
+        "correct": 4,
+        "unjudged": 4,
+        "gold_facts": 4,
+        "gold_found": 4
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-three-stars",
+      "split": "heldout",
+      "latency_ms": 6673,
+      "insight": {
+        "caption": "The image shows three yellow stars arranged in a horizontal line on a white background with black borders. The stars are consistent in shape and size.",
+        "tags": [
+          "stars",
+          "background",
+          "geometric",
+          "yellow",
+          "white",
+          "black",
+          "linear"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "stars"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "linear"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-three-shapes",
+      "split": "dev",
+      "latency_ms": 8160,
+      "insight": {
+        "caption": "The image features three distinct shapes arranged horizontally on a white background. A green triangle is on the left, a red circle is in the center, and a blue square is on the right. The shapes are isolated against a black background. The background is a solid white.",
+        "tags": [
+          "triangle",
+          "circle",
+          "square",
+          "background",
+          "green",
+          "red",
+          "blue",
+          "white",
+          "black",
+          "horizontal"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "square"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "horizontal"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 6,
+        "correct": 6,
+        "unjudged": 4,
+        "gold_facts": 6,
+        "gold_found": 6
+      },
+      "caption": {
+        "required": 3,
+        "covered": 3,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-dots",
+      "split": "heldout",
+      "latency_ms": 9581,
+      "insight": {
+        "caption": "The image features a white rectangular background with a repeating pattern of blue circles. The circles are arranged in rows and columns, creating a grid-like structure. The color of the circles is bright blue. The background is white and appears flat. A black border surrounds the entire image.",
+        "tags": [
+          "circle",
+          "pattern",
+          "background",
+          "rectangle",
+          "grid",
+          "blue",
+          "white",
+          "black",
+          "geometric"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "pattern"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "rectangle"
+          },
+          {
+            "category": "scene",
+            "label": "grid"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "geometric"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 4,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-panorama-sun",
+      "split": "heldout",
+      "latency_ms": 10679,
+      "insight": {
+        "caption": "A horizontal image depicts a dark blue sky transitioning to orange and yellow hues near the horizon. A bright yellow sun is positioned on the right side of the horizon. A thin, horizontal orange band separates the darker sky from the brighter horizon. The background is a solid black.",
+        "tags": [
+          "sun",
+          "horizon",
+          "sky",
+          "ocean",
+          "geometric",
+          "orange",
+          "yellow",
+          "blue",
+          "black",
+          "sunset",
+          "horizontal"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "sun"
+          },
+          {
+            "category": "subject",
+            "label": "horizon"
+          },
+          {
+            "category": "scene",
+            "label": "sky"
+          },
+          {
+            "category": "scene",
+            "label": "ocean"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "orange"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "lighting",
+            "label": "sunset"
+          },
+          {
+            "category": "composition",
+            "label": "horizontal"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 5,
+        "correct": 4,
+        "unjudged": 6,
+        "gold_facts": 4,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-tall-stripes",
+      "split": "dev",
+      "latency_ms": 8944,
+      "insight": {
+        "caption": "The image features a vertical arrangement of parallel stripes. The stripes are green and white, with the green stripes appearing above the white stripes. The stripes are evenly spaced and create a repeating pattern. The background is black.",
+        "tags": [
+          "stripes",
+          "vertical",
+          "background",
+          "geometric",
+          "green",
+          "white",
+          "repeating pattern"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "stripes"
+          },
+          {
+            "category": "scene",
+            "label": "vertical"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "composition",
+            "label": "repeating pattern"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-half-circle",
+      "split": "heldout",
+      "latency_ms": 6041,
+      "insight": {
+        "caption": "A white rectangular background with a large red circle centrally positioned. A black border surrounds the entire image. The scene is a flag.",
+        "tags": [
+          "flag",
+          "abstract",
+          "red",
+          "white",
+          "black",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "scene",
+            "label": "flag"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-tiny-star",
+      "split": "heldout",
+      "latency_ms": 7356,
+      "insight": {
+        "caption": "A dark blue background with a single, bright yellow star positioned in the upper right corner of the image. The background is a deep, saturated blue color. The star is a standard five-pointed shape, shining brightly.",
+        "tags": [
+          "star",
+          "background",
+          "blue",
+          "yellow",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 2,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-rounded-square",
+      "split": "dev",
+      "latency_ms": 11754,
+      "insight": {
+        "caption": "A rectangular white background with a large, solid red circle in the center. The circle is on a flag-like design. The background is black at the top and bottom edges.",
+        "tags": [
+          "flag",
+          "background",
+          "display",
+          "geometric",
+          "neutral",
+          "flat",
+          "red",
+          "white",
+          "black",
+          "central",
+          "circle"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "action",
+            "label": "display"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "mood",
+            "label": "neutral"
+          },
+          {
+            "category": "lighting",
+            "label": "flat"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "central"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 9,
+        "gold_facts": 1,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-magenta",
+      "split": "heldout",
+      "latency_ms": 10140,
+      "insight": {
+        "caption": "The image features a large, solid pink square set against a white background. The white area occupies the top and left portions of the image, while the pink square occupies the central area. The background is black. The arrangement creates a simple, two-color composition.",
+        "tags": [
+          "square",
+          "pink",
+          "white",
+          "background",
+          "black",
+          "geometric",
+          "minimalist"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "square"
+          },
+          {
+            "category": "subject",
+            "label": "pink"
+          },
+          {
+            "category": "subject",
+            "label": "white"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "scene",
+            "label": "black"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "pink"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "black"
+          },
+          {
+            "category": "composition",
+            "label": "minimalist"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 1,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-noise",
+      "split": "heldout",
+      "latency_ms": 6684,
+      "insight": {
+        "caption": "The image consists of a dense, uniform texture of gray pixels. It presents as a solid, grainy surface with no discernible shapes or objects. The background is black.",
+        "tags": [
+          "texture",
+          "background",
+          "abstract",
+          "neutral",
+          "flat",
+          "grayscale",
+          "full frame"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "texture"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "abstract"
+          },
+          {
+            "category": "mood",
+            "label": "neutral"
+          },
+          {
+            "category": "lighting",
+            "label": "flat"
+          },
+          {
+            "category": "palette",
+            "label": "grayscale"
+          },
+          {
+            "category": "composition",
+            "label": "full frame"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 6,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-faint",
+      "split": "dev",
+      "latency_ms": 5616,
+      "insight": {
+        "caption": "The image depicts a white background with a single, large, light gray circle centered within it. The circle dominates the composition. The background is solid white.",
+        "tags": [
+          "circle",
+          "background",
+          "geometric",
+          "white",
+          "gray",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "palette",
+            "label": "gray"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 0,
+        "unjudged": 4,
+        "gold_facts": 0,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    }
+  ],
+  "verdict": {
+    "passed": false,
+    "failures": [
+      "tag precision Some(0.5542168674698795) < 0.8"
+    ]
+  }
+}

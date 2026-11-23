@@ -177,7 +177,7 @@ fn obsolete_description_jobs_never_dispatch_with_the_new_prompt() {
     let source = f.import(&root);
     f.consent(&source, false).unwrap();
     let old = f.start(&source, 1, 100_000).unwrap();
-    f.exec("UPDATE image_enrichment_jobs SET schema_id='creativeshelf.image-insight/v2'");
+    f.exec("UPDATE image_enrichment_jobs SET schema_id='creativeshelf.image-insight/v3'");
     let fake = Fake::ok();
     let run = runner(&f, &fake);
     drain(&run);
