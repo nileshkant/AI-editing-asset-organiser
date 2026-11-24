@@ -1,0 +1,1429 @@
+{
+  "schema": "creativeshelf-image-eval-report/v1",
+  "corpus": "creativeshelf-generated/v1",
+  "manifest_blake3": "84883d67d8842bdf2e7da573e95e71f28cc27ed4264aa2464d218e0084f0ed49",
+  "thresholds_blake3": "3a0a8ddab10b49f8f91d75f9d77a8a94815c71b15c5f57a5a6dfea1cb313752e",
+  "describer": "openai_compatible/gemma3:4b",
+  "describer_model_version": "gemma3:4b",
+  "preprocessing": "srgb-oriented-preview512-png/v1",
+  "output_schema": "creativeshelf.image-insight/v2",
+  "embedding_space": "openai_compatible/embeddinggemma:latest@embeddinggemma:latest#768/l2/insight-text/v1",
+  "similarity_cutoff": 0.4,
+  "requests": 41,
+  "request_allowance": 41,
+  "complete": true,
+  "usage": {
+    "input_tokens": 18152,
+    "output_tokens": 5724
+  },
+  "mean_input_tokens": 453,
+  "dev": {
+    "items": 14,
+    "failures": 0,
+    "uncertain": 9,
+    "tags": {
+      "judged": 8,
+      "correct": 7,
+      "unjudged": 17,
+      "gold_facts": 35,
+      "gold_found": 7
+    },
+    "tag_precision": 0.875,
+    "tag_recall": 0.2,
+    "caption_fact_coverage": 0.6363636363636364,
+    "caption_error_rate": 0.07142857142857142,
+    "p50_latency_ms": 6484,
+    "p95_latency_ms": 11188,
+    "filename_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.3,
+      "mrr": 0.4,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    },
+    "insight_lexical_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.55,
+      "mrr": 0.6,
+      "out_of_domain_with_results": 2,
+      "out_of_domain_queries": 2
+    },
+    "embedding_retrieval": {
+      "queries": 10,
+      "recall_at_5": 0.8,
+      "mrr": 0.7166666666666667,
+      "out_of_domain_with_results": 1,
+      "out_of_domain_queries": 2
+    }
+  },
+  "heldout": {
+    "items": 26,
+    "failures": 0,
+    "uncertain": 19,
+    "tags": {
+      "judged": 16,
+      "correct": 10,
+      "unjudged": 22,
+      "gold_facts": 65,
+      "gold_found": 9
+    },
+    "tag_precision": 0.625,
+    "tag_recall": 0.13846153846153847,
+    "caption_fact_coverage": 0.7368421052631579,
+    "caption_error_rate": 0.038461538461538464,
+    "p50_latency_ms": 6372,
+    "p95_latency_ms": 8163,
+    "filename_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.2156862745098039,
+      "mrr": 0.29411764705882354,
+      "out_of_domain_with_results": 0,
+      "out_of_domain_queries": 2
+    },
+    "insight_lexical_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.6078431372549019,
+      "mrr": 0.5196078431372548,
+      "out_of_domain_with_results": 2,
+      "out_of_domain_queries": 2
+    },
+    "embedding_retrieval": {
+      "queries": 17,
+      "recall_at_5": 0.7647058823529411,
+      "mrr": 0.8375350140056022,
+      "out_of_domain_with_results": 1,
+      "out_of_domain_queries": 2
+    }
+  },
+  "items": [
+    {
+      "id": "flat-red-circle",
+      "split": "dev",
+      "latency_ms": 11188,
+      "insight": {
+        "caption": "Japan flag",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-blue-square",
+      "split": "heldout",
+      "latency_ms": 6797,
+      "insight": {
+        "caption": "A blue square on a white field with a black border.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-green-triangle",
+      "split": "heldout",
+      "latency_ms": 6372,
+      "insight": {
+        "caption": "Green triangle on a white and black background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "flat-yellow-star",
+      "split": "dev",
+      "latency_ms": 5499,
+      "insight": {
+        "caption": "A flag with a yellow star on a dark blue background.",
+        "tags": [
+          "flag",
+          "star",
+          "yellow",
+          "blue",
+          "geometric"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 2,
+        "unjudged": 2,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": [
+          "blue"
+        ]
+      }
+    },
+    {
+      "id": "wc-red-wash",
+      "split": "heldout",
+      "latency_ms": 6456,
+      "insight": {
+        "caption": "Red abstract shapes on a light background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-blue-wash",
+      "split": "heldout",
+      "latency_ms": 5968,
+      "insight": {
+        "caption": "Blue abstract blob on a white background",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-green-yellow",
+      "split": "dev",
+      "latency_ms": 6507,
+      "insight": {
+        "caption": "Two abstract watercolor splashes, one green and one yellow, on a white background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "wc-purple-circle",
+      "split": "heldout",
+      "latency_ms": 6326,
+      "insight": {
+        "caption": "A blurred purple sphere on a white background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-grid",
+      "split": "heldout",
+      "latency_ms": 7707,
+      "insight": {
+        "caption": "A grid of six colored squares and triangles.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 4,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-overlap",
+      "split": "dev",
+      "latency_ms": 5353,
+      "insight": {
+        "caption": "Abstract geometric composition with overlapping squares.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-shapes",
+      "split": "heldout",
+      "latency_ms": 9038,
+      "insight": {
+        "caption": "Geometric shapes on a beige background.",
+        "tags": [
+          "rectangle",
+          "triangle",
+          "circle",
+          "star",
+          "abstract",
+          "red",
+          "green",
+          "blue",
+          "yellow",
+          "geometric"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "rectangle"
+          },
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "star"
+          },
+          {
+            "category": "scene",
+            "label": "abstract"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "yellow"
+          },
+          {
+            "category": "composition",
+            "label": "geometric"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 8,
+        "correct": 3,
+        "unjudged": 2,
+        "gold_facts": 4,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "collage-stripes",
+      "split": "heldout",
+      "latency_ms": 8163,
+      "insight": {
+        "caption": "A rectangular flag with vertical stripes. The stripes are colored red, blue, yellow, green, and red. There is a large purple circle in the center.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-red-sphere",
+      "split": "dev",
+      "latency_ms": 6593,
+      "insight": {
+        "caption": "Red sphere on a white and black background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-blue-sphere-floor",
+      "split": "heldout",
+      "latency_ms": 8162,
+      "insight": {
+        "caption": "A blue sphere on a gray background with a black outline.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-green-cube",
+      "split": "heldout",
+      "latency_ms": 6293,
+      "insight": {
+        "caption": "A green cube on a gray background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "3d-orange-sphere",
+      "split": "dev",
+      "latency_ms": 6484,
+      "insight": {
+        "caption": "A sphere, orange in color, on a dark gray background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-login",
+      "split": "heldout",
+      "latency_ms": 6570,
+      "insight": {
+        "caption": "A pixelated window displaying a sign-in form.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-dark-menu",
+      "split": "heldout",
+      "latency_ms": 6383,
+      "insight": {
+        "caption": "A dark gray computer screen displays a menu bar with horizontal lines.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-dialog",
+      "split": "dev",
+      "latency_ms": 6608,
+      "insight": {
+        "caption": "A save dialog box appears on a grey computer screen.",
+        "tags": [
+          "computer screen",
+          "dialog box",
+          "save",
+          "pixel art",
+          "grey, white, blue"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "scene",
+            "label": "computer screen"
+          },
+          {
+            "category": "subject",
+            "label": "dialog box"
+          },
+          {
+            "category": "action",
+            "label": "save"
+          },
+          {
+            "category": "style",
+            "label": "pixel art"
+          },
+          {
+            "category": "palette",
+            "label": "grey, white, blue"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 5,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "ui-spreadsheet",
+      "split": "heldout",
+      "latency_ms": 6582,
+      "insight": {
+        "caption": "A screenshot of a grid-based interface with a blue rectangle.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 1,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-sale",
+      "split": "heldout",
+      "latency_ms": 6199,
+      "insight": {
+        "caption": "Pixelated red text reads 'SALE'. The background is a black and white striped pattern.",
+        "tags": [
+          "text",
+          "pixelated",
+          "red, white, black",
+          "background"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          },
+          {
+            "category": "palette",
+            "label": "red, white, black"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 3,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-hello",
+      "split": "dev",
+      "latency_ms": 7937,
+      "insight": {
+        "caption": "A yellow rectangular block with the word 'HELLO' in black pixelated letters.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-open",
+      "split": "heldout",
+      "latency_ms": 5115,
+      "insight": {
+        "caption": "Pixelated text 'OPEN' on a green background.",
+        "tags": [
+          "text",
+          "pixelated",
+          "green",
+          "background"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "text"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          },
+          {
+            "category": "palette",
+            "label": "green"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 2,
+        "gold_facts": 2,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "text-stop",
+      "split": "heldout",
+      "latency_ms": 6276,
+      "insight": {
+        "caption": "Pixelated stop sign on a pale blue background.",
+        "tags": [
+          "stop sign",
+          "pixelated",
+          "background",
+          "red, pale blue",
+          "octagon"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "stop sign"
+          },
+          {
+            "category": "style",
+            "label": "pixelated"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "palette",
+            "label": "red, pale blue"
+          },
+          {
+            "category": "composition",
+            "label": "octagon"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 3,
+        "gold_facts": 3,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": [
+          "blue"
+        ]
+      }
+    },
+    {
+      "id": "alpha-red-circle",
+      "split": "dev",
+      "latency_ms": 4941,
+      "insight": {
+        "caption": "A solid red circle.",
+        "tags": [
+          "circle",
+          "geometric",
+          "red",
+          "centered"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "red"
+          },
+          {
+            "category": "composition",
+            "label": "centered"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 2,
+        "unjudged": 2,
+        "gold_facts": 3,
+        "gold_found": 2
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-blue-star",
+      "split": "heldout",
+      "latency_ms": 5704,
+      "insight": {
+        "caption": "A blue star.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-green-triangle",
+      "split": "heldout",
+      "latency_ms": 5076,
+      "insight": {
+        "caption": "A green triangle.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "alpha-soft-purple",
+      "split": "dev",
+      "latency_ms": 5636,
+      "insight": {
+        "caption": "A solid purple circle.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 3,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-circle-square",
+      "split": "heldout",
+      "latency_ms": 5694,
+      "insight": {
+        "caption": "A white background with a red circle and a blue square.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 4,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-three-stars",
+      "split": "heldout",
+      "latency_ms": 6388,
+      "insight": {
+        "caption": "Three yellow stars on a white background with a black border.",
+        "tags": [
+          "stars",
+          "background",
+          "geometric",
+          "yellow, white, black",
+          "linear"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "stars"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "palette",
+            "label": "yellow, white, black"
+          },
+          {
+            "category": "composition",
+            "label": "linear"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 1,
+        "correct": 1,
+        "unjudged": 4,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-three-shapes",
+      "split": "dev",
+      "latency_ms": 7480,
+      "insight": {
+        "caption": "Three geometric shapes arranged in a row.",
+        "tags": [
+          "triangle",
+          "circle",
+          "square",
+          "background",
+          "flat",
+          "red, green, blue",
+          "linear"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "triangle"
+          },
+          {
+            "category": "subject",
+            "label": "circle"
+          },
+          {
+            "category": "subject",
+            "label": "square"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "style",
+            "label": "flat"
+          },
+          {
+            "category": "palette",
+            "label": "red, green, blue"
+          },
+          {
+            "category": "composition",
+            "label": "linear"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 3,
+        "correct": 3,
+        "unjudged": 4,
+        "gold_facts": 6,
+        "gold_found": 3
+      },
+      "caption": {
+        "required": 3,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "multi-dots",
+      "split": "heldout",
+      "latency_ms": 5785,
+      "insight": {
+        "caption": "A white background with numerous blue circles arranged in rows and columns.",
+        "tags": [
+          "circles",
+          "background",
+          "blue",
+          "white",
+          "geometric",
+          "grid"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "circles"
+          },
+          {
+            "category": "scene",
+            "label": "background"
+          },
+          {
+            "category": "palette",
+            "label": "blue"
+          },
+          {
+            "category": "palette",
+            "label": "white"
+          },
+          {
+            "category": "style",
+            "label": "geometric"
+          },
+          {
+            "category": "composition",
+            "label": "grid"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 2,
+        "correct": 1,
+        "unjudged": 4,
+        "gold_facts": 2,
+        "gold_found": 1
+      },
+      "caption": {
+        "required": 2,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-panorama-sun",
+      "split": "heldout",
+      "latency_ms": 5688,
+      "insight": {
+        "caption": "Sunset horizon",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 4,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-tall-stripes",
+      "split": "dev",
+      "latency_ms": 6255,
+      "insight": {
+        "caption": "Vertical stripes, green and white.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 2,
+        "covered": 2,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-half-circle",
+      "split": "heldout",
+      "latency_ms": 5257,
+      "insight": {
+        "caption": "Japanese flag",
+        "tags": [
+          "flag",
+          "graphic",
+          "white, red, black",
+          "geometric"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "scene",
+            "label": "flag"
+          },
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "style",
+            "label": "graphic"
+          },
+          {
+            "category": "palette",
+            "label": "white, red, black"
+          },
+          {
+            "category": "composition",
+            "label": "geometric"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 4,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "crop-tiny-star",
+      "split": "heldout",
+      "latency_ms": 6384,
+      "insight": {
+        "caption": "A single yellow star against a dark blue background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 1,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-rounded-square",
+      "split": "dev",
+      "latency_ms": 5005,
+      "insight": {
+        "caption": "Japanese flag",
+        "tags": [
+          "flag",
+          "white background",
+          "national flag",
+          "red and white"
+        ],
+        "text_in_image": null,
+        "uncertain": false,
+        "visual_tags": [
+          {
+            "category": "subject",
+            "label": "flag"
+          },
+          {
+            "category": "scene",
+            "label": "white background"
+          },
+          {
+            "category": "style",
+            "label": "national flag"
+          },
+          {
+            "category": "palette",
+            "label": "red and white"
+          }
+        ]
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 4,
+        "gold_facts": 1,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 1,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-magenta",
+      "split": "heldout",
+      "latency_ms": 6523,
+      "insight": {
+        "caption": "A square shape is centered within a white border, which is itself within a black border.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 1,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-noise",
+      "split": "heldout",
+      "latency_ms": 5714,
+      "insight": {
+        "caption": "A solid grey, static-like image.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 2,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    },
+    {
+      "id": "amb-faint",
+      "split": "dev",
+      "latency_ms": 5354,
+      "insight": {
+        "caption": "White circle on a black background.",
+        "tags": [],
+        "text_in_image": null,
+        "uncertain": true
+      },
+      "error": null,
+      "tags": {
+        "judged": 0,
+        "correct": 0,
+        "unjudged": 0,
+        "gold_facts": 0,
+        "gold_found": 0
+      },
+      "caption": {
+        "required": 0,
+        "covered": 0,
+        "forbidden_found": []
+      }
+    }
+  ],
+  "verdict": {
+    "passed": false,
+    "failures": [
+      "tag precision Some(0.625) < 0.8",
+      "tag recall Some(0.13846153846153847) < 0.6",
+      "caption fact coverage Some(0.7368421052631579) < 0.75",
+      "recall@5 0.765 < 0.8",
+      "1 out-of-domain queries returned results"
+    ]
+  }
+}

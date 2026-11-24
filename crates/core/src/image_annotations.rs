@@ -97,6 +97,8 @@ pub struct AnnotationPatch {
     pub remove_tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    #[serde(default, deserialize_with = "present", skip_serializing_if = "Option::is_none")]
+    pub caption: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub favorite: Option<bool>,
     #[serde(default, deserialize_with = "present", skip_serializing_if = "Option::is_none")]
@@ -223,6 +225,8 @@ struct Entry {
     removed: Vec<(usize, String)>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     comment: Option<String>,
+    #[serde(default, deserialize_with = "present", skip_serializing_if = "Option::is_none")]
+    caption: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     favorite: Option<bool>,
     #[serde(default, deserialize_with = "present", skip_serializing_if = "Option::is_none")]
@@ -240,6 +244,7 @@ struct Prepared {
     add: Vec<String>,
     remove: HashSet<String>,
     comment: Option<String>,
+    caption: Option<Option<String>>,
     favorite: Option<bool>,
     rating: Option<Option<u8>>,
 }
@@ -253,7 +258,7 @@ fn prepare(db: &Connection, p: &AnnotationPatch) -> Result<Prepared> {
     if p.add_tags.len() > MAX_TAGS || p.remove_tags.len() > MAX_TAGS {
         return Err(E::LimitExceeded);
     }
-    if let Some(c) = &p.comment {
+    for c in p.comment.iter().chain(p.caption.iter().flatten()) {
         if c.len() > MAX_TEXT_BYTES {
             return Err(E::LimitExceeded);
         }
@@ -289,6 +294,7 @@ fn prepare(db: &Connection, p: &AnnotationPatch) -> Result<Prepared> {
         add,
         remove,
         comment: p.comment.clone(),
+        caption: p.caption.clone(),
         favorite: p.favorite,
         rating: p.rating,
     })
@@ -296,7 +302,7 @@ fn prepare(db: &Connection, p: &AnnotationPatch) -> Result<Prepared> {
 /// The changed annotations and their inverse, or `None` when nothing changes.
 fn change(a: &Annotations, p: &Prepared) -> Result<Option<(Annotations, Entry)>> {
     let mut next = a.clone();
-    let mut entry = Entry { id: String::new(), after: 0, added: vec![], removed: vec![], comment: None, favorite: None, rating: None };
+    let mut entry = Entry { id: String::new(), after: 0, added: vec![], removed: vec![], comment: None, caption: None, favorite: None, rating: None };
     for (i, t) in a.tags.iter().enumerate() {
         if p.remove.contains(&tag_key(t)) {
             entry.removed.push((i, t.clone()));
@@ -324,13 +330,20 @@ fn change(a: &Annotations, p: &Prepared) -> Result<Option<(Annotations, Entry)>>
             next.favorite = f;
         }
     }
+    if let Some(caption) = &p.caption {
+        if *caption != a.caption {
+            entry.caption = Some(a.caption.clone());
+            next.caption = caption.clone();
+        }
+    }
     if let Some(r) = p.rating {
         if r != a.rating {
             entry.rating = Some(a.rating);
             next.rating = r;
         }
     }
-    let changed = !entry.added.is_empty() || !entry.removed.is_empty() || entry.comment.is_some() || entry.favorite.is_some() || entry.rating.is_some();
+    let changed = !entry.added.is_empty() || !entry.removed.is_empty() || entry.comment.is_some()
+        || entry.caption.is_some() || entry.favorite.is_some() || entry.rating.is_some();
     Ok(changed.then_some((next, entry)))
 }
 fn revert(a: &Annotations, e: &Entry) -> Annotations {
@@ -345,6 +358,9 @@ fn revert(a: &Annotations, e: &Entry) -> Annotations {
     }
     if let Some(c) = &e.comment {
         next.comment = c.clone();
+    }
+    if let Some(caption) = &e.caption {
+        next.caption = caption.clone();
     }
     if let Some(f) = e.favorite {
         next.favorite = f;
@@ -435,6 +451,9 @@ fn label(p: &Prepared, removed: &[String], items: usize) -> String {
     }
     if p.comment.is_some() {
         parts.push("edit notes".into());
+    }
+    if p.caption.is_some() {
+        parts.push("edit caption".into());
     }
     match p.favorite {
         Some(true) => parts.push("mark favorite".into()),
@@ -532,7 +551,7 @@ impl Catalog {
 
     /// Count and revision tokens for a bulk edit, without writing anything.
     pub fn preview_bulk_annotations(&self, ids: &[String], patch: &AnnotationPatch) -> Result<BulkPreview> {
-        if patch.comment.is_some() {
+        if patch.comment.is_some() || patch.caption.is_some() {
             return Err(E::InvalidArgument);
         }
         let ids = unique(ids.iter().cloned())?;
@@ -569,7 +588,7 @@ impl Catalog {
     /// Items changed since preview are `Conflict` and left untouched; a storage
     /// failure rolls back every item and the history record together.
     pub fn apply_bulk_annotations(&mut self, targets: &[BulkTarget], patch: &AnnotationPatch) -> Result<BulkResult> {
-        if patch.comment.is_some() {
+        if patch.comment.is_some() || patch.caption.is_some() {
             return Err(E::InvalidArgument);
         }
         let ids = unique(targets.iter().map(|t| t.id.clone()))?;
@@ -808,7 +827,7 @@ impl Catalog {
             };
             // Replace in place to keep the tag's position; merge if `to` is already present.
             let mut next = current.clone();
-            let mut entry = Entry { id: id.clone(), after: 0, added: vec![], removed: vec![], comment: None, favorite: None, rating: None };
+            let mut entry = Entry { id: id.clone(), after: 0, added: vec![], removed: vec![], comment: None, caption: None, favorite: None, rating: None };
             let has_to = from_key != to_key && current.tags.iter().any(|t| tag_key(t) == to_key);
             let mut tags = vec![];
             for (i, t) in current.tags.iter().enumerate() {

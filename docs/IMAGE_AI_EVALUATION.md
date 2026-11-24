@@ -135,9 +135,16 @@ request allowance ran out) never passes.
 | --- | --- |
 | File names only (no AI, measured) | recall@5 0.216, MRR 0.294, 0 out-of-domain results |
 | Oracle answering from the gold labels (checks the runner and that thresholds are reachable; says nothing about any model) | tags P 1.00 / R 1.00; word search MRR 0.88; bag-of-words embedding MRR 0.82; passes |
-| Real image model | **Pending: needs an API key** |
+| Gemma 3 4B with EmbeddingGemma (production preview recipe) | Completed locally. Five thresholds missed. See the [SS-053 evaluation](reviews/SS-053.md#held-out-model-evaluation). |
+| Qwen3-VL 8B Instruct with Qwen3 Embedding (v4 prompt) | Completed locally. Tag precision and out-of-domain handling missed. See the [SS-053 follow-up](reviews/SS-053.md#developing-the-qualification-fix). |
 
 ## Running the evaluation
+
+The CLI now uses the desktop queue's preprocessing and structured response
+schema. It renders the Large thumbnail with the production preview renderer,
+re-encodes the preview pixels as PNG and calls the same visual description
+adapter as the queue. The report records both recipe identifiers. The earlier
+1024 px results in this document were measured with the original v1 recipe.
 
 ```sh
 cargo build -p soundshelf-core --bin creativeshelf-image-eval
@@ -158,6 +165,10 @@ OPENAI_API_KEY=... target/debug/creativeshelf-image-eval run /tmp/cs-corpus \
 - The report records the manifest and thresholds digests, the served model
   version, the embedding space, the cut-off, usage, latency and a per-image
   outcome.
+- The default embedding recipe sends plain text. For Qwen3 Embedding,
+  `--embed-recipe qwen-visual-asset` applies an asset-search instruction to
+  query texts and leaves document texts unchanged. The embedding space records
+  the recipe independently of model and dimensions.
 - Check the provider's current documentation, license and pricing when you run
   it, and record the exact model in the review. This document does not assume
   them.
@@ -171,6 +182,7 @@ OPENAI_API_KEY=... target/debug/creativeshelf-image-eval run /tmp/cs-corpus \
 - **SS-052** schedules real analysis. It uses `prepare_pixels` on the worker's
   decoded pixels and `describe`, and it owns consent per source, retries and
   budgets.
-- **SS-053** persists `Evidence` from `image_ai::evidence`.
+- **SS-053** publishes versioned visual suggestions as `Evidence` and scores
+  the same categorized response shape through the CLI.
 - **SS-059** stores vectors per `EmbeddingSpace` and must re-embed when the
   space ID changes.

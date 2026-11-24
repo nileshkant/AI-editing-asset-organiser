@@ -10,6 +10,7 @@ const pauseText: Record<string, string> = {
   REQUEST_CEILING: 'The request limit for this batch was reached.', UNIT_CEILING: 'The usage limit for this batch was reached.',
   RATE_LIMITED: 'The provider asked to slow down.', PROVIDER_AUTH: 'The provider rejected the key.', QUOTA_EXCEEDED: 'The provider reports no quota left.',
   MODEL_NOT_FOUND: 'The provider does not know this model.', CONSENT_CHANGED: 'The permission changed.', CONSENT_REVOKED: 'Analysis was stopped for this folder.',
+  ANALYSIS_SCHEMA_CHANGED: 'The analysis prompt changed. Start a new batch to analyze these images.',
 };
 const stateText: Record<EnrichJob['state'], string> = {
   queued: 'Waiting', running: 'Running', paused: 'Paused', complete: 'Finished', failed: 'Failed', cancelled: 'Cancelled',

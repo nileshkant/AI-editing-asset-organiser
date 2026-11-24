@@ -286,7 +286,8 @@ pub struct Interpretation {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HitExplanation {
     pub id: String,
-    /// 0 exact tag, 1 tags, 2 caption, 3 name, 4 notes, 5 across fields; `None` without text.
+    /// 0 exact tag, 1 tags, 2 caption, 3 name, 4 notes, 5 across fields,
+    /// 6 exact suggested tag, 7 suggested phrase. `None` without text.
     pub tier: Option<u8>,
     /// Searched fields containing at least one positive clause.
     pub fields: Vec<TextField>,
@@ -939,9 +940,10 @@ fn compile(plan: &Plan, allowed: Option<&[String]>, alias: &HashMap<String, Stri
         c.any_positive = Some(positive.iter().map(|p| p.fts.as_str()).collect::<Vec<_>>().join(" OR "));
         // Tiers: exact tag, then all clauses inside one field in a fixed field order.
         let mut tier = String::from("CASE");
-        if plan.fields.contains(&TextField::Tags) && positive.iter().all(|p| p.kind != ClauseKind::Prefix) {
-            let whole = positive.iter().map(|p| p.text.as_str()).collect::<Vec<_>>().join(" ");
-            if let Ok(Some(tag)) = display_tag(&whole) {
+        let whole = positive.iter().all(|p| p.kind != ClauseKind::Prefix)
+            .then(|| positive.iter().map(|p| p.text.as_str()).collect::<Vec<_>>().join(" "));
+        if let Some(whole) = whole.as_ref().filter(|_| plan.fields.contains(&TextField::Tags)) {
+            if let Ok(Some(tag)) = display_tag(whole) {
                 let tag = alias.get(&tag_key(&tag)).cloned().unwrap_or(tag);
                 tier.push_str(" WHEN d.doc IN (SELECT doc FROM image_search_tags WHERE key=? AND state='confirmed') THEN 0");
                 c.tier_values.push(tag_key(&tag).into());
@@ -953,8 +955,21 @@ fn compile(plan: &Plan, allowed: Option<&[String]>, alias: &HashMap<String, Stri
                 tier.push_str(&format!(" WHEN d.doc IN {m} THEN {rank}"));
             }
         }
-        tier.push_str(" ELSE 5 END");
-        c.tier = tier;
+        if let Some(whole) = whole.as_ref().filter(|_| plan.fields.contains(&TextField::SuggestedTags)) {
+            if let Ok(Some(tag)) = display_tag(whole) {
+                tier.push_str(" WHEN d.doc IN (SELECT doc FROM image_search_tags WHERE key=? AND state='suggested') THEN 6");
+                c.tier_values.push(tag_key(&tag).into());
+            }
+            let phrase = c.matches(format!("suggested : {}", fts_string(&fold(whole))));
+            tier.push_str(&format!(" WHEN d.doc IN {phrase} THEN 7"));
+        }
+        if tier == "CASE" {
+            // A suggestion-only prefix query has no exact-match tiers.
+            c.tier = "5".into();
+        } else {
+            tier.push_str(" ELSE 5 END");
+            c.tier = tier;
+        }
     }
     if !negative.is_empty() {
         let any = negative.iter().map(|p| p.fts.as_str()).collect::<Vec<_>>().join(" OR ");
@@ -982,8 +997,11 @@ fn compile(plan: &Plan, allowed: Option<&[String]>, alias: &HashMap<String, Stri
     Ok((c, interpretation))
 }
 
-fn order_by(sort: ImageSort) -> &'static str {
+fn order_by(sort: ImageSort, suggested_fields: bool) -> &'static str {
     match sort {
+        // Keep existing public tier numbers while ranking exact suggestions
+        // ahead of the across-fields fallback.
+        ImageSort::Relevance if suggested_fields => "CASE h.tier WHEN 5 THEN 8 ELSE h.tier END ASC, h.k1 ASC, h.k2 ASC, h.id ASC",
         ImageSort::Relevance => "h.tier ASC, h.k1 ASC, h.k2 ASC, h.id ASC",
         ImageSort::NameAsc => "h.k1 ASC, h.k2 ASC, h.id ASC",
         ImageSort::NameDesc => "h.k1 DESC, h.k2 DESC, h.id ASC",
@@ -1127,7 +1145,7 @@ impl Catalog {
                         "{}INSERT INTO temp.image_search_order(ord,doc,tier,id,src,avail)
                          SELECT row_number() OVER (ORDER BY {order})-1,h.doc,h.tier,h.id,h.src,h.avail FROM ({sql}) h",
                         c.with(),
-                        order = order_by(query.sort)
+                        order = order_by(query.sort, plan.fields.contains(&TextField::SuggestedTags))
                     ))?
                     .execute(params_from_iter(values))? as u32;
                 tx.execute("INSERT INTO temp.image_search_cache(id,key,changes,data_version,total) VALUES(1,?1,0,?2,?3)", params![key, data_version, total])?;
@@ -1434,6 +1452,9 @@ mod tests {
             self.c.set_image_annotations(id, asset.header.content_hash.as_deref(), &notes).unwrap();
         }
         fn evidence(&self, id: &str, tags: &[&str], review: ReviewState, stale: bool) {
+            self.evidence_with_caption(id, tags, review, stale, None);
+        }
+        fn evidence_with_caption(&self, id: &str, tags: &[&str], review: ReviewState, stale: bool, caption: Option<&str>) {
             let asset = self.c.image(id, None).unwrap();
             let e = Evidence {
                 id: Uuid::new_v4().to_string(),
@@ -1441,13 +1462,14 @@ mod tests {
                 origin: Origin::Model,
                 coverage: Coverage::FullImage,
                 tags: tags.iter().map(|t| t.to_string()).collect(),
-                caption: None,
+                caption: caption.map(str::to_owned),
                 model: None,
                 confidence: None,
                 confidence_kind: ConfidenceKind::Unavailable,
                 review_state: review,
                 stale,
                 created_at_ms: 1,
+                visual: None,
             };
             self.c.db.execute("UPDATE image_assets SET evidence=?2 WHERE id=?1", params![id, serde_json::to_string(&vec![e]).unwrap()]).unwrap();
         }
@@ -1467,6 +1489,55 @@ mod tests {
     fn sorted(mut v: Vec<String>) -> Vec<String> {
         v.sort();
         v
+    }
+
+    #[test]
+    fn exact_suggestions_outrank_scattered_terms_without_relaxing_scope() {
+        let mut f = fixture();
+        let (a, b) = (f.a.clone(), f.b.clone());
+        let scattered = f.image(&a, "a-scattered.png", None, AnnotationPatch::default());
+        let phrase = f.image(&a, "b-phrase.png", None, AnnotationPatch::default());
+        let exact = f.image(&a, "c-exact.png", None, AnnotationPatch::default());
+        let hidden = f.image(&b, "d-restricted.png", None, AnnotationPatch::default());
+        f.evidence(&scattered, &["ceramic", "vase"], ReviewState::Suggested, false);
+        f.evidence_with_caption(&phrase, &[], ReviewState::Suggested, false, Some("A ceramic vase on a shelf."));
+        f.evidence(&exact, &["ceramic vase"], ReviewState::Suggested, false);
+        f.evidence(&hidden, &["ceramic vase"], ReviewState::Suggested, false);
+
+        let query = |input: &str| ImageQuery { fields: vec![TextField::SuggestedTags], ..text(input) };
+        let page = f.c.search_images(Some(&[a.id.clone()]), &query("ceramic vase"), 0, 10, true).unwrap();
+        assert_eq!(page.total, 3);
+        assert_eq!(page.items.iter().map(|item| item.header.id.as_str()).collect::<Vec<_>>(), [exact.as_str(), phrase.as_str(), scattered.as_str()]);
+        assert_eq!(page.explanations.iter().map(|hit| hit.tier).collect::<Vec<_>>(), [Some(6), Some(7), Some(5)]);
+        assert!(f.find(query("ceramic lantern")).is_empty());
+        assert_eq!(f.find(query("ceramic* vase")).len(), 4);
+    }
+
+    #[test]
+    fn production_index_rejects_unrelated_queries_in_recorded_evidence() {
+        let mut f = fixture();
+        let a = f.a.clone();
+        let report: serde_json::Value = serde_json::from_str(include_str!("../../../eval/image-ai/results/ss-053-qwen3-vl-v4.json")).unwrap();
+        let manifest: crate::image_eval::Manifest = serde_json::from_str(include_str!("../../../eval/image-ai/corpus-v1.json")).unwrap();
+        for item in report["items"].as_array().unwrap() {
+            let insight = &item["insight"];
+            let labels = insight["tags"].as_array().unwrap().iter().map(|tag| tag.as_str().unwrap()).collect::<Vec<_>>();
+            let id = f.image(&a, &format!("{}.png", item["id"].as_str().unwrap()), Some((12, 12)), AnnotationPatch::default());
+            f.evidence_with_caption(&id, &labels, ReviewState::Suggested, false, insight["caption"].as_str());
+        }
+        let mut ranks = std::collections::BTreeMap::new();
+        for query in &manifest.queries {
+            let image_query = ImageQuery { fields: vec![TextField::SuggestedTags], ..text(&query.text) };
+            let hits = f.find(image_query).into_iter().map(|path| path.strip_suffix(".png").unwrap().to_owned()).collect();
+            ranks.insert(query.id.clone(), hits);
+        }
+        let heldout = manifest.items.iter().filter(|item| item.split == crate::image_eval::Split::Heldout)
+            .map(|item| item.id.clone()).collect();
+        let score = crate::image_eval::score_retrieval(&manifest.queries, &ranks, &heldout);
+        println!("Held-out indexed search replay: {}", serde_json::to_string(&score).unwrap());
+        assert_eq!(score.out_of_domain_queries, 2);
+        assert_eq!(score.out_of_domain_with_results, 0);
+        assert!(ranks["q-red-circle"].contains(&"flat-red-circle".to_owned()));
     }
 
     #[test]

@@ -4,7 +4,7 @@
 //!   creativeshelf-image-eval baseline <dir>
 //!   creativeshelf-image-eval run <dir> --thresholds <file> --max-requests <n> --out <report.json>
 //!       --kind <openai|anthropic|gemini|openai_compatible> --model <id> [--base-url <url>] [--allow-local] [--key-env <VAR>]
-//!       [--embed-kind <kind> --embed-model <id> [--embed-base-url <url>] [--embed-key-env <VAR>]]
+//!       [--embed-kind <kind> --embed-model <id> [--embed-base-url <url>] [--embed-key-env <VAR>] [--embed-recipe <plain|qwen-visual-asset>]]
 //!
 //! `run` contacts only the providers named on the command line, sends only the
 //! images listed in `<dir>/manifest.json` whose digests match, and stops at
@@ -12,7 +12,7 @@
 //! never printed.
 use soundshelf_core::ai_provider::{Capabilities, KeyStorage, ProviderKind, ProviderProfile, Secret};
 use soundshelf_core::ai_provider_wire::HttpAdapter;
-use soundshelf_core::image_eval::{self, Describer, Embedder, Manifest, RunInput, Thresholds};
+use soundshelf_core::image_eval::{self, Describer, Embedder, Manifest, RetrievalInput, RunInput, Thresholds};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -94,7 +94,12 @@ fn run() -> Result<(), Error> {
             let out = f.get("out").ok_or("--out is required")?;
             let describer = adapter(&f, "")?.ok_or("--kind is required")?;
             let embedder = adapter(&f, "embed-")?;
-            let report = image_eval::run(
+            let embed_input = match f.get("embed-recipe").map(String::as_str) {
+                None | Some("plain") => RetrievalInput::Plain,
+                Some("qwen-visual-asset") => RetrievalInput::QwenVisualAsset,
+                Some(other) => return Err(format!("unknown embedding recipe {other}").into()),
+            };
+            let report = image_eval::run_production(
                 &RunInput {
                     dir,
                     manifest: &manifest,
@@ -104,7 +109,7 @@ fn run() -> Result<(), Error> {
                     request_allowance: max,
                 },
                 Some(&Describer { adapter: &describer.0, kind: describer.1, model: describer.2.clone() }),
-                embedder.as_ref().map(|e| Embedder { adapter: &e.0, kind: e.1, model: e.2.clone() }).as_ref(),
+                embedder.as_ref().map(|e| Embedder { adapter: &e.0, kind: e.1, model: e.2.clone(), input: embed_input }).as_ref(),
             )?;
             std::fs::write(out, serde_json::to_string_pretty(&report)? + "\n")?;
             println!("{} requests; verdict: {}", report.requests, serde_json::to_string(&report.verdict)?);

@@ -804,6 +804,8 @@ pub struct Report {
     pub thresholds_blake3: String,
     pub describer: Option<String>,
     pub describer_model_version: Option<String>,
+    pub preprocessing: &'static str,
+    pub output_schema: &'static str,
     pub embedding_space: Option<String>,
     pub similarity_cutoff: Option<f32>,
     pub requests: u32,
@@ -827,6 +829,32 @@ pub struct Embedder<'a> {
     pub adapter: &'a dyn ProviderAdapter,
     pub kind: ProviderKind,
     pub model: String,
+    pub input: RetrievalInput,
+}
+
+#[derive(Clone, Copy, Default)]
+pub enum RetrievalInput {
+    #[default]
+    Plain,
+    QwenVisualAsset,
+}
+
+impl RetrievalInput {
+    fn query(self, text: &str) -> String {
+        match self {
+            Self::Plain => text.to_owned(),
+            Self::QwenVisualAsset => format!(
+                "Instruct: Given a search query, retrieve relevant visual assets in an image library\nQuery: {text}"
+            ),
+        }
+    }
+
+    fn id(self) -> &'static str {
+        match self {
+            Self::Plain => crate::image_ai::EMBEDDING_INPUT_ID,
+            Self::QwenVisualAsset => "insight-text/qwen-visual-asset-query-v1",
+        }
+    }
 }
 
 fn percentile(sorted: &[u64], p: usize) -> u64 {
@@ -932,6 +960,15 @@ pub struct RunInput<'a> {
 /// prepared exactly as the app will send it; one request per image, then
 /// batched embeddings. Provider errors are recorded per item, never retried.
 pub fn run(input: &RunInput, describer: Option<&Describer>, embedder: Option<&Embedder>) -> Result<Report, EvalError> {
+    run_with_recipe(input, describer, embedder, false)
+}
+
+/// Evaluates the preview bytes and response schema used by the desktop queue.
+pub fn run_production(input: &RunInput, describer: Option<&Describer>, embedder: Option<&Embedder>) -> Result<Report, EvalError> {
+    run_with_recipe(input, describer, embedder, true)
+}
+
+fn run_with_recipe(input: &RunInput, describer: Option<&Describer>, embedder: Option<&Embedder>, production: bool) -> Result<Report, EvalError> {
     let m = input.manifest;
     let vocab = vocabulary(m);
     let mut allowance = Allowance { used: 0, max: input.request_allowance };
@@ -946,16 +983,35 @@ pub fn run(input: &RunInput, describer: Option<&Describer>, embedder: Option<&Em
             outcomes.push(outcome);
             continue;
         };
-        let (_, pixels) = crate::image_decode::decode_display(&bytes).map_err(|_| EvalError::Image(item.id.clone()))?;
-        let prepared = prepare_pixels(&pixels).map_err(|_| EvalError::Image(item.id.clone()))?;
         if !allowance.take() {
             complete = false;
             outcome.error = Some("REQUEST_ALLOWANCE_EXHAUSTED".into());
             outcomes.push(outcome);
             continue;
         }
+        let prepared = if production {
+            use crate::image_preview::{Job, PreviewTier};
+            let (batch, payload) = crate::image_preview_render::render(Job::Thumbs, &bytes)
+                .map_err(|_| EvalError::Image(item.id.clone()))?;
+            let mut offset = 0;
+            let mut preview = None;
+            for output in batch.outputs {
+                let end = offset + output.bytes as usize;
+                if output.tier == PreviewTier::Large {
+                    preview = payload.get(offset..end);
+                    break;
+                }
+                offset = end;
+            }
+            let bytes = preview.ok_or_else(|| EvalError::Image(item.id.clone()))?;
+            crate::image_enrichment::prepare_preview(bytes, batch.source_width, batch.source_height)
+                .map_err(|_| EvalError::Image(item.id.clone()))?
+        } else {
+            let (_, pixels) = crate::image_decode::decode_display(&bytes).map_err(|_| EvalError::Image(item.id.clone()))?;
+            prepare_pixels(&pixels).map_err(|_| EvalError::Image(item.id.clone()))?
+        };
         let started = Instant::now();
-        let result = describe(d.adapter, &prepared);
+        let result = if production { crate::image_ai::describe_visual(d.adapter, &prepared) } else { describe(d.adapter, &prepared) };
         outcome.latency_ms = started.elapsed().as_millis() as u64;
         match result {
             Ok(r) => {
@@ -1019,6 +1075,8 @@ pub fn run(input: &RunInput, describer: Option<&Describer>, embedder: Option<&Em
         thresholds_blake3: input.thresholds_blake3.clone(),
         describer: describer.map(|d| crate::image_ai::model_ref(d.kind, &d.model, None).provider + "/" + &d.model),
         describer_model_version: model_version,
+        preprocessing: if production { crate::image_enrichment::PREPROCESS_ID } else { crate::image_ai::PREPROCESSING_ID },
+        output_schema: if production { crate::image_ai::VISUAL_SCHEMA_ID } else { crate::image_ai::INSIGHT_SCHEMA_ID },
         embedding_space: space_id,
         similarity_cutoff: cutoff,
         requests: allowance.used,
@@ -1040,7 +1098,7 @@ pub fn run(input: &RunInput, describer: Option<&Describer>, embedder: Option<&Em
 type EmbedResult = Option<(EmbeddingIndex, EmbeddingSpace, Vec<(String, Vec<f32>)>)>;
 
 fn embed_all(e: &Embedder, docs: &[(String, String)], queries: &[Query], allowance: &mut Allowance, usage: &mut Usage) -> Result<EmbedResult, &'static str> {
-    let texts: Vec<String> = docs.iter().map(|(_, t)| t.clone()).chain(queries.iter().map(|q| q.text.clone())).collect();
+    let texts: Vec<String> = docs.iter().map(|(_, t)| t.clone()).chain(queries.iter().map(|q| e.input.query(&q.text))).collect();
     let mut vectors = vec![];
     let mut version = None;
     for chunk in texts.chunks(MAX_EMBED_INPUTS) {
@@ -1056,7 +1114,8 @@ fn embed_all(e: &Embedder, docs: &[(String, String)], queries: &[Query], allowan
         vectors.extend(r.vectors);
     }
     let dimension = vectors.first().map_or(0, Vec::len);
-    let space = EmbeddingSpace::new(e.kind, &e.model, version.as_deref(), dimension);
+    let mut space = EmbeddingSpace::new(e.kind, &e.model, version.as_deref(), dimension);
+    space.input = e.input.id();
     let mut index = EmbeddingIndex::new(space.clone());
     for ((id, _), v) in docs.iter().zip(&vectors) {
         index.add(id, &space, v).map_err(|_| "MALFORMED_RESPONSE")?;

@@ -141,7 +141,9 @@ impl Dispatcher for Fake {
 }
 fn described(tokens: Option<(u64, u64)>) -> Described {
     Described {
-        insight: Insight { caption: Some("A red fox".into()), tags: vec!["fox".into()], text_in_image: None, uncertain: false },
+        insight: Insight { caption: Some("A red fox".into()), tags: vec!["fox".into()], text_in_image: None, uncertain: false, visual_tags: vec![
+            soundshelf_core::image_contracts::VisualTag { category: soundshelf_core::image_contracts::VisualCategory::Subject, label: "fox".into() },
+        ] },
         model_version: Some("vision-1-2026".into()),
         usage: Usage { input_tokens: tokens.map(|t| t.0), output_tokens: tokens.map(|t| t.1) },
     }
@@ -164,6 +166,27 @@ fn drain(r: &Runner) -> usize {
         }
     }
     worked
+}
+
+#[test]
+fn obsolete_description_jobs_never_dispatch_with_the_new_prompt() {
+    let _s = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let f = Fixture::new();
+    let root = f.folder("schema-change");
+    put(&root, "image.png", 1);
+    let source = f.import(&root);
+    f.consent(&source, false).unwrap();
+    let old = f.start(&source, 1, 100_000).unwrap();
+    f.exec("UPDATE image_enrichment_jobs SET schema_id='creativeshelf.image-insight/v3'");
+    let fake = Fake::ok();
+    let run = runner(&f, &fake);
+    drain(&run);
+    assert_eq!(fake.count(), 0);
+    assert_eq!(f.job(&old.id).error_code.as_deref(), Some("ANALYSIS_SCHEMA_CHANGED"));
+    let current = f.start(&source, 1, 100_000).unwrap();
+    drain(&run);
+    assert_eq!(fake.count(), 1);
+    assert_eq!(f.job(&current.id).counts.done, 1);
 }
 
 // ------------------------------------------------------------------ consent
@@ -739,6 +762,100 @@ fn the_preview_pixel_source_sends_a_bounded_copy_of_the_exact_version() {
     f.exec(&format!("UPDATE sources SET available=0 WHERE id='{sa}'"));
 }
 
+#[test]
+fn a_same_stat_replacement_during_dispatch_discards_the_answer() {
+    use soundshelf_core::image_preview::{PreviewCache, PreviewService, DEFAULT_QUOTA};
+    let _s = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let f = Fixture::new();
+    let root = f.folder("changing");
+    let path = root.join("image.png");
+    let make_bytes = |color| {
+        let mut out = vec![];
+        let image = image::RgbaImage::from_pixel(8, 8, image::Rgba([color, 80, 120, 255]));
+        png::PngEncoder::new_with_quality(&mut out, png::CompressionType::Uncompressed, png::FilterType::NoFilter)
+            .write_image(&image, 8, 8, image::ExtendedColorType::Rgba8).unwrap();
+        out
+    };
+    let first = make_bytes(1);
+    let second = make_bytes(2);
+    assert_ne!(first, second);
+    assert_eq!(first.len(), second.len());
+    fs::write(&path, first).unwrap();
+    let modified = fs::metadata(&path).unwrap().modified().unwrap();
+    let source = f.import(&root);
+    let id = f.ids(&source)[0].clone();
+    f.consent(&source, false).unwrap();
+    let job = f.start(&source, 1, 100_000).unwrap();
+    let fake = Fake::new(move |_| {
+        fs::write(&path, &second).unwrap();
+        fs::File::options().write(true).open(&path).unwrap().set_modified(modified).unwrap();
+        Ok(described(None))
+    });
+    let pixels = PreviewPixels { previews: Arc::new(PreviewService::new(
+        f.db.clone(), Arc::new(PreviewCache::new(f.temp.path().join("previews"), DEFAULT_QUOTA)),
+        PathBuf::from(env!("CARGO_BIN_EXE_creativeshelf-image-worker")),
+    )) };
+    let run = Runner { pixels: Arc::new(pixels), ..runner(&f, &fake) };
+    drain(&run);
+    assert_eq!(fake.count(), 1);
+    assert_eq!(f.job(&job.id).counts.stale, 1);
+    assert!(f.db.lock().unwrap().image(&id, None).unwrap().evidence.is_empty());
+}
+
+#[test]
+fn structured_evidence_survives_portable_catalogs_and_source_snapshots() {
+    use soundshelf_core::{portable, source_catalog};
+    use std::collections::BTreeMap;
+    let _s = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let f = Fixture::new();
+    let root = f.folder("source");
+    put(&root, "image.png", 1);
+    let source_id = f.import(&root);
+    let id = f.ids(&source_id)[0].clone();
+    let source = f.db.lock().unwrap().source(&source_id).unwrap();
+    let annotations = f.db.lock().unwrap().edit_image_annotations(
+        &id, 1, &soundshelf_core::image_annotations::AnnotationPatch {
+            caption: Some(Some("Creator caption".into())),
+            add_tags: vec!["human-reviewed".into()],
+            ..Default::default()
+        },
+    ).unwrap().annotations;
+    source_catalog::save(&f.db, &source).unwrap();
+    f.consent(&source_id, false).unwrap();
+    f.start(&source_id, 1, 100_000).unwrap();
+    drain(&runner(&f, &Fake::ok()));
+    let (expected, document) = {
+        use soundshelf_core::image_search::{ImageQuery, TagState, TextField};
+        let c = f.db.lock().unwrap();
+        assert!(c.snapshot_states().unwrap()[0].dirty);
+        let asset = c.image(&id, None).unwrap();
+        assert_eq!(asset.evidence[0].tags, ["fox"]);
+        assert_eq!(asset.annotations, annotations);
+        let query = ImageQuery {
+            text: "red fox".into(), fields: vec![TextField::SuggestedTags], tag_state: TagState::Suggested,
+            tags: vec!["fox".into()], ..Default::default()
+        };
+        assert_eq!(c.search_images(None, &query, 0, 10, false).unwrap().total, 1);
+        (asset.evidence, c.export_portable().unwrap().json().unwrap())
+    };
+    let mut imported = Catalog::open(&f.temp.path().join("portable.sqlite")).unwrap();
+    let mappings = BTreeMap::new();
+    let portable = portable::prepare_import(&document, &mappings, false).unwrap();
+    imported.import_portable(&portable, &mappings, f.temp.path()).unwrap();
+    let portable_image = imported.image(&id, None).unwrap();
+    assert_eq!(portable_image.evidence, expected);
+    assert_eq!(portable_image.annotations, annotations);
+    source_catalog::save(&f.db, &source).unwrap();
+    let warm = Arc::new(Mutex::new(Catalog::open(&f.temp.path().join("warm.sqlite")).unwrap()));
+    source_catalog::import_folder(&warm, &root).unwrap();
+    assert_eq!(warm.lock().unwrap().image(&id, None).unwrap().evidence, expected);
+    fs::write(root.join("image.png"), b"changed size for stat check").unwrap();
+    let changed = Arc::new(Mutex::new(Catalog::open(&f.temp.path().join("changed.sqlite")).unwrap()));
+    source_catalog::import_folder(&changed, &root).unwrap();
+    let asset = changed.lock().unwrap().image(&id, None).unwrap();
+    assert!(asset.evidence[0].stale);
+}
+
 /// R7: a restored backup never re-grants consent or revives queued work.
 #[test]
 fn restoring_a_backup_clears_consent_and_cancels_queued_work_but_keeps_results() {
@@ -752,6 +869,10 @@ fn restoring_a_backup_clears_consent_and_cancels_queued_work_but_keeps_results()
     let job = f.start(&sa, 10, 100_000).unwrap();
     let fake = Fake::ok();
     assert_eq!(runner(&f, &fake).step().unwrap(), Step::Worked);
+    let published = f.ids(&sa).into_iter().find_map(|id| {
+        let evidence = f.db.lock().unwrap().image(&id, None).unwrap().evidence;
+        (!evidence.is_empty()).then_some((id, evidence))
+    }).unwrap();
     let backup = f.temp.path().join("backup.sqlite");
     f.db.lock().unwrap().backup_database(&backup).unwrap();
     let rollback = f.temp.path().join("rollback.sqlite");
@@ -761,6 +882,7 @@ fn restoring_a_backup_clears_consent_and_cancels_queued_work_but_keeps_results()
     let view = c.enrichment_job(&job.id).unwrap();
     assert_eq!((view.state.as_str(), view.counts.done, view.counts.revoked), ("cancelled", 1, 1));
     assert_eq!(c.db_connection().query_row::<i64, _, _>("SELECT count(*) FROM image_enrichment_results", [], |r| r.get(0)).unwrap(), 1, "paid results stay");
+    assert_eq!(c.image(&published.0, None).unwrap().evidence, published.1);
 }
 
 /// Deleting a source removes its consent, queue, usage and attachments.
@@ -811,7 +933,7 @@ fn the_real_adapter_sends_one_bounded_request_per_image_and_nothing_earlier() {
     let server = common::http::Server::json(|_| {
         (200, serde_json::json!({
             "model": "vision-1-2026",
-            "choices": [{"message": {"content": "{\"caption\":\"A red square\",\"tags\":[\"red\"],\"text_in_image\":\"\",\"uncertain\":false}"}}],
+            "choices": [{"message": {"content": "{\"caption\":\"A red square\",\"tags\":[{\"category\":\"palette\",\"label\":\"red\"}],\"uncertain\":false}"}}],
             "usage": {"prompt_tokens": 120, "completion_tokens": 30}
         }))
     });
@@ -843,5 +965,9 @@ fn the_real_adapter_sends_one_bounded_request_per_image_and_nothing_earlier() {
     let view = f.job(&job.id);
     assert_eq!((view.counts.done, view.usage.used_units, view.usage.estimated_entries), (2, 300, 0), "provider-reported usage is recorded");
     let first = f.ids(&sa)[0].clone();
-    assert!(f.db.lock().unwrap().enrichment_output(&first, "openai_compatible:vision-1").unwrap().is_some());
+    let asset = f.db.lock().unwrap().image(&first, None).unwrap();
+    let evidence = &asset.evidence[0];
+    assert_eq!(evidence.tags, ["red"]);
+    assert_eq!(evidence.model.as_ref().unwrap().revision, "vision-1-2026");
+    assert_eq!(evidence.visual.as_ref().unwrap().provider_revision, 1);
 }

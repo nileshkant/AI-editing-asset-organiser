@@ -42,6 +42,15 @@ for (const [width, height, zoom] of [[1280, 820, 1], [720, 560, 1], [1280, 820, 
     expect(tileCalls).toBeLessThanOrEqual(48);
     await inspector.getByRole('radio', { name: 'Dark' }).check();
     await expect(inspector.locator('.image-viewer')).toHaveClass(/bg-dark/);
+    const copy = inspector.getByRole('button', { name: 'Copy suggested caption' });
+    await copy.focus();
+    await page.keyboard.press('Enter');
+    await expect(inspector.getByRole('textbox', { name: 'Caption', exact: true })).toHaveValue('A red square beside a translucent blue rectangle.');
+    const provenance = inspector.getByText('Analysis provenance', { exact: true });
+    await provenance.focus();
+    await page.keyboard.press('Enter');
+    await expect(inspector.getByText('fixture-vision · fixture-vision-1')).toBeVisible();
+    expect(await inspector.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
     await axe(page);
     await page.screenshot({ path: info.outputPath(`inspector-${width}-${zoom}.png`) });
     await inspector.getByRole('region', { name: /preview/ }).focus();

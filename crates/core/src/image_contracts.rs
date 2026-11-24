@@ -138,6 +138,24 @@ pub struct ModelRef {
     pub preprocessing: String,
     pub output_schema: String,
 }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VisualCategory {
+    Subject, Scene, Action, Style, Mood, Lighting, Palette, Composition,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VisualTag {
+    pub category: VisualCategory,
+    pub label: String,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VisualSuggestions {
+    pub tags: Vec<VisualTag>,
+    pub uncertain: bool,
+    pub provider_revision: u64,
+}
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Evidence {
@@ -156,6 +174,11 @@ pub struct Evidence {
     pub review_state: ReviewState,
     pub stale: bool,
     pub created_at_ms: u64,
+    #[serde(default, deserialize_with = "visual_if_present", skip_serializing_if = "Option::is_none")]
+    pub visual: Option<VisualSuggestions>,
+}
+fn visual_if_present<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::Result<Option<VisualSuggestions>, D::Error> {
+    VisualSuggestions::deserialize(d).map(Some)
 }
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -414,6 +437,24 @@ impl ImageAsset {
                     &m.output_schema,
                 ] {
                     text(v, 256, false)?;
+                }
+            }
+            if let Some(visual) = &e.visual {
+                require(
+                    e.origin == Origin::Model
+                        && (1..=MAX_SAFE_INTEGER).contains(&visual.provider_revision)
+                        && visual.tags.len() <= crate::image_ai::MAX_INSIGHT_TAGS
+                        && (!visual.uncertain || (visual.tags.is_empty() && e.tags.is_empty())),
+                    ContractError::InvalidArgument,
+                )?;
+                let mut seen = HashSet::new();
+                for tag in &visual.tags {
+                    require(
+                        crate::image_annotations::display_tag(&tag.label).ok().flatten().as_ref() == Some(&tag.label)
+                            && seen.insert((tag.category, crate::image_annotations::tag_key(&tag.label)))
+                            && e.tags.iter().any(|label| crate::image_annotations::tag_key(label) == crate::image_annotations::tag_key(&tag.label)),
+                        ContractError::InvalidArgument,
+                    )?;
                 }
             }
             require(

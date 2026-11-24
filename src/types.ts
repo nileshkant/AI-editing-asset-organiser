@@ -316,9 +316,11 @@ export type ImageDetails = {
   tags: string[]; caption: string | null; comment: string; favorite: boolean;
   /** 1–5 stars; null is unrated (never zero). */
   rating: number | null; annotation_revision: number;
+  evidence?: import('./contracts/imageV1').ImageEvidence[];
+  analysis?: { job_id: string; state: string; error_code: string | null; retryable: boolean } | null;
 };
 /** SS-046 explicit changes. Absent fields are kept; `rating: null` clears it. */
-export type AnnotationPatch = { add_tags?: string[]; remove_tags?: string[]; comment?: string; favorite?: boolean; rating?: number | null };
+export type AnnotationPatch = { add_tags?: string[]; remove_tags?: string[]; comment?: string; caption?: string | null; favorite?: boolean; rating?: number | null };
 export type AnnotationError = 'INVALID_ARGUMENT' | 'NOT_FOUND' | 'PERMISSION_DENIED' | 'CONFLICT' | 'SOURCE_UNAVAILABLE' | 'LIMIT_EXCEEDED' | 'INTERNAL';
 export type ImageAnnotations = import('./contracts/imageV1').ImageAnnotations;
 export type AnnotationEditResult = { annotations: ImageAnnotations; action_id: string | null };
